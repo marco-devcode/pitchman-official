@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isOpening, setIsOpening] = useState(false); // popup Google aperto, in attesa di scelta account
   const [fieldErrors, setFieldErrors] = useState<{email?: string, password?: string}>({});
   const { login, signUp, loginWithGoogle, isAuthenticated } = useAuthStore();
   const router = useRouter();
@@ -98,15 +99,21 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
+    // Mentre il popup di Google e' aperto in attesa della scelta account,
+    // mostriamo uno stato "apertura" (NON "elaborazione"): l'utente deve
+    // prima selezionare un account. Se chiude il popup senza scegliere,
+    // torniamo subito al bottone normale, senza restare bloccati in loading.
+    setIsOpening(true);
     const result = await loginWithGoogle();
+    setIsOpening(false);
     if (result.success) {
+      setIsLoading(true); // ora si sta davvero elaborando l'auth/redirect
       router.push('/');
     } else {
       toast({
         variant: "destructive",
-        title: "Errore Google Auth",
-        description: result.error || "Errore durante l'accesso con Google.",
+        title: "Accesso con Google annullato",
+        description: result.error || "Nessun account selezionato.",
       });
       setIsLoading(false);
     }
@@ -221,10 +228,10 @@ export default function LoginPage() {
               onClick={handleGoogleLogin}
               variant="outline"
               className="w-full h-12 bg-transparent border-primary/30 hover:bg-primary/5 dark:border-neon-gradient dark:hover:bg-white/5 text-foreground font-bold rounded-full transition-all flex items-center justify-center gap-2"
-              disabled={isLoading}
+              disabled={isLoading || isOpening}
             >
               <FaGoogle className="w-5 h-5 text-blue-500" />
-              <span>Continua con Google</span>
+              <span>{isOpening ? "APERTURA ACCOUNT..." : "Continua con Google"}</span>
             </Button>
           </div>
         </form>
