@@ -103,19 +103,29 @@ export default function LoginPage() {
     // mostriamo uno stato "apertura" (NON "elaborazione"): l'utente deve
     // prima selezionare un account. Se chiude il popup senza scegliere,
     // torniamo subito al bottone normale, senza restare bloccati in loading.
-    setIsOpening(true);
-    const result = await loginWithGoogle();
-    setIsOpening(false);
-    if (result.success) {
-      setIsLoading(true); // ora si sta davvero elaborando l'auth/redirect
-      router.push('/');
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Accesso con Google annullato",
-        description: result.error || "Nessun account selezionato.",
-      });
+    // Il finally garantisce il reset dello stato APERTURA in ogni caso
+    // (anche se loginWithGoogle non ritorna o lancia fuori dal suo catch).
+    try {
+      setIsOpening(true);
+      const result = await loginWithGoogle();
+      if (result.success) {
+        setIsLoading(true); // ora si sta davvero elaborando l'auth/redirect
+        router.push('/');
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Accesso con Google annullato",
+          description: result.error || "Nessun account selezionato.",
+        });
+        setIsLoading(false);
+      }
+    } catch {
+      // loginWithGoogle ha lanciato fuori dal suo catch (es. init Firebase):
+      // sblocchiamo subito il bottone invece di restare su "APERTURA ACCOUNT".
+      setIsOpening(false);
       setIsLoading(false);
+    } finally {
+      setIsOpening(false);
     }
   };
 

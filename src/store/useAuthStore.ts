@@ -110,7 +110,15 @@ export const useAuthStore = create<AuthState>()(
           const provider = new GoogleAuthProvider();
           provider.setCustomParameters({ prompt: 'select_account' });
           
-          const result = await signInWithPopup(auth, provider);
+          // Timeout di sicurezza: se l'utente chiude il popup (o il browser
+          // lo lascia "aperto" senza risolvere), signInWithPopup resta
+          // appeso e la UI si bloccherebbe su "APERTURA ACCOUNT". Con questo
+          // race, dopo 30s rigettiamo con un errore gestito (popup annullato).
+          const popupPromise = signInWithPopup(auth, provider);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('auth/popup-closed-by-user')), 30000)
+          );
+          const result = await Promise.race([popupPromise, timeoutPromise]);
           
           // Inizializza ruolo e documento se nuovo utente
           const idToken = await result.user.getIdToken(true);
