@@ -101,7 +101,7 @@ export default function PhysicalTestsPage() {
               variant="ghost"
               size="icon"
               onClick={() => setEditMode(false)}
-              className="h-9 w-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+              className="h-9 w-9 rounded-full bg-primary dark:bg-brand-green text-white dark:text-black shadow-sm hover:opacity-90 transition-all"
               title="Conferma"
             >
               <Save className="h-4 w-4" />
