@@ -82,7 +82,17 @@ export default function PhysicalTestsPage() {
   return (
     <div className="space-y-4 pb-24">
       <PageHeader title="Test Fisici">
-        {editMode ? (
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
+            title="Indietro"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          {editMode ? (
           <div className="flex gap-2">
             <Button
               variant="ghost"
@@ -122,6 +132,7 @@ export default function PhysicalTestsPage() {
             </Button>
           </div>
         )}
+        </div>
       </PageHeader>
 
       {/* Filter — SEMPRE visibile (anche se la categoria selezionata è vuota) */}
