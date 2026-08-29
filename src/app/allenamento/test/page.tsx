@@ -13,6 +13,7 @@ import { Plus, Activity, Users, Trophy, Save, ArrowLeft, Trash2, Edit3 } from 'l
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { PhysicalTestDialog } from '@/components/allenamento/physical-test-dialog';
+import { RenameTestDialog } from '@/components/allenamento/rename-test-dialog';
 
 type FilterType = 'all' | 'velocita' | 'resistenza';
 
@@ -37,6 +38,7 @@ export default function PhysicalTestsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingTest, setRenamingTest] = useState<{ id: string; name: string } | null>(null);
 
   const getPlayerName = useCallback((id: string): string => {
     const p = players.find(pl => pl.id === id);
@@ -206,10 +208,7 @@ export default function PhysicalTestsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          setEditMode(false);
-                          router.push(`/allenamento/test/${test.id}`);
-                        }}
+                        onClick={() => setRenamingTest({ id: test.id, name: test.name })}
                         className="h-8 text-[9px] font-black uppercase rounded-lg text-primary dark:text-brand-green hover:bg-primary/10 dark:hover:bg-brand-green/10"
                       >
                         <Edit3 className="mr-1.5 h-3 w-3" />
@@ -239,6 +238,15 @@ export default function PhysicalTestsPage() {
         onOpenChange={setDialogOpen}
         onCreated={handleTestCreated}
         players={players}
+      />
+
+      <RenameTestDialog
+        open={renamingTest !== null}
+        onOpenChange={(o) => { if (!o) setRenamingTest(null); }}
+        testId={renamingTest?.id ?? null}
+        currentName={renamingTest?.name ?? ''}
+        userId={user?.id}
+        onRenamed={() => setRenamingTest(null)}
       />
     </div>
   );

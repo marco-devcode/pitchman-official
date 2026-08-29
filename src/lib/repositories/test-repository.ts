@@ -77,4 +77,10 @@ export const testRepository = {
     const docRef = doc(db, 'users', userId, 'physicalTests', testId);
     await deleteDoc(docRef);
   },
+
+  async renameTest(testId: string, userId: string, name: string): Promise<void> {
+    const db = getFirestore();
+    const docRef = doc(db, 'users', userId, 'physicalTests', testId);
+    await updateDoc(docRef, { name });
+  },
 };
