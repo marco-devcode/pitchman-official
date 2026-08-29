@@ -13,6 +13,7 @@ import { Plus, Activity, Users, Trophy, Save, ArrowLeft, Trash2, Edit3 } from 'l
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { PhysicalTestDialog } from '@/components/allenamento/physical-test-dialog';
+import { TestChartsTab } from '@/components/allenamento/test-charts-tab';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +49,7 @@ export default function PhysicalTestsPage() {
   const [editMode, setEditMode] = useState(false);
   const [selectedTest, setSelectedTest] = useState<PhysicalTest | null>(null);
   const [testToDelete, setTestToDelete] = useState<PhysicalTest | null>(null);
+  const [view, setView] = useState<'list' | 'charts'>('list');
 
   const getPlayerName = useCallback((id: string): string => {
     const p = players.find(pl => pl.id === id);
@@ -129,6 +131,26 @@ export default function PhysicalTestsPage() {
         )}
       </PageHeader>
 
+      {/* Selettore vista: Test / Grafici */}
+      <div className="flex bg-muted/50 rounded-full p-0.5 w-fit">
+        {(['list', 'charts'] as const).map(v => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={
+              'px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ' +
+              (view === v
+                ? 'bg-background dark:bg-black border border-primary dark:border-brand-green text-foreground'
+                : 'text-muted-foreground/50')
+            }
+          >
+            {v === 'list' ? 'Test' : 'Grafici'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'list' ? (
+      <>
       {/* Filter — SEMPRE visibile (anche se la categoria selezionata è vuota) */}
       <div className="flex bg-muted/50 rounded-full p-0.5 w-fit">
         {(['all', 'velocita', 'resistenza'] as FilterType[]).map(f => (
@@ -263,6 +285,10 @@ export default function PhysicalTestsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </>
+      ) : (
+        <TestChartsTab tests={tests} />
+      )}
     </div>
   );
 }
