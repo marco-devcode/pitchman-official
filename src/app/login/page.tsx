@@ -224,7 +224,7 @@ export default function LoginPage() {
               type="button" 
               onClick={handleGoogleLogin}
               variant="outline"
-              className="w-full h-12 bg-transparent border-primary/30 hover:bg-primary/5 dark:border-neon-gradient dark:hover:bg-white/5 text-foreground font-bold rounded-full transition-all flex items-center justify-center gap-2"
+              className="w-full h-12 bg-transparent border-primary/30 hover:bg-primary/5 dark:border-neon-gradient dark:hover:bg-white/5 text-foreground dark:text-white hover:text-foreground dark:hover:text-white active:text-foreground dark:active:text-white font-bold rounded-full transition-all flex items-center justify-center gap-2"
             >
               <FaGoogle className="w-5 h-5 text-blue-500" />
               <span>Continua con Google</span>
