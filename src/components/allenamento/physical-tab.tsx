@@ -103,16 +103,6 @@ export function PhysicalTab() {
     return Array.from(groups.values());
   }, [testsForPlayer, playerId]);
 
-  // Last 5 results overall
-  const lastResults = useMemo(() => {
-    const all: { testName: string; unit: string; date: string; value: number }[] = [];
-    for (const t of testsForPlayer) {
-      const r = t.results.find(x => x.playerId === playerId);
-      if (r) all.push({ testName: t.name, unit: t.unit, date: t.date, value: r.value });
-    }
-    return all.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
-  }, [testsForPlayer, playerId]);
-
   // Team ranking for each test
   const teamRanks = useMemo(() => {
     const allTests = tests;
@@ -177,37 +167,6 @@ export function PhysicalTab() {
           </CardContent>
         </Card>
       ))}
-
-      {/* Last results */}
-      <Card className="rounded-3xl bg-card dark:bg-black/40 border border-border dark:border-brand-green/20 overflow-hidden">
-        <CardHeader className="pb-0 px-4 pt-4">
-          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-white/30">
-            Ultimi risultati
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-3 px-4 pb-4">
-          <div className="space-y-1">
-            {lastResults.map((r, idx) => {
-              const prevResult = lastResults.filter(x => x.testName === r.testName && x.date > r.date).sort((a, b) => a.date.localeCompare(b.date))[0];
-              const delta = prevResult ? r.value - prevResult.value : null;
-              const isImprovement = delta === null ? null : (r.unit === 'metri' ? delta > 0 : delta < 0);
-
-              return (
-                <div key={`${r.testName}-${r.date}-${idx}`} className="flex items-center gap-2 py-1.5 border-b border-border dark:border-brand-green/10 last:border-b-0">
-                  <span className="text-[10px] font-bold flex-1 truncate">{r.testName}</span>
-                  <span className="text-[11px] font-black">{formatValue(r.value, r.unit)}</span>
-                  <span className="text-[9px] text-muted-foreground/40 w-12 text-right">{formatDate(r.date)}</span>
-                  {delta !== null && (
-                    <span className={`text-[9px] font-black w-16 text-right ${isImprovement ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {isImprovement ? '🟢' : '🔴'} {delta > 0 ? '+' : ''}{formatValue(delta, r.unit)}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Team comparison */}
       {teamRanks.length > 0 && (

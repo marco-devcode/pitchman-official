@@ -22,6 +22,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const { hasInitialized, setHasInitialized } = useAppStore();
 
+  // Pagine legali sempre pubbliche (requisito legale, non servono auth)
+  const isPublicLegal = pathname === '/termini' || pathname === '/privacy';
+
   const { fetchSettings } = useSettingsStore();
   const { fetchAll: fetchSeasons } = useSeasonsStore();
   const { fetchAll: fetchPlayers } = usePlayersStore();
@@ -65,21 +68,20 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [mounted, isInitialized, isAuthenticated, user, hasInitialized, fetchSettings, fetchSeasons, fetchPlayers, fetchMatches, fetchTrainings, loadDetailedStats, setHasInitialized]);
 
   useEffect(() => {
-    if (mounted && isInitialized && !isAuthenticated && pathname !== '/login') {
+    if (mounted && isInitialized && !isAuthenticated && pathname !== '/login' && !isPublicLegal) {
       router.push('/login');
     }
-  }, [isAuthenticated, isInitialized, pathname, router, mounted]);
+  }, [isAuthenticated, isInitialized, pathname, router, mounted, isPublicLegal]);
 
   const isLoginPage = pathname === '/login';
-  const isRootPage = pathname === '/';
 
   // Hydration guard: show splash screen until mounted on client
   if (!mounted) {
     return <SplashScreen />;
   }
 
-  // Se siamo in login, non blocchiamo mai il rendering
-  if (isLoginPage) {
+  // Se siamo in login o in una pagina legale pubblica, non blocchiamo mai il rendering
+  if (isLoginPage || isPublicLegal) {
     return <>{children}</>;
   }
 

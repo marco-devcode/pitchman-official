@@ -102,17 +102,15 @@ export default function PhysicalTestsPage() {
           </div>
         ) : (
           <div className="flex gap-2">
-            {filteredTests.length > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setEditMode(true)}
-                className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
-                title="Modifica"
-              >
-                <Edit3 className="h-4 w-4" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setEditMode(true)}
+              className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
+              title="Modifica"
+            >
+              <Edit3 className="h-4 w-4" />
+            </Button>
             <Button
               onClick={() => setDialogOpen(true)}
               className="h-9 text-[10px] font-black uppercase rounded-xl"
@@ -123,6 +121,24 @@ export default function PhysicalTestsPage() {
           </div>
         )}
       </PageHeader>
+
+      {/* Filter — SEMPRE visibile (anche se la categoria selezionata è vuota) */}
+      <div className="flex bg-muted/50 rounded-full p-0.5 w-fit">
+        {(['all', 'velocita', 'resistenza'] as FilterType[]).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={
+              'px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ' +
+              (filter === f
+                ? 'bg-background dark:bg-black border border-primary dark:border-brand-green text-foreground'
+                : 'text-muted-foreground/50')
+            }
+          >
+            {f === 'all' ? 'Tutti' : f === 'velocita' ? 'Velocità' : 'Resistenza'}
+          </button>
+        ))}
+      </div>
 
       {filteredTests.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -143,24 +159,6 @@ export default function PhysicalTestsPage() {
         </div>
       ) : (
         <>
-          {/* Filter */}
-          <div className="flex bg-muted/50 rounded-full p-0.5 w-fit">
-            {(['all', 'velocita', 'resistenza'] as FilterType[]).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={
-                  'px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ' +
-                  (filter === f
-                    ? 'bg-background dark:bg-black border border-primary dark:border-brand-green text-foreground'
-                    : 'text-muted-foreground/50')
-                }
-              >
-                {f === 'all' ? 'Tutti' : f === 'velocita' ? 'Velocità' : 'Resistenza'}
-              </button>
-            ))}
-          </div>
-
           {/* Test cards */}
           <div className="space-y-2.5">
             {filteredTests.map(test => {
