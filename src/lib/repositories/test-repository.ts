@@ -83,4 +83,10 @@ export const testRepository = {
     const docRef = doc(db, 'users', userId, 'physicalTests', testId);
     await updateDoc(docRef, { name });
   },
+
+  async updateTest(testId: string, userId: string, data: Partial<Pick<PhysicalTest, 'name' | 'type' | 'unit' | 'date' | 'results'>>): Promise<void> {
+    const db = getFirestore();
+    const docRef = doc(db, 'users', userId, 'physicalTests', testId);
+    await updateDoc(docRef, data);
+  },
 };

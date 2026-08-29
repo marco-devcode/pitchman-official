@@ -13,7 +13,16 @@ import { Plus, Activity, Users, Trophy, Save, ArrowLeft, Trash2, Edit3 } from 'l
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { PhysicalTestDialog } from '@/components/allenamento/physical-test-dialog';
-import { RenameTestDialog } from '@/components/allenamento/rename-test-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type FilterType = 'all' | 'velocita' | 'resistenza';
 
@@ -37,8 +46,8 @@ export default function PhysicalTestsPage() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [renamingTest, setRenamingTest] = useState<{ id: string; name: string } | null>(null);
+  const [selectedTest, setSelectedTest] = useState<PhysicalTest | null>(null);
+  const [testToDelete, setTestToDelete] = useState<PhysicalTest | null>(null);
 
   const getPlayerName = useCallback((id: string): string => {
     const p = players.find(pl => pl.id === id);
@@ -67,17 +76,21 @@ export default function PhysicalTestsPage() {
     setEditMode(false);
   }, []);
 
-  const handleDelete = useCallback(async (testId: string) => {
-    if (!user) return;
-    setDeletingId(testId);
-    try {
-      await testRepository.deleteTest(testId, user.id);
-    } catch (err) {
-      console.error('Delete test error:', err);
-    } finally {
-      setDeletingId(null);
-    }
-  }, [user]);
+  const handleDeleteTest = async () => {
+    if (!testToDelete || !user) return;
+    const testId = testToDelete.id;
+    setTestToDelete(null);
+
+    setTimeout(async () => {
+      try {
+        await testRepository.deleteTest(testId, user.id);
+        // Forza pulizia pointer-events per bug Radix (come in rosa)
+        document.body.style.pointerEvents = "";
+      } catch (error) {
+        console.error("Errore durante l'eliminazione del test:", error);
+      }
+    }, 200);
+  };
 
   return (
     <div className="space-y-4 pb-24">
@@ -93,45 +106,37 @@ export default function PhysicalTestsPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           {editMode ? (
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setEditMode(false)}
-              className="h-9 w-9 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20"
-              title="Annulla"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              onClick={() => setEditMode(false)}
-              className="h-9 w-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
-              title="Salva"
-            >
-              <Save className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setEditMode(true)}
-              className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
-              title="Modifica"
-            >
-              <Edit3 className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={() => setDialogOpen(true)}
-              className="h-9 text-[10px] font-black uppercase rounded-xl"
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Nuovo Test
-            </Button>
-          </div>
-        )}
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditMode(false)}
+                className="h-9 w-9 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                title="Annulla"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditMode(true)}
+                className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
+                title="Modifica"
+              >
+                <Edit3 className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={() => { setSelectedTest(null); setDialogOpen(true); }}
+                className="h-9 text-[10px] font-black uppercase rounded-xl"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Nuovo Test
+              </Button>
+            </div>
+          )}
         </div>
       </PageHeader>
 
@@ -163,7 +168,7 @@ export default function PhysicalTestsPage() {
             Registra il primo test fisico della stagione
           </p>
           <Button
-            onClick={() => setDialogOpen(true)}
+            onClick={() => { setSelectedTest(null); setDialogOpen(true); }}
             className="mt-6 h-11 text-[10px] font-black uppercase rounded-xl"
           >
             <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -176,7 +181,6 @@ export default function PhysicalTestsPage() {
           <div className="space-y-2.5">
             {filteredTests.map(test => {
               const topResult = getTopResult(test);
-              const isDeleting = deletingId === test.id;
               return (
                 <div
                   key={test.id}
@@ -219,7 +223,7 @@ export default function PhysicalTestsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setRenamingTest({ id: test.id, name: test.name })}
+                        onClick={() => { setSelectedTest(test); setDialogOpen(true); }}
                         className="h-8 text-[9px] font-black uppercase rounded-lg text-primary dark:text-brand-green hover:bg-primary/10 dark:hover:bg-brand-green/10"
                       >
                         <Edit3 className="mr-1.5 h-3 w-3" />
@@ -228,12 +232,11 @@ export default function PhysicalTestsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={isDeleting}
-                        onClick={() => handleDelete(test.id)}
+                        onClick={() => setTestToDelete(test)}
                         className="h-8 text-[9px] font-black uppercase rounded-lg text-red-500 hover:bg-red-500/10 ml-auto"
                       >
                         <Trash2 className="mr-1.5 h-3 w-3" />
-                        {isDeleting ? 'Eliminando...' : 'Elimina'}
+                        Elimina
                       </Button>
                     </div>
                   )}
@@ -249,16 +252,28 @@ export default function PhysicalTestsPage() {
         onOpenChange={setDialogOpen}
         onCreated={handleTestCreated}
         players={players}
+        test={selectedTest}
       />
 
-      <RenameTestDialog
-        open={renamingTest !== null}
-        onOpenChange={(o) => { if (!o) setRenamingTest(null); }}
-        testId={renamingTest?.id ?? null}
-        currentName={renamingTest?.name ?? ''}
-        userId={user?.id}
-        onRenamed={() => setRenamingTest(null)}
-      />
+      <AlertDialog open={!!testToDelete} onOpenChange={(open) => !open && setTestToDelete(null)}>
+        <AlertDialogContent className="max-w-[90vw] md:max-w-md rounded-3xl bg-card dark:bg-black border border-border dark:border-brand-green/30 text-foreground p-6 shadow-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground dark:text-white font-black uppercase text-lg tracking-tight">Rimuovi Test</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm font-medium leading-relaxed text-muted-foreground">
+              Vuoi eliminare definitivamente <strong className="text-foreground dark:text-brand-green">{testToDelete?.name}</strong>?
+              Questa azione è irreversibile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row justify-end gap-3 mt-4">
+            <AlertDialogCancel className="mt-0 text-[11px] font-bold uppercase rounded-xl flex-1 h-11 border-border dark:border-brand-green/30 text-foreground dark:text-white hover:bg-muted dark:hover:bg-black/40">
+              Annulla
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTest} className="bg-destructive hover:bg-destructive/90 text-[11px] text-destructive-foreground font-bold uppercase rounded-xl flex-1 h-11 border-none shadow-sm dark:shadow-[0_0_15px_rgba(248,113,113,0.3)]">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

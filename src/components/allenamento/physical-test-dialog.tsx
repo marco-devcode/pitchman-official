@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ interface PhysicalTestDialogProps {
   onOpenChange: (open: boolean) => void;
   onCreated: (id: string) => void;
   players: Player[];
+  test?: PhysicalTest | null;
 }
 
 type Step = 1 | 2;
@@ -39,7 +40,7 @@ const TYPE_PRESETS: Record<string, { name: string; suggestions: string[]; defaul
   },
 };
 
-export function PhysicalTestDialog({ open, onOpenChange, onCreated, players }: PhysicalTestDialogProps) {
+export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, test }: PhysicalTestDialogProps) {
   const { user } = useAuthStore();
   const { activeSeason } = useSeasonsStore();
   const { tests } = useTestsStore();
@@ -76,6 +77,21 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players }: P
     setSaving(false);
     setSaveError(null);
   }, []);
+
+  // Se viene passato un test esistente, prepopola il form per la modifica
+  // (stesso schema di PlayerFormDialog con la prop 'player')
+  useEffect(() => {
+    if (open && test) {
+      setStep(1);
+      setTestType(test.type);
+      setTestName(test.name);
+      setUnit(test.unit);
+      setDate(test.date.split('T')[0]);
+      setResults(new Map(test.results.map(r => [r.playerId, String(r.value)])));
+      setSaving(false);
+      setSaveError(null);
+    }
+  }, [open, test]);
 
   const handleTypeChange = (type: string) => {
     setTestType(type);
@@ -132,16 +148,30 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players }: P
       // Fix: aggiunge T12:00:00 per evitare off-by-one UTC in fusi orari +02:00 (CEST)
       const isoDate = new Date(date + 'T12:00:00').toISOString();
 
-      const id = await testRepository.create(user.id, activeSeason.id, {
-        name: testName.trim(),
-        type: testType,
-        unit,
-        date: isoDate,
-        results: testResults,
-      });
+      if (test) {
+        // MODIFICA: aggiorna il test esistente (nome/tipo/unità/data/risultati)
+        await testRepository.updateTest(test.id, user.id, {
+          name: testName.trim(),
+          type: testType,
+          unit,
+          date: isoDate,
+          results: testResults,
+        });
+        resetForm();
+        onOpenChange(false);
+      } else {
+        // CREAZIONE
+        const id = await testRepository.create(user.id, activeSeason.id, {
+          name: testName.trim(),
+          type: testType,
+          unit,
+          date: isoDate,
+          results: testResults,
+        });
 
-      onCreated(id);
-      resetForm();
+        onCreated(id);
+        resetForm();
+      }
     } catch (err: any) {
       console.error('❌ Save test error:', err);
       setSaveError(err?.message ?? 'Errore durante il salvataggio. Riprova.');
@@ -157,7 +187,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players }: P
       <DialogContent className="sm:max-w-[425px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_25px_rgba(172,229,4,0.05)] p-6 overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-foreground dark:text-white font-black uppercase text-xl tracking-tight">
-            {step === 1 ? 'Nuovo Test' : 'Risultati'}
+            {test ? (step === 1 ? 'Modifica Test' : 'Risultati') : (step === 1 ? 'Nuovo Test' : 'Risultati')}
           </DialogTitle>
           <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
             {step === 1 ? 'Seleziona tipo, nome e unità di misura' : 'Inserisci i risultati per ogni giocatore'}
@@ -332,7 +362,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players }: P
                 {saving ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvataggio...</>
                 ) : (
-                  'Salva Test'
+                  test ? 'Salva Modifiche' : 'Salva Test'
                 )}
               </Button>
             </>
