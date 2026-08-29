@@ -95,49 +95,38 @@ export default function PhysicalTestsPage() {
   return (
     <div className="space-y-4 pb-24">
       <PageHeader title="Test Fisici">
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
-            title="Indietro"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          {editMode ? (
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setEditMode(false)}
-                className="h-9 w-9 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                title="Annulla"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setEditMode(true)}
-                className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
-                title="Modifica"
-              >
-                <Edit3 className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={() => { setSelectedTest(null); setDialogOpen(true); }}
-                className="h-9 text-[10px] font-black uppercase rounded-xl"
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Nuovo Test
-              </Button>
-            </div>
-          )}
-        </div>
+        {editMode ? (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setEditMode(false)}
+              className="h-9 w-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+              title="Conferma"
+            >
+              <Save className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setEditMode(true)}
+              className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
+              title="Modifica"
+            >
+              <Edit3 className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => { setSelectedTest(null); setDialogOpen(true); }}
+              className="h-9 text-[10px] font-black uppercase rounded-xl"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Nuovo Test
+            </Button>
+          </div>
+        )}
       </PageHeader>
 
       {/* Filter — SEMPRE visibile (anche se la categoria selezionata è vuota) */}
