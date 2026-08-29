@@ -15,7 +15,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpening, setIsOpening] = useState(false); // popup Google aperto, in attesa di scelta account
   const [fieldErrors, setFieldErrors] = useState<{email?: string, password?: string}>({});
   const { login, signUp, loginWithGoogle, isAuthenticated } = useAuthStore();
   const router = useRouter();
@@ -99,33 +98,17 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    // Mentre il popup di Google e' aperto in attesa della scelta account,
-    // mostriamo uno stato "apertura" (NON "elaborazione"): l'utente deve
-    // prima selezionare un account. Se chiude il popup senza scegliere,
-    // torniamo subito al bottone normale, senza restare bloccati in loading.
-    // Il finally garantisce il reset dello stato APERTURA in ogni caso
-    // (anche se loginWithGoogle non ritorna o lancia fuori dal suo catch).
-    try {
-      setIsOpening(true);
-      const result = await loginWithGoogle();
-      if (result.success) {
-        setIsLoading(true); // ora si sta davvero elaborando l'auth/redirect
-        router.push('/');
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Accesso con Google annullato",
-          description: result.error || "Nessun account selezionato.",
-        });
-        setIsLoading(false);
-      }
-    } catch {
-      // loginWithGoogle ha lanciato fuori dal suo catch (es. init Firebase):
-      // sblocchiamo subito il bottone invece di restare su "APERTURA ACCOUNT".
-      setIsOpening(false);
+    setIsLoading(true);
+    const result = await loginWithGoogle();
+    if (result.success) {
+      router.push('/');
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Errore Google Auth",
+        description: result.error || "Errore durante l'accesso con Google.",
+      });
       setIsLoading(false);
-    } finally {
-      setIsOpening(false);
     }
   };
 
@@ -238,10 +221,10 @@ export default function LoginPage() {
               onClick={handleGoogleLogin}
               variant="outline"
               className="w-full h-12 bg-transparent border-primary/30 hover:bg-primary/5 dark:border-neon-gradient dark:hover:bg-white/5 text-foreground font-bold rounded-full transition-all flex items-center justify-center gap-2"
-              disabled={isLoading || isOpening}
+              disabled={isLoading}
             >
               <FaGoogle className="w-5 h-5 text-blue-500" />
-              <span>{isOpening ? "APERTURA ACCOUNT..." : "Continua con Google"}</span>
+              <span>Continua con Google</span>
             </Button>
           </div>
         </form>
