@@ -98,17 +98,22 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
+    // Il bottone resta SEMPRE cliccabile (mai disabled, mai cambio testo).
+    // Se l'utente chiude il popup senza scegliere account, Firebase rigetta
+    // con 'auth/popup-closed-by-user': lo ignoriamo silenziosamente (best
+    // practice Firebase) cosi' l'utente puo' riprovare subito.
     const result = await loginWithGoogle();
     if (result.success) {
       router.push('/');
-    } else {
+    }
+    // In caso di errore REALE (non popup chiuso) mostriamo un toast, ma il
+    // bottone resta comunque cliccabile per riprovare.
+    else if (result.error && !result.error.toLowerCase().includes('chiusa')) {
       toast({
         variant: "destructive",
         title: "Errore Google Auth",
-        description: result.error || "Errore durante l'accesso con Google.",
+        description: result.error,
       });
-      setIsLoading(false);
     }
   };
 
@@ -202,9 +207,8 @@ export default function LoginPage() {
             <Button 
               type="submit" 
               className="w-full h-14 bg-primary dark:bg-neon-gradient text-white dark:text-primary-foreground font-bold text-lg rounded-full shadow-md dark:shadow-none dark:glow-neon hover:opacity-90 transition-all border-none"
-              disabled={isLoading}
             >
-              {isLoading ? "ELABORAZIONE..." : (isLoginMode ? "ACCEDI" : "REGISTRATI")}
+              {isLoginMode ? "ACCEDI" : "REGISTRATI"}
             </Button>
             
             <div className="relative my-4">
@@ -221,7 +225,6 @@ export default function LoginPage() {
               onClick={handleGoogleLogin}
               variant="outline"
               className="w-full h-12 bg-transparent border-primary/30 hover:bg-primary/5 dark:border-neon-gradient dark:hover:bg-white/5 text-foreground font-bold rounded-full transition-all flex items-center justify-center gap-2"
-              disabled={isLoading}
             >
               <FaGoogle className="w-5 h-5 text-blue-500" />
               <span>Continua con Google</span>
