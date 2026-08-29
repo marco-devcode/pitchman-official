@@ -31,12 +31,12 @@ const TYPE_PRESETS: Record<string, { name: string; suggestions: string[]; defaul
   velocita: {
     name: 'Velocità',
     suggestions: ['30 metri', '60 metri', '100 metri'],
-    defaultUnit: 'secondi',
+    defaultUnit: 'secondi_discendente',
   },
   resistenza: {
     name: 'Resistenza',
     suggestions: ['Test di Cooper (12 min)', 'Yo-Yo', 'Navetta'],
-    defaultUnit: 'metri',
+    defaultUnit: 'metri_discendente',
   },
 };
 
@@ -61,7 +61,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
   const [step, setStep] = useState<Step>(1);
   const [testType, setTestType] = useState<string>('velocita');
   const [testName, setTestName] = useState('');
-  const [unit, setUnit] = useState('secondi');
+  const [unit, setUnit] = useState('secondi_discendente');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [results, setResults] = useState<Map<string, string>>(new Map());
   const [saving, setSaving] = useState(false);
@@ -71,7 +71,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
     setStep(1);
     setTestType('velocita');
     setTestName('');
-    setUnit('secondi');
+    setUnit('secondi_discendente');
     setDate(new Date().toISOString().split('T')[0]);
     setResults(new Map());
     setSaving(false);
@@ -270,9 +270,12 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="secondi" className="text-xs font-bold">Secondi (meno = meglio)</SelectItem>
-                  <SelectItem value="metri" className="text-xs font-bold">Metri (più = meglio)</SelectItem>
-                  <SelectItem value="altro" className="text-xs font-bold">Altro (discendente)</SelectItem>
+                  <SelectItem value="secondi_discendente" className="text-xs font-bold">Secondi (Discendente)</SelectItem>
+                  <SelectItem value="secondi_ascendente" className="text-xs font-bold">Secondi (Ascendente)</SelectItem>
+                  <SelectItem value="metri_discendente" className="text-xs font-bold">Metri (Discendente)</SelectItem>
+                  <SelectItem value="metri_ascendente" className="text-xs font-bold">Metri (Ascendente)</SelectItem>
+                  <SelectItem value="altro_discendente" className="text-xs font-bold">Altro (Discendente)</SelectItem>
+                  <SelectItem value="altro_ascendente" className="text-xs font-bold">Altro (Ascendente)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -312,7 +315,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
                       className="w-24 h-9 text-right text-xs font-black rounded-lg bg-background dark:bg-black border border-border dark:border-brand-green/20 pr-8"
                     />
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground/40 font-bold">
-                      {unit === 'secondi' ? 's' : unit === 'metri' ? 'm' : ''}
+                      {unit.startsWith('secondi') ? 's' : unit.startsWith('metri') ? 'm' : ''}
                     </span>
                   </div>
                 </div>

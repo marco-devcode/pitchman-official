@@ -99,28 +99,19 @@ function TestDetail({
 
   return (
     <div className="space-y-4 pb-24">
-      <PageHeader title={test.name}>
+      <PageHeader title={test.name} backAction={() => router.back()}>
         <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            className="h-9 w-9 rounded-full bg-primary/10 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/20 dark:hover:bg-brand-green/20"
-            title="Indietro"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           {editing ? (
           <div className="flex gap-2">
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               disabled={saving}
               onClick={handleCancel}
-              className="h-9 w-9 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20"
+              className="h-9 px-3 rounded-full text-red-500 hover:bg-red-500/10 font-black uppercase text-[10px]"
               title="Annulla"
             >
-              <ArrowLeft className="h-4 w-4" />
+              Annulla
             </Button>
             <Button
               size="icon"

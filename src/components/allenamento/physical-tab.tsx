@@ -9,7 +9,7 @@ import { usePlayersStore } from '@/store/usePlayersStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { testRepository } from '@/lib/repositories/test-repository';
-import { formatValue, formatDate, computeDelta } from '@/lib/test-utils';
+import { formatValue, formatDate, computeDelta, isDescendingUnit } from '@/lib/test-utils';
 import type { PhysicalTest, Player } from '@/lib/types';
 import { Activity, Trophy, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -118,7 +118,7 @@ export function PhysicalTab() {
       }
       const sorted = Array.from(latestPerPlayer.entries())
         .map(([pid, { value }]) => ({ playerId: pid, value }))
-        .sort((a, b) => group.unit === 'metri' ? b.value - a.value : a.value - b.value);
+        .sort((a, b) => isDescendingUnit(group.unit) ? b.value - a.value : a.value - b.value);
 
       const myRank = sorted.findIndex(x => x.playerId === (playerId as string));
       return {

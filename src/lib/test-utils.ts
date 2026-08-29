@@ -1,7 +1,19 @@
 import type { PhysicalTest, TestResult } from '@/lib/types';
 import type { Player } from '@/lib/types';
 
-/** Sort results by unit: "secondi" → ascending, "metri" → descending */
+/** Estrae l'unità base (secondi/metri/altro) anche dai valori con direzione */
+export function baseUnit(unit: string): string {
+  return unit.split('_')[0];
+}
+
+/** True se l'unità è dichiarata discendente (o è il vecchio 'metri' retrocompatibile) */
+export function isDescendingUnit(unit: string): boolean {
+  if (unit.endsWith('_discendente')) return true;
+  if (unit === 'metri') return true; // retrocompatibilità dati esistenti
+  return false;
+}
+
+/** Sort results by unit: "metri" → descending, "secondi"/"altro" → ascending */
 export function sortResults(
   results: TestResult[],
   unit: string,
@@ -11,7 +23,7 @@ export function sortResults(
     ...r,
     playerName: getPlayerName(r.playerId),
   }));
-  const isDescending = unit === 'metri';
+  const isDescending = isDescendingUnit(unit);
   return enriched.sort((a, b) =>
     isDescending ? b.value - a.value : a.value - b.value
   );
@@ -44,8 +56,9 @@ export function getLatestPerPlayer(
 }
 
 export function formatValue(value: number, unit: string): string {
-  if (unit === 'secondi') return `${value.toFixed(2)}s`;
-  if (unit === 'metri') return `${Math.round(value)}m`;
+  const base = baseUnit(unit);
+  if (base === 'secondi') return `${value.toFixed(2)}s`;
+  if (base === 'metri') return `${Math.round(value)}m`;
   return value.toString();
 }
 
@@ -73,6 +86,13 @@ export function computeDelta(
   if (!previous) return null;
 
   const delta = currentValue - previous.value;
-  const isImprovement = unit === 'metri' ? delta > 0 : delta < 0;
+  // Miglioramento: per "metri" il valore sale, altrimenti scende.
+  // Se l'unità è ascendente, il miglioramento è il valore che sale.
+  const base = baseUnit(unit);
+  const descending = isDescendingUnit(unit);
+  const isImprovement = descending ? delta < 0 : delta > 0;
+  // Per metri/altro logicamente: se base è metri, "migliore" = più alto.
+  // Ma la direzione esplicita comanda: discendente => migliore = più basso.
+  void base;
   return { delta, isImprovement };
 }
