@@ -32,6 +32,7 @@ import { PiTrafficCone } from "react-icons/pi";
 import { format, isAfter, parseISO, startOfDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from '@/lib/utils';
+import { MATCH_TYPES, type MatchType } from '@/lib/types';
 import { MatchFormDialog } from '@/components/partite/match-form-dialog';
 import { ImportTuttocampoDialog } from "@/components/partite/import-tuttocampo-dialog";
 import { ImportCalendarioScraperDialog } from "@/components/partite/import-calendario-scraper-dialog";
@@ -68,6 +69,7 @@ export default function CalendarioPage() {
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [pendingDeletions, setPendingDeletions] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<MatchType | 'all'>('all');
 
   const { activeSeason, fetchAll: fetchSeasons } = useSeasonsStore();
   const { matches, fetchAll: fetchMatches, add: addMatch, remove: removeMatch, removeAll: removeAllMatches, loading } = useMatchesStore();
@@ -172,6 +174,17 @@ export default function CalendarioPage() {
     return sortedMatches.filter(m => !pendingDeletions.includes(m.id));
   }, [sortedMatches, pendingDeletions]);
 
+  // Tab visibili solo se esiste almeno un evento di quel tipo
+  const presentTypes = useMemo(
+    () => MATCH_TYPES.filter(t => matches.some(m => m.type === t)),
+    [matches]
+  );
+
+  const filteredMatches = useMemo(() => {
+    if (activeTab === 'all') return UI_Matches;
+    return UI_Matches.filter(m => m.type === activeTab);
+  }, [UI_Matches, activeTab]);
+
   const handleDeleteAllMatches = async () => {
     const seasonId = activeSeason?.id;
     setIsDeleteAllOpen(false);
@@ -227,6 +240,25 @@ export default function CalendarioPage() {
           </div>
         </PageHeader>
       </div>
+
+      {/* TAB per tipo evento — visibili solo se esiste almeno un evento di quel tipo */}
+      <div className="flex bg-muted/50 rounded-full p-0.5 w-fit">
+        {(['all', ...presentTypes] as (MatchType | 'all')[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setActiveTab(t)}
+            className={
+              'px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ' +
+              (activeTab === t
+                ? 'bg-background dark:bg-black border border-primary dark:border-brand-green text-foreground'
+                : 'text-muted-foreground/50')
+            }
+          >
+            {t === 'all' ? 'Tutte' : t}
+          </button>
+        ))}
+      </div>
+
       {nextMatch && (
         <section className="space-y-3">
           <div className="flex items-center gap-2 px-1">
@@ -403,7 +435,7 @@ export default function CalendarioPage() {
         </div>
 
         <div className="space-y-2">
-          {UI_Matches.map((m) => (
+          {filteredMatches.map((m) => (
             <Card
               key={m.id}
               onClick={() => router.push(`/calendario/${m.id}`)}
@@ -482,7 +514,7 @@ export default function CalendarioPage() {
               <Skeleton className="h-24 w-full rounded-2xl bg-card/20" />
               <Skeleton className="h-24 w-full rounded-2xl bg-card/20" />
             </div>
-          ) : sortedMatches.length === 0 && (
+          ) : sortedMatches.length === 0 ? (
             <div className="py-12 text-center bg-card dark:bg-black/20 border border-dashed border-border dark:border-white/10 rounded-3xl">
               <PiTrafficCone className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
               <p className="text-sm font-black uppercase tracking-widest text-muted-foreground/40 mb-4">Mister inizia a popolare il calendario!</p>
@@ -494,7 +526,12 @@ export default function CalendarioPage() {
                 Aggiungi +
               </Button>
             </div>
-          )}
+          ) : filteredMatches.length === 0 ? (
+            <div className="py-12 text-center bg-card dark:bg-black/20 border border-dashed border-border dark:border-white/10 rounded-3xl">
+              <PiTrafficCone className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+              <p className="text-sm font-black uppercase tracking-widest text-muted-foreground/40 mb-4">Nessun evento in questa categoria</p>
+            </div>
+          ) : null}
         </div>
       </section>
 
