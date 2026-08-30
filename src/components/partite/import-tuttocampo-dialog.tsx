@@ -107,6 +107,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
       date: match.date,
       isHome: match.isHome,
       type: match.type as any,
+      round: match.round,
       duration: defaultDuration,
       status: (new Date(match.date) < new Date() ? 'completed' : 'scheduled') as any,
     }));

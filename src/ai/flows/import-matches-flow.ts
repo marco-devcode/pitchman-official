@@ -22,6 +22,8 @@ const MatchSchema = z.object({
   date: z.string().describe('La data e ora della partita in formato ISO o stringa leggibile (es. YYYY-MM-DDTHH:mm). Se manca l\'orario usa 15:00.'),
   isHome: z.boolean().describe('Vero se la squadra dell\'utente gioca in casa.'),
   type: z.enum(['Campionato', 'Torneo', 'Amichevole']).default('Campionato'),
+  round: z.number().optional().describe('Numero della giornata/girone se presente nel calendario (es. "GIORNATA 5" -> 5).'),
+  leg: z.enum(['andata', 'ritorno']).optional().describe('Per i calendari con andata e ritorno: "andata" per la prima data (A.), "ritorno" per la seconda data (R.).'),
 });
 
 const ImportMatchesOutputSchema = z.object({
@@ -54,6 +56,17 @@ Il tuo compito è analizzare il testo/file e:
    - Data e ora (usa l'anno corrente 2024/25 se non specificato). Se l'orario non è presente, imposta 15:00.
    - Casa/Trasferta: Determina se la squadra principale gioca in casa (primo nome) o in trasferta (secondo nome).
 {{/if}}
+
+FORMATO ANDATA E RITORNO (importante):
+Alcuni calendari raggruppano le partite per "GIORNATA N" e indicano due date con le etichette "A." (andata) e "R." (ritorno), ad esempio:
+  "GIORNATA 5
+   A. 12/10/2024 Osla vs Avversaria
+   R. 15/03/2025 Avversaria vs Osla"
+In questo caso DEVI generare DUE partite separate per la stessa giornata/avversaria:
+  - Una con leg: "andata", date = data indicata dopo "A.", e isHome coerente con chi gioca in casa in quella riga.
+  - Una con leg: "ritorno", date = data indicata dopo "R.", e isHome INVERTITO rispetto all'andata (se all'andata la squadra principale giocava in casa, al ritorno gioca in trasferta, e viceversa).
+Entrambe le partite devono avere lo stesso valore "round" (il numero della GIORNATA) e lo stesso "opponent".
+Se nel calendario non compare "A."/"R." (andata/ritorno), genera una sola partita per riga come al solito e lascia "leg" non valorizzato.
 
 Dati testuali forniti:
 {{#if content}}
