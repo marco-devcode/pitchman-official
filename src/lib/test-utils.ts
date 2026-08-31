@@ -1,6 +1,14 @@
 import type { PhysicalTest, TestResult } from '@/lib/types';
 import type { Player } from '@/lib/types';
 
+/** Parsifica un numero decimale accettando sia '.' che ',' come separatore (notazione italiana) */
+export function parseDecimal(raw: string): number {
+  if (!raw) return NaN;
+  // Normalizza la virgola decimale italiana in punto
+  const normalized = raw.trim().replace(/\./g, '').replace(',', '.');
+  return parseFloat(normalized);
+}
+
 /** Estrae l'unità base (secondi/metri/altro) anche dai valori con direzione */
 export function baseUnit(unit: string): string {
   return unit.split('_')[0];
@@ -58,7 +66,7 @@ export function getLatestPerPlayer(
 export function formatValue(value: number, unit: string): string {
   const base = baseUnit(unit);
   if (base === 'secondi') return `${value.toFixed(2)}s`;
-  if (base === 'metri') return `${Math.round(value)}m`;
+  if (base === 'metri') return `${Number(value.toFixed(2))}m`;
   return value.toString();
 }
 

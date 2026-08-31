@@ -12,7 +12,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { useTestsStore } from '@/store/useTestsStore';
 import { useMemo } from 'react';
-import { formatValue } from '@/lib/test-utils';
+import { formatValue, parseDecimal } from '@/lib/test-utils';
 import { Loader2, Plus, Minus, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sortResults } from '@/lib/test-utils';
@@ -138,7 +138,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
 
     const testResults: TestResult[] = [];
     for (const [playerId, val] of results) {
-      const num = parseFloat(val);
+      const num = parseDecimal(val);
       if (!isNaN(num) && val.trim() !== '') {
         testResults.push({ playerId, value: num });
       }

@@ -7,7 +7,7 @@ import { useTestsStore } from '@/store/useTestsStore';
 import { usePlayersStore } from '@/store/usePlayersStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { testRepository } from '@/lib/repositories/test-repository';
-import { sortResults, formatValue, formatDate } from '@/lib/test-utils';
+import { sortResults, formatValue, formatDate, parseDecimal } from '@/lib/test-utils';
 import { PhysicalTest, TestResult, Player } from '@/lib/types';
 import { ArrowLeft, Trophy, Edit3, Save, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
@@ -66,7 +66,7 @@ function TestDetail({
   const sortedLive = useMemo(() => {
     const live: { playerId: string; value: number }[] = [];
     for (const [playerId, val] of draftResults) {
-      const num = parseFloat(val);
+      const num = parseDecimal(val);
       if (!isNaN(num) && val.trim() !== '') live.push({ playerId, value: num });
     }
     return sortResults(live, test.unit, getPlayerName);
@@ -78,7 +78,7 @@ function TestDetail({
     try {
       const results: TestResult[] = [];
       for (const [playerId, val] of draftResults) {
-        const num = parseFloat(val);
+        const num = parseDecimal(val);
         if (!isNaN(num) && val.trim() !== '') results.push({ playerId, value: num });
       }
       await testRepository.updateResults(test.id, userId, results);
