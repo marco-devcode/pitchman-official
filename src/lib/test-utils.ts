@@ -1,12 +1,33 @@
 import type { PhysicalTest, TestResult } from '@/lib/types';
 import type { Player } from '@/lib/types';
 
-/** Parsifica un numero decimale accettando sia '.' che ',' come separatore (notazione italiana) */
+/** Parsifica un numero decimale accettando sia '.' che ',' come separatore (notazione italiana/standard) */
 export function parseDecimal(raw: string): number {
   if (!raw) return NaN;
-  // Normalizza la virgola decimale italiana in punto
-  const normalized = raw.trim().replace(/\./g, '').replace(',', '.');
-  return parseFloat(normalized);
+  const trimmed = raw.trim();
+
+  const lastDot = trimmed.lastIndexOf('.');
+  const lastComma = trimmed.lastIndexOf(',');
+
+  // Se ci sono entrambi, quello più a destra è il separatore decimale
+  if (lastDot !== -1 && lastComma !== -1) {
+    if (lastComma > lastDot) {
+      // Virgola è decimale (es. "1.000,50") → rimuovi punti, virgola → punto
+      return parseFloat(trimmed.replace(/\./g, '').replace(',', '.'));
+    } else {
+      // Punto è decimale (es. "1,000.50") → rimuovi virgole
+      return parseFloat(trimmed.replace(/,/g, ''));
+    }
+  }
+
+  // Solo virgola → notazione italiana (es. "9,86" o "1.000,50")
+  if (lastComma !== -1) {
+    return parseFloat(trimmed.replace(/\./g, '').replace(',', '.'));
+  }
+
+  // Solo punti o nessuno → notazione standard (punto = decimale, es. "9.86" o "1,000.50")
+  // Rimuoviamo eventuali virgole che potrebbero essere separatori migliaia US
+  return parseFloat(trimmed.replace(/,/g, ''));
 }
 
 /** Estrae l'unità base (secondi/metri/altro) anche dai valori con direzione */
