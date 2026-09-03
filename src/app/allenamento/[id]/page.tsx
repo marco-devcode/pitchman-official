@@ -50,6 +50,11 @@ export default function TrainingDetailPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
+  // Attendance counts
+  const presentCount = attendance.filter(a => a.status === 'presente' || a.status === 'ritardo').length;
+  const lateCount = attendance.filter(a => a.status === 'ritardo').length;
+  const absentCount = players.length - presentCount;
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("programma");
@@ -369,6 +374,40 @@ export default function TrainingDetailPage() {
         </TabsContent>
 
         <TabsContent value="presenze" className="space-y-4 outline-none">
+          {/* Attendance Summary Bar */}
+          <div className="rounded-2xl border border-border dark:border-brand-green/20 bg-card dark:bg-card/40 backdrop-blur-sm p-4 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)]">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-black uppercase tracking-widest text-foreground/70">Presenze Sessione</span>
+              <span className="text-[13px] font-black text-foreground">{presentCount} / {players.length}</span>
+            </div>
+            <div className="h-3 w-full bg-muted dark:bg-zinc-900 rounded-full overflow-hidden border border-border dark:border-brand-green/10 relative">
+              <div 
+                className="h-full transition-all duration-500 rounded-full shadow-[0_0_10px_rgba(172,229,4,0.4)] bg-primary dark:bg-brand-green"
+                style={{ width: `${players.length > 0 ? (presentCount / players.length) * 100 : 0}%` }}
+              />
+              {lateCount > 0 && (
+                <div 
+                  className="absolute top-0 right-0 h-full w-[4px] bg-yellow-500 rounded-r-full"
+                  style={{ width: `${players.length > 0 ? (lateCount / players.length) * 100 : 0}%` }}
+                  title={`Ritardo: ${lateCount} giocatore${lateCount > 1 ? 'i' : ''}`}
+                />
+              )}
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[9px] font-bold uppercase text-green-600 dark:text-green-400 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> {presentCount - lateCount} Presenti
+              </span>
+              {lateCount > 0 && (
+                <span className="text-[9px] font-bold uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {lateCount} Ritardo{lateCount > 1 ? 'i' : ''}
+                </span>
+              )}
+              <span className="text-[9px] font-bold uppercase text-red-600 dark:text-red-400 flex items-center gap-1">
+                <XCircle className="h-3 w-3" /> {absentCount} Assenti
+              </span>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between mb-4 mt-2">
              <h3 className="text-[12px] font-black uppercase text-foreground/80 tracking-widest pl-2">Lista Convocati</h3>
              <Button 
