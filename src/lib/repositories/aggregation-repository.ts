@@ -46,7 +46,7 @@ export interface FullTeamRecord {
 /**
  * Contesto di dati completo per una stagione, caricato una sola volta per ottimizzare i calcoli.
  */
-interface SeasonDataContext {
+export interface SeasonDataContext {
     matches: Match[];
     players: Player[];
     matchesDetails: {
