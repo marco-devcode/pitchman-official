@@ -6,11 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { parseError, missingSeasonError } from "@/lib/error-utils";
-import { aggregationRepository } from "@/lib/repositories/aggregation-repository";
+import { useStatsStore } from "@/store/useStatsStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
-import { useAuthStore } from "@/store/useAuthStore";
 import { MatchTypeFilters } from "@/components/statistiche/match-type-filters";
-import type { FilterType } from "@/lib/aggregators/filter";
 
 // Dynamic imports for chart components
 const VenueStatsCharts = dynamic(
@@ -48,34 +46,30 @@ const PlayerLeaderboard = dynamic(
 
 export default function StatistichePage() {
   const { activeSeason, error: seasonsError, fetchAll: fetchSeasons } = useSeasonsStore();
-  const { user } = useAuthStore();
-  const [context, setContext] = useState<any | null>(null);
-  const [loadingContext, setLoadingContext] = useState(true);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const [matchFilter, setMatchFilter] = useState<FilterType>('all');
+  const {
+    loading,
+    error: statsError,
+    loadDetailedStats,
+    matchFilter,
+    setMatchFilter,
+    detailedContext,
+  } = useStatsStore();
   const [activeMainTab, setActiveMainTab] = useState('record');
 
   useEffect(() => {
     const initialize = async () => {
-      try {
-        const seasons = await fetchSeasons();
-        const activeId = useSeasonsStore.getState().activeSeason?.id;
-        const targetUserId = user?.id;
-        if (activeId && targetUserId) {
-          const ctx = await aggregationRepository.getDetailedContext(targetUserId, activeId);
-          setContext(ctx);
-        }
-        void seasons;
-      } catch (e: any) {
-        setPageError(e?.message || 'Errore caricamento statistiche');
-      } finally {
-        setLoadingContext(false);
+      await fetchSeasons();
+      const activeId = useSeasonsStore.getState().activeSeason?.id;
+      if (activeId) {
+        await loadDetailedStats(activeId);
       }
     };
     initialize();
-  }, [user?.id, fetchSeasons]);
+  }, [loadDetailedStats, fetchSeasons]);
 
-  if (!loadingContext && !activeSeason && !seasonsError) {
+  const hasPageError = seasonsError || statsError;
+
+  if (!loading && !activeSeason && !seasonsError) {
     return (
       <div className="pb-24 pt-4">
         <ErrorState error={missingSeasonError()} />
@@ -83,20 +77,18 @@ export default function StatistichePage() {
     );
   }
 
-  if (pageError) {
+  if (hasPageError) {
     return (
       <div className="pb-24 pt-4">
         <ErrorState
-          error={parseError(pageError)}
+          error={parseError(seasonsError || statsError)}
           onRetry={() => {
-            setPageError(null);
-            setLoadingContext(true);
-            if (user?.id && activeSeason?.id) {
-              aggregationRepository.getDetailedContext(user.id, activeSeason.id)
-                .then(setContext)
-                .catch((e) => setPageError(e?.message || 'Errore'))
-                .finally(() => setLoadingContext(false));
-            }
+            fetchSeasons().then(() => {
+              const activeId = useSeasonsStore.getState().activeSeason?.id;
+              if (activeId) {
+                loadDetailedStats(activeId);
+              }
+            });
           }}
           fullScreen
         />
@@ -108,8 +100,8 @@ export default function StatistichePage() {
     <div className="space-y-4">
       {/* Top filter: 4 tabs for match type */}
       <MatchTypeFilters
-        context={context || undefined}
-        loadingContext={loadingContext}
+        context={detailedContext || undefined}
+        loadingContext={loading || !detailedContext}
         filter={matchFilter}
         onFilterChange={setMatchFilter}
       />
@@ -123,7 +115,7 @@ export default function StatistichePage() {
         </TabsList>
 
         <TabsContent value="record">
-          {loadingContext ? (
+          {loading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Skeleton className="h-28 w-full" />
               <Skeleton className="h-28 w-full" />
@@ -135,7 +127,7 @@ export default function StatistichePage() {
         </TabsContent>
 
         <TabsContent value="leaderboard">
-          {loadingContext ? (
+          {loading ? (
             <Skeleton className="h-96 w-full" />
           ) : (
             <PlayerLeaderboard />
@@ -143,7 +135,7 @@ export default function StatistichePage() {
         </TabsContent>
 
         <TabsContent value="utilizzo">
-          {loadingContext ? (
+          {loading ? (
             <Skeleton className="h-[420px] w-full" />
           ) : (
             <Tabs defaultValue="rosa" className="w-full">
@@ -164,7 +156,7 @@ export default function StatistichePage() {
         </TabsContent>
 
         <TabsContent value="grafici">
-          {loadingContext ? (
+          {loading ? (
             <div className="space-y-6">
               <Skeleton className="h-80 w-full" />
               <Skeleton className="h-80 w-full" />

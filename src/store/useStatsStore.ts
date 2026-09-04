@@ -1,11 +1,12 @@
 "use client";
 
 import { create } from 'zustand';
-import { aggregationRepository } from '@/lib/repositories/aggregation-repository';
+import { aggregationRepository, type SeasonDataContext } from '@/lib/repositories/aggregation-repository';
 import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
-import type { AdvancedStatsLeaderboard } from '@/lib/types';
+import type { AdvancedStatsLeaderboard, MatchType } from '@/lib/types';
 import { getErrorMessage } from '@/lib/error-utils';
+import { filterContextByType, type FilterType } from '@/lib/aggregators/filter';
 
 interface TeamRecord {
     wins: number;
@@ -53,8 +54,33 @@ interface StatsState {
     advancedLeaderboard: AdvancedStatsLeaderboard | null;
     loading: boolean;
     error: string | null;
+    matchFilter: FilterType;
+    detailedContext: SeasonDataContext | null;
     loadSummaryStats: (seasonId?: string) => Promise<void>;
     loadDetailedStats: (seasonId?: string) => Promise<void>;
+    setMatchFilter: (filter: FilterType) => void;
+}
+
+function reaggregate(ctx: SeasonDataContext, seasonId: string) {
+    const records = aggregationRepository.getTeamRecordFromContext(ctx);
+    const playerLeaderboard = aggregationRepository.getPlayersAggregatedStatsFromContext(ctx);
+    const teamTrend = aggregationRepository.getTeamTrendFromContext(ctx);
+    const goalsIntervals = aggregationRepository.getGoalsByIntervalFromContext(ctx);
+    const advancedLeaderboard = aggregationRepository.getAdvancedStatsFromContext(ctx, seasonId);
+    const sorted = [...playerLeaderboard].sort((a, b) => {
+        if (b.stats.goals !== a.stats.goals) return b.stats.goals - a.stats.goals;
+        if (b.stats.assists !== a.stats.assists) return b.stats.assists - a.stats.assists;
+        return b.stats.appearances - a.stats.appearances;
+    });
+    return {
+        teamRecord: records.overall,
+        homeRecord: records.home,
+        awayRecord: records.away,
+        playerLeaderboard: sorted as PlayerLeaderboardEntry[],
+        teamTrend: teamTrend as TrendEntry[],
+        goalsIntervals,
+        advancedLeaderboard,
+    };
 }
 
 export const useStatsStore = create<StatsState>((set, get) => ({
@@ -67,6 +93,9 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     advancedLeaderboard: null,
     loading: true,
     error: null,
+    matchFilter: 'all',
+    detailedContext: null,
+
     loadSummaryStats: async (seasonId?: string) => {
         const user = useAuthStore.getState().user;
         const activeSeasonId = seasonId ?? useSeasonsStore.getState().activeSeason?.id;
@@ -77,14 +106,13 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         }
 
         if (get().teamRecord === null) set({ loading: true, error: null });
-        
+
         try {
-            // Carica solo i dati necessari per il riepilogo (velocissimo)
             const context = await aggregationRepository.getSummaryContext(user.id, activeSeasonId);
             const records = aggregationRepository.getTeamRecordFromContext(context);
-            
-            set({ 
-                teamRecord: records.overall, 
+
+            set({
+                teamRecord: records.overall,
                 homeRecord: records.home,
                 awayRecord: records.away,
                 loading: false,
@@ -95,6 +123,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
             set({ loading: false, error: getErrorMessage(error) });
         }
     },
+
     loadDetailedStats: async (seasonId?: string) => {
         const user = useAuthStore.getState().user;
         const activeSeasonId = seasonId ?? useSeasonsStore.getState().activeSeason?.id;
@@ -105,37 +134,16 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         }
 
         if (get().playerLeaderboard.length === 0) set({ loading: true, error: null });
-        
+
         try {
-            // Carica l'intero contesto (più lento, per pagina statistiche)
             const context = await aggregationRepository.getDetailedContext(user.id, activeSeasonId);
+            const currentFilter = get().matchFilter;
+            const filtered = filterContextByType(context, currentFilter);
+            const agg = reaggregate(filtered, activeSeasonId);
 
-            const records = aggregationRepository.getTeamRecordFromContext(context);
-            const playerLeaderboard = aggregationRepository.getPlayersAggregatedStatsFromContext(context);
-            const teamTrend = aggregationRepository.getTeamTrendFromContext(context);
-            const goalsIntervals = aggregationRepository.getGoalsByIntervalFromContext(context);
-            
-            // Calcola le statistiche avanzate INSIEME alle altre per ottimizzare
-            const advancedLeaderboard = aggregationRepository.getAdvancedStatsFromContext(context, activeSeasonId);
-            
-            const sortedLeaderboard = [...playerLeaderboard].sort((a, b) => {
-                if (b.stats.goals !== a.stats.goals) {
-                    return b.stats.goals - a.stats.goals;
-                }
-                if (b.stats.assists !== a.stats.assists) {
-                    return b.stats.assists - a.stats.assists;
-                }
-                return b.stats.appearances - a.stats.appearances;
-            });
-
-            set({ 
-                teamRecord: records.overall, 
-                homeRecord: records.home,
-                awayRecord: records.away,
-                playerLeaderboard: sortedLeaderboard as PlayerLeaderboardEntry[], 
-                teamTrend: teamTrend as TrendEntry[], 
-                goalsIntervals,
-                advancedLeaderboard,
+            set({
+                detailedContext: context,
+                ...agg,
                 loading: false,
                 error: null,
             });
@@ -143,5 +151,17 @@ export const useStatsStore = create<StatsState>((set, get) => ({
             console.error("Errore nel caricamento detailed stats:", error);
             set({ loading: false, error: getErrorMessage(error) });
         }
+    },
+
+    setMatchFilter: (filter: FilterType) => {
+        const ctx = get().detailedContext;
+        const activeSeasonId = useSeasonsStore.getState().activeSeason?.id;
+        if (!ctx || !activeSeasonId) {
+            set({ matchFilter: filter });
+            return;
+        }
+        const filtered = filterContextByType(ctx, filter);
+        const agg = reaggregate(filtered, activeSeasonId);
+        set({ matchFilter: filter, ...agg });
     },
 }));
