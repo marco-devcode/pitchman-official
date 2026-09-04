@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, PlusCircle, Trash2, Loader2, Eraser, ClipboardCheck, Target, Users, Filter, CalendarRange, Archive } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, PlusCircle, Trash2, Loader2, Eraser, ClipboardCheck, Target, Users, Filter, CalendarRange, Archive, Clock, UserX } from "lucide-react";
 import { PiTrafficCone } from "react-icons/pi";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
@@ -341,17 +341,69 @@ export default function AllenamentoPage() {
                         </Button>
                       </div>
 
-                      <div className="flex items-center gap-4 mt-auto pt-3 border-t border-border/50 dark:border-white/5">
-                        <div className="flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-muted-foreground/50" />
-                          <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
-                            {session.attendances?.length || 0} Atleti
+                      <div className="space-y-2 mt-3 pt-3 border-t border-border/50 dark:border-white/5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase text-foreground tracking-widest">
+                            {(() => {
+                              const att = (session.attendances as Array<{ status: string }> | undefined) || [];
+                              const present = att.filter(a => a.status === 'presente' || a.status === 'ritardo').length;
+                              return `${present} / ${players.length} ATLETI`;
+                            })()}
+                          </span>
+                          <span className="text-[10px] font-black uppercase text-primary dark:text-brand-green tracking-widest">
+                            {session.exercises?.length || 0} ESERCIZI
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <Target className="h-3.5 w-3.5 text-muted-foreground/50" />
-                          <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
-                            {session.exercises?.length || 0} Esercizi
+                        <div className="h-2 w-full bg-muted dark:bg-zinc-900 rounded-full overflow-hidden border border-border/30 dark:border-brand-green/10 relative">
+                          {(() => {
+                            const att = (session.attendances as Array<{ status: string }> | undefined) || [];
+                            const present = att.filter(a => a.status === 'presente' || a.status === 'ritardo').length;
+                            const late = att.filter(a => a.status === 'ritardo').length;
+                            const total = players.length;
+                            const presentPct = total > 0 ? (present / total) * 100 : 0;
+                            const latePct = total > 0 ? (late / total) * 100 : 0;
+                            return (
+                              <>
+                                <div
+                                  className="h-full transition-all duration-500 rounded-full shadow-[0_0_8px_rgba(172,229,4,0.35)] bg-primary dark:bg-brand-green"
+                                  style={{ width: `${presentPct}%` }}
+                                />
+                                {late > 0 && (
+                                  <div
+                                    className="absolute top-0 right-0 h-full bg-yellow-500 rounded-r-full"
+                                    style={{ width: `${latePct}%` }}
+                                    title={`${late} ritardo${late > 1 ? 'i' : ''}`}
+                                  />
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold uppercase text-green-600 dark:text-green-400 flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {(() => {
+                              const att = (session.attendances as Array<{ status: string }> | undefined) || [];
+                              return att.filter(a => a.status === 'presente').length;
+                            })()} Presenti
+                          </span>
+                          {(() => {
+                            const att = (session.attendances as Array<{ status: string }> | undefined) || [];
+                            const late = att.filter(a => a.status === 'ritardo').length;
+                            if (late === 0) return null;
+                            return (
+                              <span className="text-[9px] font-bold uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> {late} Ritardo{late > 1 ? 'i' : ''}
+                              </span>
+                            );
+                          })()}
+                          <span className="text-[9px] font-bold uppercase text-red-600 dark:text-red-400 flex items-center gap-1">
+                            <UserX className="h-3 w-3" />
+                            {(() => {
+                              const att = (session.attendances as Array<{ status: string }> | undefined) || [];
+                              const present = att.filter(a => a.status === 'presente' || a.status === 'ritardo').length;
+                              return Math.max(0, players.length - present);
+                            })()} Assenti
                           </span>
                         </div>
                       </div>
