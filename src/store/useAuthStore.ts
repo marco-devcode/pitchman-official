@@ -50,6 +50,43 @@ if (typeof window !== 'undefined') {
   initializeFirebase();
 }
 
+/**
+ * Formatta un errore Firebase Auth in modo leggibile ma includendo il codice
+ * tecnico per il debug (es. "Credenziali non valide (auth/invalid-credential)").
+ * I codici più comuni vengono tradotti; gli altri vengono mostrati così come sono.
+ */
+function formatAuthError(error: any, fallbackMessage: string): string {
+  const code: string = error?.code || 'auth/unknown';
+  const customMessage: string | undefined = error?.message;
+
+  const translations: Record<string, string> = {
+    'auth/invalid-credential': 'Credenziali non valide. Email o password errate.',
+    'auth/user-not-found': 'Utente non trovato.',
+    'auth/wrong-password': 'Password errata.',
+    'auth/invalid-email': 'Formato email non valido.',
+    'auth/user-disabled': 'Account disabilitato. Contatta il supporto.',
+    'auth/too-many-requests': 'Troppi tentativi. Riprova più tardi.',
+    'auth/network-request-failed': 'Errore di rete. Verifica la connessione.',
+    'auth/email-already-in-use': 'Email o nome utente già registrato. Usa il Login.',
+    'auth/weak-password': 'Password troppo debole (almeno 6 caratteri).',
+    'auth/operation-not-allowed': 'Provider non abilitato. Contatta il supporto (Firebase Console → Authentication → Sign-in method).',
+    'auth/unauthorized-domain': 'Dominio non autorizzato. Aggiungi questo dominio in Firebase Console → Authentication → Settings → Authorized domains.',
+    'auth/popup-closed-by-user': 'Finestra di accesso chiusa prima del completamento.',
+    'auth/popup-blocked': 'Popup bloccato dal browser. Abilita i popup per questo sito.',
+    'auth/cancelled-popup-request': 'Richiesta popup annullata. Riprova.',
+    'auth/invalid-api-key': 'API key Firebase non valida o mancante (env NEXT_PUBLIC_FIREBASE_API_KEY).',
+    'auth/app-not-authorized': 'App non autorizzata. Verifica la configurazione Firebase.',
+    'auth/account-exists-with-different-credential': 'Esiste già un account con la stessa email ma provider diverso. Prova a fare login con quel provider.',
+    'auth/credential-already-in-use': 'Queste credenziali sono già associate a un altro account.',
+    'auth/internal-error': 'Errore interno Firebase. Riprova o controlla la configurazione.',
+  };
+
+  const friendly = translations[code] || fallbackMessage;
+  return `${friendly} [${code}]${customMessage ? ` — ${customMessage}` : ''}`;
+}
+
+export { formatAuthError };
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -61,20 +98,21 @@ export const useAuthStore = create<AuthState>()(
           const email = usernameOrEmail.includes('@') ? usernameOrEmail : `${usernameOrEmail.toLowerCase()}@pitchman.app`;
           const auth = ensureAuth();
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          
+
           if (!userCredential.user.emailVerified && !email.endsWith('@pitchman.app')) {
             await signOut(auth);
             return { success: false, error: "Per favore, conferma la tua email prima di effettuare l'accesso." };
           }
-          
+
           return { success: true };
         } catch (error: any) {
-          console.error("Login error:", error);
-          let message = "Credenziali non valide.";
-          if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-             message = "Utente non trovato o password errata.";
-          }
-          return { success: false, error: message };
+          console.error("Login error [DEBUG]:", {
+            code: error?.code,
+            name: error?.name,
+            message: error?.message,
+            stack: error?.stack,
+          });
+          return { success: false, error: formatAuthError(error, "Errore durante l'accesso.") };
         }
       },
       signUp: async (email, password, username) => {
@@ -97,11 +135,13 @@ export const useAuthStore = create<AuthState>()(
           await signOut(auth);
           return { success: true };
         } catch (error: any) {
-          console.error("SignUp error:", error);
-          let message = "Errore durante la registrazione.";
-          if (error.code === 'auth/email-already-in-use') message = "Email o nome utente già registrato. Ti consigliamo di usare il Login.";
-          if (error.code === 'auth/weak-password') message = "La password è troppo debole.";
-          return { success: false, error: message };
+          console.error("SignUp error [DEBUG]:", {
+            code: error?.code,
+            name: error?.name,
+            message: error?.message,
+            stack: error?.stack,
+          });
+          return { success: false, error: formatAuthError(error, "Errore durante la registrazione.") };
         }
       },
       loginWithGoogle: async () => {
@@ -109,9 +149,9 @@ export const useAuthStore = create<AuthState>()(
           const auth = ensureAuth();
           const provider = new GoogleAuthProvider();
           provider.setCustomParameters({ prompt: 'select_account' });
-          
+
           const result = await signInWithPopup(auth, provider);
-          
+
           // Inizializza ruolo e documento se nuovo utente
           const idToken = await result.user.getIdToken(true);
           await fetch('/api/auth/init-user', {
@@ -121,15 +161,17 @@ export const useAuthStore = create<AuthState>()(
 
           // Force immediate state update to prevent race conditions during navigation
           await useAuthStore.getState().setAuth(result.user);
-          
+
           return { success: true };
         } catch (error: any) {
-          console.error("Google Login error:", error);
-          let message = "Errore durante l'accesso con Google.";
-          if (error.code === 'auth/popup-closed-by-user') message = "Finestra di accesso chiusa prima del completamento.";
-          if (error.code === 'auth/popup-blocked') message = "Popup bloccato dal browser. Abilita i popup per questo sito.";
-          if (error.code === 'auth/unauthorized-domain') message = "Dominio non autorizzato. Verifica la configurazione Firebase.";
-          return { success: false, error: message };
+          console.error("Google Login error [DEBUG]:", {
+            code: error?.code,
+            name: error?.name,
+            message: error?.message,
+            customData: error?.customData,
+            stack: error?.stack,
+          });
+          return { success: false, error: formatAuthError(error, "Errore durante l'accesso con Google.") };
         }
       },
       logout: async () => {

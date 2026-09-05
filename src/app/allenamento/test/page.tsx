@@ -62,6 +62,40 @@ export default function PhysicalTestsPage() {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [tests, filter]);
 
+  // Raggruppa per name: un'unica riga con badge "N set"
+  const groupedTests = useMemo(() => {
+    const map = new Map<string, {
+      name: string;
+      unit: string;
+      type: string;
+      sets: PhysicalTest[];
+      lastTest: PhysicalTest;
+    }>();
+
+    for (const t of filteredTests) {
+      const key = t.name.trim().toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, {
+          name: t.name,
+          unit: t.unit,
+          type: t.type,
+          sets: [],
+          lastTest: t,
+        });
+      }
+      const entry = map.get(key)!;
+      entry.sets.push(t);
+      if (t.date > entry.lastTest.date) entry.lastTest = t;
+    }
+
+    // ordina sets di ciascun gruppo per data crescente (SET 1, SET 2, ...)
+    for (const entry of map.values()) {
+      entry.sets.sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.lastTest.date.localeCompare(a.lastTest.date));
+  }, [filteredTests]);
+
   const getTopResult = useCallback((test: PhysicalTest): { playerName: string; value: number } | null => {
     if (test.results.length === 0) return null;
     const sorted = sortResults(
@@ -182,37 +216,44 @@ export default function PhysicalTestsPage() {
             onClick={() => { setSelectedTest(null); setDialogOpen(true); }}
             className="mt-6 h-11 text-[10px] font-black uppercase rounded-xl"
           >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Crea il tuo primo test
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Crea il tuo primo test
           </Button>
         </div>
       ) : (
         <>
-          {/* Test cards */}
+          {/* Test cards: una riga per name con badge "N set" */}
           <div className="space-y-2.5">
-            {filteredTests.map(test => {
-              const topResult = getTopResult(test);
+            {groupedTests.map(group => {
+              const topResult = getTopResult(group.lastTest);
+              const setsCount = group.sets.length;
               return (
                 <div
-                  key={test.id}
+                  key={group.name}
                   className="rounded-2xl border border-border dark:border-brand-green/20 bg-muted/10 dark:bg-card/5 overflow-hidden transition-all"
                 >
                   <button
                     type="button"
-                    onClick={() => { if (!editMode) router.push(`/allenamento/test/${test.id}`); }}
+                    onClick={() => { if (!editMode) router.push(`/allenamento/test/${group.lastTest.id}`); }}
                     disabled={editMode}
                     className="w-full text-left disabled:cursor-default"
                   >
                     <div className="flex items-center gap-3 px-4 py-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold truncate">{test.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold truncate">{group.name}</p>
+                          {setsCount > 1 && (
+                            <span className="shrink-0 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/15 dark:bg-brand-green/15 text-primary dark:text-brand-green border border-primary/30 dark:border-brand-green/30 tracking-widest">
+                              {setsCount} set
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[9px] text-muted-foreground/50 uppercase mt-0.5">
-                          {formatDate(test.date)} • {test.type} • {test.unit}
+                          {formatDate(group.lastTest.date)} • {group.type} • {group.unit}
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 text-[9px] font-black text-muted-foreground/50 shrink-0">
                         <Users className="h-3 w-3" />
-                        {test.results.length}
+                        {group.lastTest.results.length}
                       </div>
                     </div>
 
@@ -223,7 +264,7 @@ export default function PhysicalTestsPage() {
                           Migliore: <span className="text-yellow-500">{topResult.playerName}</span>
                         </span>
                         <span className="text-[10px] font-black text-foreground ml-auto shrink-0">
-                          {formatValue(topResult.value, test.unit)}
+                          {formatValue(topResult.value, group.unit)}
                         </span>
                       </div>
                     )}
@@ -234,20 +275,18 @@ export default function PhysicalTestsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => { setSelectedTest(test); setDialogOpen(true); }}
+                        onClick={() => { setSelectedTest(group.lastTest); setDialogOpen(true); }}
                         className="h-8 text-[9px] font-black uppercase rounded-lg text-primary dark:text-brand-green hover:bg-primary/10 dark:hover:bg-brand-green/10"
                       >
-                        <Edit3 className="mr-1.5 h-3 w-3" />
-                        Modifica
+                        <Edit3 className="mr-1.5 h-3 w-3" /> Modifica
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setTestToDelete(test)}
+                        onClick={() => setTestToDelete(group.lastTest)}
                         className="h-8 text-[9px] font-black uppercase rounded-lg text-red-500 hover:bg-red-500/10 ml-auto"
                       >
-                        <Trash2 className="mr-1.5 h-3 w-3" />
-                        Elimina
+                        <Trash2 className="mr-1.5 h-3 w-3" /> Elimina
                       </Button>
                     </div>
                   )}

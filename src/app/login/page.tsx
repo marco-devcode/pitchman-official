@@ -47,6 +47,12 @@ export default function LoginPage() {
       if (result.success) {
         router.push('/');
       } else {
+        // Log dettagliato in console per debug (apertura DevTools)
+        console.warn('[Auth] Login fallito:', {
+          when: new Date().toISOString(),
+          input: usernameOrEmail,
+          error: result.error,
+        });
         toast({
           variant: "destructive",
           title: "Accesso negato",
@@ -56,7 +62,7 @@ export default function LoginPage() {
       }
     } else {
       setFieldErrors({});
-      
+
       const pwdError = validatePassword(password);
       if (pwdError) {
         setFieldErrors({ password: pwdError });
@@ -82,6 +88,11 @@ export default function LoginPage() {
         setUsername('');
         setIsLoading(false);
       } else {
+        console.warn('[Auth] SignUp fallito:', {
+          when: new Date().toISOString(),
+          input: usernameOrEmail,
+          error: result.error,
+        });
         // If error is related to existing account, show it under the email field
         if (result.error?.toLowerCase().includes("registrato") || result.error?.toLowerCase().includes("login")) {
           setFieldErrors({ email: result.error });
@@ -109,6 +120,13 @@ export default function LoginPage() {
     // In caso di errore REALE (non popup chiuso) mostriamo un toast, ma il
     // bottone resta comunque cliccabile per riprovare.
     else if (result.error && !result.error.toLowerCase().includes('chiusa')) {
+      console.warn('[Auth] Google login fallito:', {
+        when: new Date().toISOString(),
+        error: result.error,
+        // info utili per debug: dominio corrente e User-Agent
+        origin: typeof window !== 'undefined' ? window.location.origin : 'n/a',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a',
+      });
       toast({
         variant: "destructive",
         title: "Errore Google Auth",
