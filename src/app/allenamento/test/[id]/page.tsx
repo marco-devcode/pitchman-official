@@ -187,7 +187,7 @@ function TestDetail({
 
   return (
     <div className="space-y-4 pb-24">
-      <PageHeader title={test.name} backAction={() => router.back()}>
+      <PageHeader title={test.name} backAction={() => router.push('/allenamento/test')}>
         <div className="flex gap-2">
           {editing ? (
             <div className="flex gap-2">
