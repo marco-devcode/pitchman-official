@@ -23,6 +23,22 @@ export function displayPlayerName(player: { firstName?: string; lastName?: strin
 }
 
 /**
+ * Restituisce il nome del giocatore come "COGNOME N." (iniziale del nome + punto).
+ * Usato sotto ai cerchi dei TITOLARI sul campo, dove lo spazio è poco e
+ * COGNOME NOME intero non ci sta.
+ */
+export function displayStarterName(player: { firstName?: string; lastName?: string; name: string }): string {
+  // Usa displayPlayerName per estrarre le parti (gestisce lastName/firstName separati e il fallback inversione)
+  const full = displayPlayerName(player);
+  const parts = full.trim().split(/\s+/);
+  if (parts.length <= 1) return full;
+  // parts: [COGNOME, NOME] (displayPlayerName restituisce già COGNOME NOME)
+  const lastName = parts[0];
+  const firstName = parts[1];
+  return `${lastName} ${firstName.charAt(0).toUpperCase()}.`;
+}
+
+/**
  * Formatta il nome come 'N. Cognome' (Iniziale. Cognome)
  */
 export function formatPlayerInitial(fullName: string): string {
