@@ -42,6 +42,8 @@ export function DraggablePlayer({
 
   const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPos = React.useRef<{ x: number; y: number } | null>(null);
+  // Riferimento al body, per congelare lo scroll durante il drag.
+  const scrollLock = React.useRef<{ paddingRight: string; overflow: string } | null>(null);
   // Riferimento all'elemento radice, non a event.target: quest'ultimo e' il
   // figlio che ha ricevuto l'evento (span/icona) e disabilitargli i
   // pointer-events non liberava il campo per il drop target.
@@ -56,11 +58,42 @@ export function DraggablePlayer({
     }
   }, []);
 
+  /**
+   * Congela lo scroll della pagina per tutta la durata del drag.
+   * Senza questo, su mobile il dito che trascina il pallino si trascina
+   * anche la pagina, e il drop finisce su un altro slot perche' le coordinate
+   * del puntatore non corrispondono piu' a quello che si vede.
+   * overflow:hidden sul body preserva scrollY, quindi nessun salto visivo.
+   */
+  const lockScroll = React.useCallback(() => {
+    if (scrollLock.current) return;
+    const body = document.body;
+    scrollLock.current = { paddingRight: body.style.paddingRight, overflow: body.style.overflow };
+    // Compensa la scomparsa della scrollbar, altrimenti il contenuto
+    // slitta di qualche px verso destra quando la blocchiamo.
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
+    body.style.overflow = 'hidden';
+  }, []);
+
+  const unlockScroll = React.useCallback(() => {
+    if (!scrollLock.current) return;
+    const body = document.body;
+    body.style.paddingRight = scrollLock.current.paddingRight;
+    body.style.overflow = scrollLock.current.overflow;
+    scrollLock.current = null;
+  }, []);
+
+  // Se il componente smonta col drag in corso (salvataggio, navigazione), lo
+  // scroll resterebbe bloccato per sempre.
+  React.useEffect(() => () => unlockScroll(), [unlockScroll]);
+
   const cancelGesture = React.useCallback(() => {
     clearTimer();
     startPos.current = null;
     setIsArmed(false);
-  }, [clearTimer]);
+    unlockScroll();
+  }, [clearTimer, unlockScroll]);
 
   const handlePointerDown = (event: React.PointerEvent) => {
     if (!isEditing || !player) return;
@@ -73,6 +106,7 @@ export function DraggablePlayer({
 
     longPressTimer.current = setTimeout(() => {
       setIsDragging(true);
+      lockScroll();
       controls.start(event);
     }, LONG_PRESS_MS);
   };
@@ -85,11 +119,11 @@ export function DraggablePlayer({
     const distance = Math.hypot(dx, dy);
 
     // Muoversi prima della soglia e' uno scroll della pagina, non un drag:
-    // annulliamo la pressione prolungata.
-    if (distance > MOVE_TOLERANCE) {
-      clearTimer();
-      startPos.current = null;
-      setIsArmed(false);
+    // annulliamo la pressione prolungata. Una volta partito il drag non si
+    // guarda piu' la distanza: il pallino segue il dito e il movimento e'
+    // l'utenza, non uno scroll.
+    if (distance > MOVE_TOLERANCE && !isDragging) {
+      cancelGesture();
     }
   };
 
@@ -101,6 +135,10 @@ export function DraggablePlayer({
     setIsDragging(false);
     setIsArmed(false);
     startPos.current = null;
+    clearTimer();
+    // Lo scroll torna subito disponibile: da qui in avanti il puntatore non
+    // trascina piu' il pallino, quindi non deve piu' trascinare la pagina.
+    unlockScroll();
 
     // Disabilita i pointer-events sull'intero elemento trascinato, cosi'
     // elementFromPoint restituisce il bersaglio che sta sotto e non se stesso.
@@ -170,6 +208,13 @@ export function DraggablePlayer({
         data-slot-index={index}
         className={cn(
           "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 shadow-lg transition-colors",
+          // touch-action: nessun gesto nativo (scroll, zoom, callout) parte
+          // gia' dal primo tocco: i 400ms di attesa della pressione
+          // prolungata devono essere sul nostro timer, non su quello del
+          // browser che nel frattempo potrebbe gia' aver fatto scorrere la
+          // pagina. Con lo scroll congelato via JS ai 400ms, il lock
+          // arrivedi tardi per questo.
+          draggable && "touch-none select-none",
           draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
           // Feedback "pronto al drag" durante la pressione prolungata.
           isArmed && !isDragging && "ring-2 ring-brand-green/70",
