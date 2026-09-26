@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isPlayerInjured, activeInjury, formatInjuryDate } from "@/lib/player-utils";
-import { shareLineupAsImage } from "@/lib/lineup-share";
+import { shareLineupAsImage, buildShareNode } from "@/lib/lineup-share";
 import { MATCH_FORMATIONS } from "@/lib/lineup-mapping";
 import { displayPlayerName, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -212,7 +212,11 @@ export function MatchLineupTab() {
           onClick={async () => {
             if (!pitchRef.current) return;
             try {
-              await shareLineupAsImage(pitchRef.current);
+              await shareLineupAsImage(pitchRef.current, (pitch) =>
+                // nodo separato (campo + colonna panchinari): modificare il
+                // campo a schermo produrrebbe uno scatto durante la cattura.
+                buildShareNode(pitch, { substitutes, allPlayers, formation: modulo, teamName }),
+              );
             } catch (e) {
               toast({ title: "Errore", description: "Impossibile generare l'immagine.", variant: "destructive" });
             }

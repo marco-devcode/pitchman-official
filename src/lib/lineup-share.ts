@@ -1,20 +1,154 @@
 import { toPng } from 'html-to-image';
 
+import type { Player } from '@/lib/types';
+import { displayPlayerName } from '@/lib/utils';
+
+/** Larghezza del campo nell'immagine condivisa. */
+const PITCH_WIDTH = 420;
+
+export interface ShareLineupOptions {
+  /** ID dei panchinari, in ordine di panchina. */
+  substitutes: string[];
+  /** Tutti i giocatori, per risolvere gli ID in nomi. */
+  allPlayers: Player[];
+  /** Modulo, mostrato nell'intestazione. */
+  formation: string;
+  /** Nome squadra, mostrato nell'intestazione. */
+  teamName?: string;
+}
+
 /**
- * Captures a DOM node (the tactical pitch) as a PNG and either shares it via
- * the Web Share API (mobile: WhatsApp/Telegram) or downloads it as a file.
+ * I pallini hanno un glow colorato che finisce nell'immagine: si legge come un
+ * duplicato sfocato spostato a destra, non come un'ombra. Per un'immagine da
+ * condividere si vuole un'immagine piatta, quindi il glow viene azzerato SOLO
+ * per la cattura, senza toccare l'app.
  *
- * Falls back to download when the sharing sheet is unavailable (desktop).
+ * Non basta una regola CSS sugli shadow: sono inline, quindi vanno rimossi
+ * passando per gli elementi stili.
+ */
+function stripGlows(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    if (el.style.boxShadow) el.style.boxShadow = 'none';
+    if (el.style.filter) el.style.filter = '';
+    if (el.style.textShadow) el.style.textShadow = 'none';
+  });
+  if (root.style.boxShadow) root.style.boxShadow = 'none';
+}
+
+function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
+  const col = document.createElement('div');
+  col.style.cssText =
+    'flex:1 1 auto;min-width:170px;color:#fff;' +
+    'font-family:system-ui,-apple-system,Segoe UI,sans-serif;';
+
+  const titolo = document.createElement('div');
+  titolo.style.cssText =
+    'font-size:15px;font-weight:800;color:#ace504;letter-spacing:0.06em;' +
+    'text-transform:uppercase;';
+  titolo.textContent = opts.teamName?.trim() || 'Formazione';
+  col.appendChild(titolo);
+
+  const modulo = document.createElement('div');
+  modulo.style.cssText =
+    'font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);' +
+    'letter-spacing:0.08em;margin:2px 0 16px;';
+  modulo.textContent = `Modulo ${opts.formation}`;
+  col.appendChild(modulo);
+
+  const ids = opts.substitutes.filter(Boolean);
+  const intestazione = document.createElement('div');
+  intestazione.style.cssText =
+    'font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);' +
+    'letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;' +
+    'padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:8px;';
+  intestazione.textContent = `Panchina (${ids.length})`;
+  col.appendChild(intestazione);
+
+  if (ids.length === 0) {
+    const vuoto = document.createElement('div');
+    vuoto.style.cssText = 'font-size:10.5px;color:rgba(255,255,255,0.35);';
+    vuoto.textContent = 'Nessun panchinaro';
+    col.appendChild(vuoto);
+    return col;
+  }
+
+  // Lista verticale, uno per riga: richiesta esplicita.
+  ids.forEach((id, i) => {
+    const player = opts.allPlayers.find((p) => p.id === id);
+    if (!player) return;
+    const riga = document.createElement('div');
+    riga.style.cssText =
+      'font-size:11px;font-weight:700;color:#fff;line-height:1.5;' +
+      'display:flex;gap:8px;align-items:baseline;padding:1.5px 0;';
+    const numero = document.createElement('span');
+    numero.style.cssText = 'color:rgba(255,255,255,0.35);font-size:9.5px;min-width:16px;';
+    numero.textContent = String(i + 12); // R1 = maglia 12, come in partita
+    const nome = document.createElement('span');
+    nome.style.cssText = 'white-space:nowrap;';
+    // displayPlayerName restituisce gia' "COGNOME NOME".
+    nome.textContent = displayPlayerName(player);
+    riga.appendChild(numero);
+    riga.appendChild(nome);
+    col.appendChild(riga);
+  });
+
+  return col;
+}
+
+/**
+ * Compone il contenitore da catturare: campo + colonna panchinari.
+ *
+ * DOM separato e clonato dal campo a schermo: modificarlo produrrebbe uno
+ * scatto visibile fra schermo e immagine, che su mobile durante la cattura si
+ * vedrebbe come il campo che cambia e torna indietro.
+ */
+export function buildShareNode(pitch: HTMLElement, opts: ShareLineupOptions): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.style.cssText =
+    'display:flex;gap:18px;align-items:flex-start;background:#000;' +
+    'padding:16px;width:max-content;';
+
+  const campo = document.createElement('div');
+  // Larghezza fissa: senza, flex darebbe al campo solo lo spazio residuo e si
+  // stringerebbe per far posto alla colonna.
+  campo.style.cssText = `flex:0 0 auto;width:${PITCH_WIDTH}px;`;
+  campo.appendChild(pitch.cloneNode(true));
+  wrap.appendChild(campo);
+
+  wrap.appendChild(panchinaColonna(opts));
+
+  stripGlows(wrap);
+  return wrap;
+}
+
+/**
+ * Cattura il campo come PNG e la condivide via Web Share API (mobile) o la
+ * scarica (desktop). `compose` costruisce il nodo effettivamente catturato
+ * (campo + panchina): viene montato fuori dal flusso, invisibile, perche'
+ * html-to-image misura il layout e un nodo scollegato misurerebbe zero.
  */
 export async function shareLineupAsImage(
-  node: HTMLElement,
+  pitch: HTMLElement,
+  compose: (pitch: HTMLElement) => HTMLElement,
   filename = 'formazione-pitchman.png',
 ): Promise<void> {
-  const dataUrl = await toPng(node, {
-    pixelRatio: 2,
-    cacheBust: true,
-    backgroundColor: '#000000',
-  });
+  const target = compose(pitch);
+  const host = document.createElement('div');
+  host.style.cssText =
+    'position:fixed;left:-10000px;top:0;pointer-events:none;z-index:-1;';
+  host.appendChild(target);
+  document.body.appendChild(host);
+
+  let dataUrl: string;
+  try {
+    dataUrl = await toPng(target, {
+      pixelRatio: 2,
+      cacheBust: true,
+      backgroundColor: '#000000',
+    });
+  } finally {
+    host.remove();
+  }
 
   // Try native share sheet (mobile) — lets the user pick WhatsApp/Telegram.
   if (typeof navigator !== 'undefined' && 'share' in navigator && navigator.canShare) {
