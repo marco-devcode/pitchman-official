@@ -18,6 +18,34 @@ export interface ShareLineupOptions {
 }
 
 /**
+ * Neutralizza le animazioni di ingresso nel nodo catturato.
+ *
+ * Il campo e' avvolto in `animate-in fade-in zoom-in-95`: la classe
+ * `.animate-in` di tailwindcss-animate imposta `--tw-enter-opacity: initial`
+ * (= 0) e i keyframe `enter` partono da opacity 0 / scale 0.95. Sul clono
+ * l'animazione RIPARTE da capo e html-to-image cattura subito, senza
+ * attendere: il campo verrebbe fotografato a opacita' ~0, cioe' assente.
+ *
+ * Serve `!important`: un'animazione CSS vince sulle dichiarazioni normali,
+ * quindi un `style.opacity = 1` inline verrebbe ignorato finche' l'animazione
+ * e' attiva. Lo `<style>` e' dentro il nodo, quindi html-to-image lo embedded
+ * nel PNG.
+ */
+function freezeAnimations(root: HTMLElement) {
+  const stile = document.createElement('style');
+  stile.textContent = `
+    [data-lineup-share], [data-lineup-share] * {
+      animation: none !important;
+      transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  `;
+  root.appendChild(stile);
+  root.setAttribute('data-lineup-share', '');
+}
+
+/**
  * I pallini hanno un glow colorato che finisce nell'immagine: si legge come un
  * duplicato sfocato spostato a destra, non come un'ombra. Per un'immagine da
  * condividere si vuole un'immagine piatta, quindi il glow viene azzerato SOLO
@@ -40,20 +68,6 @@ function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
   col.style.cssText =
     'flex:1 1 auto;min-width:170px;color:#fff;' +
     'font-family:system-ui,-apple-system,Segoe UI,sans-serif;';
-
-  const titolo = document.createElement('div');
-  titolo.style.cssText =
-    'font-size:15px;font-weight:800;color:#ace504;letter-spacing:0.06em;' +
-    'text-transform:uppercase;';
-  titolo.textContent = opts.teamName?.trim() || 'Formazione';
-  col.appendChild(titolo);
-
-  const modulo = document.createElement('div');
-  modulo.style.cssText =
-    'font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);' +
-    'letter-spacing:0.08em;margin:2px 0 16px;';
-  modulo.textContent = `Modulo ${opts.formation}`;
-  col.appendChild(modulo);
 
   const ids = opts.substitutes.filter(Boolean);
   const intestazione = document.createElement('div');
@@ -105,19 +119,47 @@ function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
 export function buildShareNode(pitch: HTMLElement, opts: ShareLineupOptions): HTMLElement {
   const wrap = document.createElement('div');
   wrap.style.cssText =
-    'display:flex;gap:18px;align-items:flex-start;background:#000;' +
+    'display:flex;flex-direction:column;gap:12px;background:#000;' +
     'padding:16px;width:max-content;';
+
+  // Intestazione: squadra + modulo. Sta in alto a SINISTRA, sopra il campo, e
+  // non nella colonna panchinari: e' l'intestazione dell'immagine, non della
+  // lista. Copre l'intera larghezza (campo + panchina) per non restare stretta
+  // sopra il solo campo.
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:baseline;gap:10px;';
+  const squadra = document.createElement('div');
+  squadra.style.cssText =
+    'font-size:18px;font-weight:800;color:#ace504;letter-spacing:0.06em;' +
+    'text-transform:uppercase;font-family:system-ui,-apple-system,Segoe UI,sans-serif;';
+  squadra.textContent = opts.teamName?.trim() || 'Formazione';
+  const modulo = document.createElement('div');
+  modulo.style.cssText =
+    'font-size:12px;font-weight:700;color:rgba(255,255,255,0.5);' +
+    'letter-spacing:0.08em;font-family:system-ui,-apple-system,Segoe UI,sans-serif;';
+  modulo.textContent = `Modulo ${opts.formation}`;
+  header.appendChild(squadra);
+  header.appendChild(modulo);
+  wrap.appendChild(header);
+
+  // Riga principale: campo a sinistra, panchinari a destra.
+  const body = document.createElement('div');
+  body.style.cssText = 'display:flex;gap:18px;align-items:flex-start;';
 
   const campo = document.createElement('div');
   // Larghezza fissa: senza, flex darebbe al campo solo lo spazio residuo e si
   // stringerebbe per far posto alla colonna.
   campo.style.cssText = `flex:0 0 auto;width:${PITCH_WIDTH}px;`;
   campo.appendChild(pitch.cloneNode(true));
-  wrap.appendChild(campo);
+  body.appendChild(campo);
 
-  wrap.appendChild(panchinaColonna(opts));
+  body.appendChild(panchinaColonna(opts));
+  wrap.appendChild(body);
 
   stripGlows(wrap);
+  // va per ULTIMO: imposta opacity/transform !important su tutto, e
+  // stripGlows deve poter agire sugli elementi che la regola tocca.
+  freezeAnimations(wrap);
   return wrap;
 }
 
