@@ -18,20 +18,25 @@ export interface ShareLineupOptions {
 }
 
 /**
- * Neutralizza le animazioni di ingresso nel nodo catturato.
+ * Neutralizza animazioni e glow nel nodo catturato.
  *
- * Il campo e' avvolto in `animate-in fade-in zoom-in-95`: la classe
- * `.animate-in` di tailwindcss-animate imposta `--tw-enter-opacity: initial`
- * (= 0) e i keyframe `enter` partono da opacity 0 / scale 0.95. Sul clono
- * l'animazione RIPARTE da capo e html-to-image cattura subito, senza
- * attendere: il campo verrebbe fotografato a opacita' ~0, cioe' assente.
+ * 1. ANIMAZIONI. Il campo e' avvolto in `animate-in fade-in zoom-in-95`: la
+ *    classe `.animate-in` di tailwindcss-animate imposta
+ *    `--tw-enter-opacity: initial` (= 0) e i keyframe `enter` partono da
+ *    opacity 0 / scale 0.95. Sul clono l'animazione RIPARTE da capo e
+ *    html-to-image cattura subito, senza attendere: il campo verrebbe
+ *    fotografato a opacita' ~0, cioe' assente.
  *
- * Serve `!important`: un'animazione CSS vince sulle dichiarazioni normali,
- * quindi un `style.opacity = 1` inline verrebbe ignorato finche' l'animazione
- * e' attiva. Lo `<style>` e' dentro il nodo, quindi html-to-image lo embedded
- * nel PNG.
+ * 2. GLOW. I pallini hanno `shadow-[0_0_15px_...]` (draggable-player.tsx),
+ *    che si legge come un duplicato sfocato spostato a destra. Per
+ *    un'immagine da condividere si vuole un'immagine piatta: azzerato SOLO
+ *    per la cattura, l'app mantiene il neon a schermo.
+ *
+ * Serve `!important`: un'animazione CSS vince sulle dichiarazioni normali, e
+ * le classi tailwind hanno la precedenza su un `style` inline. Lo `<style>` e'
+ * dentro il nodo, quindi html-to-image lo embedded nel PNG.
  */
-function freezeAnimations(root: HTMLElement) {
+function stileCondivisione(root: HTMLElement) {
   const stile = document.createElement('style');
   stile.textContent = `
     [data-lineup-share], [data-lineup-share] * {
@@ -39,6 +44,7 @@ function freezeAnimations(root: HTMLElement) {
       transition: none !important;
       opacity: 1 !important;
       transform: none !important;
+      box-shadow: none !important;
     }
   `;
   root.appendChild(stile);
@@ -46,13 +52,12 @@ function freezeAnimations(root: HTMLElement) {
 }
 
 /**
- * I pallini hanno un glow colorato che finisce nell'immagine: si legge come un
- * duplicato sfocato spostato a destra, non come un'ombra. Per un'immagine da
- * condividere si vuole un'immagine piatta, quindi il glow viene azzerato SOLO
- * per la cattura, senza toccare l'app.
+ * Rimuove gli shadow inline (box-shadow, filter, text-shadow).
  *
- * Non basta una regola CSS sugli shadow: sono inline, quindi vanno rimossi
- * passando per gli elementi stili.
+ * Nota: NON e' quello che toglie il glow dei pallini, che e' una classe
+ * tailwind e non uno stile inline — quello lo gestisce stileCondivisione con
+ * una regola CSS. Questo giro copre i casi inline e vale la pena tenerlo
+ * separato, perche' i due meccanismi non si escludono a vicenda.
  */
 function stripGlows(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>('*').forEach((el) => {
@@ -63,6 +68,9 @@ function stripGlows(root: HTMLElement) {
   if (root.style.boxShadow) root.style.boxShadow = 'none';
 }
 
+/** Verde neon del tema, usato solo su cornici, chip e separatori. */
+const NEON = '#ace504';
+
 function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
   const col = document.createElement('div');
   col.style.cssText =
@@ -70,17 +78,27 @@ function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
     'font-family:system-ui,-apple-system,Segoe UI,sans-serif;';
 
   const ids = opts.substitutes.filter(Boolean);
+
+  // PANCHINA (N) in bianco pieno: era grigio al 40% e si leggeva male.
+  // Il verde va sulla cornice, non sul testo, per non sporcare il nome squadra.
   const intestazione = document.createElement('div');
   intestazione.style.cssText =
-    'font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);' +
-    'letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;' +
-    'padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:8px;';
+    'font-size:10.5px;font-weight:800;color:#fff;' +
+    'letter-spacing:0.12em;text-transform:uppercase;white-space:nowrap;' +
+    'padding:4px 9px;border:1px solid ' + NEON + ';border-radius:4px;' +
+    'display:inline-block;margin-bottom:10px;';
   intestazione.textContent = `Panchina (${ids.length})`;
   col.appendChild(intestazione);
 
+  // separatore: sottile, verde, senza testo
+  const sep = document.createElement('div');
+  sep.style.cssText =
+    'height:1px;background:' + NEON + ';opacity:0.35;margin:0 0 8px;';
+  col.appendChild(sep);
+
   if (ids.length === 0) {
     const vuoto = document.createElement('div');
-    vuoto.style.cssText = 'font-size:10.5px;color:rgba(255,255,255,0.35);';
+    vuoto.style.cssText = 'font-size:10.5px;color:rgba(255,255,255,0.5);';
     vuoto.textContent = 'Nessun panchinaro';
     col.appendChild(vuoto);
     return col;
@@ -93,10 +111,18 @@ function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
     const riga = document.createElement('div');
     riga.style.cssText =
       'font-size:11px;font-weight:700;color:#fff;line-height:1.5;' +
-      'display:flex;gap:8px;align-items:baseline;padding:1.5px 0;';
+      'display:flex;gap:9px;align-items:center;padding:2.5px 0;';
+
+    // Numero di maglia: era grigio al 35% e a questa dimensione si leggeva
+    // come parte del cognome. Ora e' bianco dentro un chip con bordo neon:
+    // resta staccato dal nome, ma non e' piu' una massa scura.
     const numero = document.createElement('span');
-    numero.style.cssText = 'color:rgba(255,255,255,0.35);font-size:9.5px;min-width:16px;';
+    numero.style.cssText =
+      'color:#fff;font-size:9px;font-weight:800;min-width:19px;' +
+      'text-align:center;line-height:1.5;padding:0 3px;' +
+      'border:1px solid ' + NEON + ';border-radius:3px;';
     numero.textContent = String(i + 12); // R1 = maglia 12, come in partita
+
     const nome = document.createElement('span');
     nome.style.cssText = 'white-space:nowrap;';
     // displayPlayerName restituisce gia' "COGNOME NOME".
@@ -149,7 +175,9 @@ export function buildShareNode(pitch: HTMLElement, opts: ShareLineupOptions): HT
   const campo = document.createElement('div');
   // Larghezza fissa: senza, flex darebbe al campo solo lo spazio residuo e si
   // stringerebbe per far posto alla colonna.
-  campo.style.cssText = `flex:0 0 auto;width:${PITCH_WIDTH}px;`;
+  campo.style.cssText =
+    `flex:0 0 auto;width:${PITCH_WIDTH}px;` +
+    'padding:7px;border:1px solid ' + NEON + ';border-radius:10px;';
   campo.appendChild(pitch.cloneNode(true));
   body.appendChild(campo);
 
@@ -157,9 +185,10 @@ export function buildShareNode(pitch: HTMLElement, opts: ShareLineupOptions): HT
   wrap.appendChild(body);
 
   stripGlows(wrap);
-  // va per ULTIMO: imposta opacity/transform !important su tutto, e
-  // stripGlows deve poter agire sugli elementi che la regola tocca.
-  freezeAnimations(wrap);
+  // va per ULTIMO: stileCondivisione mette box-shadow !important su tutto e
+  // stripGlows deve poter agire sugli elementi su cui la regola non ha ancora
+  // scritto.
+  stileCondivisione(wrap);
   return wrap;
 }
 
