@@ -68,15 +68,24 @@ export function SmartPlayerSelectDialog({
       if (aHasExact && !bHasExact) return -1;
       if (!aHasExact && bHasExact) return 1;
 
-      // Tier 2: same category (DIF, CEN, ATT)
-      const aCat = getRoleCategory(aRoles[0] as PlayerRole);
-      const bCat = getRoleCategory(bRoles[0] as PlayerRole);
-      const aSameCat = aCat === targetCategory;
-      const bSameCat = bCat === targetCategory;
+      // Tier 2: same category (DIF, CEN, ATT) — su TUTTI i ruoli del giocatore,
+      // non solo il primario. Un difensore classificato come ['CDC','TS'] che
+      // può fare il terzino sinistro è nella categoria DIF per lo slot TS: usare
+      // solo roles[0] (CDC → CEN) lo penalizzava come se non fosse adatto.
+      const aSameCat = aRoles.some(r => getRoleCategory(r as PlayerRole) === targetCategory);
+      const bSameCat = bRoles.some(r => getRoleCategory(r as PlayerRole) === targetCategory);
       if (aSameCat && !bSameCat) return -1;
       if (!aSameCat && bSameCat) return 1;
 
-      // Tier 3: alphabetical by full name
+      // Tier 3: ruolo secondario pertinente, poi alfabetico per nome completo
+      const aSecondary = aRoles.some(r =>
+        r !== getPrimaryRole(a) && getRoleCategory(r as PlayerRole) === targetCategory);
+      const bSecondary = bRoles.some(r =>
+        r !== getPrimaryRole(b) && getRoleCategory(r as PlayerRole) === targetCategory);
+      if (aSecondary && !bSecondary) return -1;
+      if (!aSecondary && bSecondary) return 1;
+
+      // Tier 4: alphabetical by full name
       return a.name.localeCompare(b.name);
     });
   }, [allPlayers, selectedPlayerIds, slotIndex, search, targetSlotRole, targetCategory]);
@@ -116,8 +125,10 @@ export function SmartPlayerSelectDialog({
           
           {sortedPlayers.map((player) => {
             const primary = getPrimaryRole(player);
-            const isMatch = (player.roles ?? [primary]).includes(targetSlotRole);
-            const isSecondary = !isMatch && getRoleCategory(primary) === targetCategory;
+            const playerRoles = player.roles ?? [primary];
+            const isMatch = playerRoles.includes(targetSlotRole);
+            // Coerente con lo scoring: la categoria si considera su TUTTI i ruoli.
+            const isSecondary = !isMatch && playerRoles.some(r => getRoleCategory(r as PlayerRole) === targetCategory);
             const isSelected = selectedPlayerIds[slotIndex] === player.id;
             const injured = isInjured(player);
 

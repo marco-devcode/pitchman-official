@@ -194,22 +194,46 @@ export function getRoleCategory(role: PlayerRole): RoleCategory {
 }
 
 // ── Migration helpers ──────────────────────────────────────
+// Mappa i valori storici (etichette italiane lunghe, abbreviazioni legacy
+// DCD/DCS/CCD/CCS) ai ruoli canonici. Sono incluse anche le chiavi identitarie
+// dei ruoli canonici stessi: senza, migrateRole('TS') cadeva nel fallback e
+// restituiva 'CDC', facendo consigliare i mediani al posto di terzini e
+// difensori centrali.
 const MIGRATION_MAP: Record<string, PlayerRole> = {
-  'POR': 'POR', 'Portiere': 'POR', 'portiere': 'POR',
-  'DC': 'DC', 'Difensore Centrale': 'DC', 'Difensore': 'DC',
-  'DCD': 'TD', 'Terzino Destro': 'TD', 'Terzino Destro ': 'TD',
-  'DCS': 'TS', 'Terzino Sinistro': 'TS',
-  'ED': 'ADA', 'Ala Destra': 'ADA', 'ES': 'ASA', 'Ala Sinistra': 'ASA',
-  'CDC': 'CDC', 'Mediano': 'CDC', ' mediano': 'CDC',
+  // Canonici (identità)
+  'POR': 'POR', 'DC': 'DC', 'TD': 'TD', 'TS': 'TS',
+  'ADA': 'ADA', 'ASA': 'ASA',
+  'CDC': 'CDC', 'TRQ': 'TRQ', 'CD': 'CD', 'CS': 'CS',
+  'AD': 'AD', 'AS': 'AS', 'ATT': 'ATT',
+
+  // Etichette italiane lunghe
+  'Portiere': 'POR', 'portiere': 'POR',
+  'Difensore Centrale': 'DC', 'Difensore': 'DC',
+  'Terzino Destro': 'TD', 'Terzino Destro ': 'TD',
+  'Terzino Sinistro': 'TS',
+  'Ala Destra': 'ADA', 'Ala Sinistra': 'ASA',
+  'Mediano': 'CDC', ' mediano': 'CDC',
+  'Trequartista': 'TRQ',
+  'Attaccante': 'ATT', 'attaccante': 'ATT',
+
+  // Abbreviazioni legacy
+  'DCD': 'TD', 'DCS': 'TS',
   'CCD': 'CD', 'CCS': 'CS',
   'CO': 'CD', 'CSX': 'CS',
-  'TRQ': 'TRQ', 'Trequartista': 'TRQ',
-  'ATT': 'ATT', 'Attaccante': 'ATT', 'attaccante': 'ATT',
-  'AD': 'AD', 'AS': 'AS',
+  'ED': 'ADA', 'ES': 'ASA',
 };
 
 export function migrateRole(oldRole: string): PlayerRole {
-  return MIGRATION_MAP[oldRole] ?? 'CDC';
+  const direct = MIGRATION_MAP[oldRole];
+  if (direct) return direct;
+
+  // Fallback robust: normalizza spazi/case e riprova, così un valore
+  // " ts " o "ts" non finisce più nel default. Poi per categoria.
+  const norm = String(oldRole ?? '').trim().toUpperCase();
+  const retry = MIGRATION_MAP[norm];
+  if (retry) return retry;
+
+  return 'CDC';
 }
 
 // Player type now uses `roles: PlayerRole[]` with primaryRole = roles[0]
