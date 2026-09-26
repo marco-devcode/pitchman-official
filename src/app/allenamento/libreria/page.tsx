@@ -4,13 +4,14 @@ import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Search, Filter, Globe, Lock, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Search, Filter, Globe, Lock, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PiTrafficCone } from "react-icons/pi";
 import { useExerciseStore } from "@/store/useExerciseStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ExerciseCard } from "@/components/allenamento/exercise-card";
 import { ExerciseDialog } from "../../../components/allenamento/exercise-dialog";
+import { AiExerciseGenerator } from "@/components/allenamento/ai-exercise-generator";
 import { ExerciseViewDialog } from "../../../components/allenamento/exercise-view-dialog";
 import { ExerciseFilterDialog } from "../../../components/allenamento/exercise-filter-dialog";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export default function ExerciseLibraryPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
 
   useEffect(() => {
@@ -116,13 +118,31 @@ export default function ExerciseLibraryPage() {
           </Button>
         </div>
 
-        <Button 
-          onClick={handleAdd} 
-          className="h-11 px-6 rounded-2xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase tracking-widest text-[10px] shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all gap-2"
-        >
-          <Plus className="h-4 w-4" /> Nuovo Esercizio
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleAdd}
+            className="h-11 px-6 rounded-2xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase tracking-widest text-[10px] shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all gap-2"
+          >
+            <Plus className="h-4 w-4" /> Nuovo Esercizio
+          </Button>
+
+          {/* Generatore AI: produce un esercizio normale con in piu' i dati
+              tattici per l'animazione, quindi lo salva con lo stesso store. */}
+          <Button
+            onClick={() => setIsAiGeneratorOpen(true)}
+            className="h-11 px-4 sm:px-6 rounded-2xl border border-brand-green/40 bg-brand-green/10 text-brand-green font-black uppercase tracking-widest text-[10px] hover:bg-brand-green/20 transition-all hover:scale-[1.02] active:scale-95 gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">Crea con AI</span>
+            <span className="sm:hidden">AI</span>
+          </Button>
+        </div>
       </div>
+
+      <AiExerciseGenerator
+        open={isAiGeneratorOpen}
+        onOpenChange={setIsAiGeneratorOpen}
+      />
 
       <ExerciseFilterDialog 
         open={isFilterDialogOpen}

@@ -1,4 +1,5 @@
 import { MATCH_FORMATIONS } from './formation-modules';
+import type { TacticalExercise } from './tactical-exercise';
 
 export type AccountRole = 'developer' | 'director' | 'coach' | 'player';
 
@@ -596,6 +597,12 @@ export interface Exercise {
   media: ExerciseMedia[];
   playerCount: string[];
   duration?: string;
+  /**
+   * Dati tattici per l'animazione 2D, quando l'esercizio e' stato generato
+   * con AI. Assente per gli esercizi creati a mano: in quel caso non c'e'
+   * animazione da mostrare e i componenti devono degradare senza rompere.
+   */
+  tactical?: TacticalExercise;
   createdAt: string;
   updatedAt: string;
 }

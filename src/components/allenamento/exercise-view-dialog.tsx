@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X, Target, Users, ExternalLink, ImageIcon, Video, Link as LinkIcon, Calendar, Clock } from "lucide-react";
+import { X, Target, Users, ExternalLink, ImageIcon, Video, Link as LinkIcon, Calendar, Clock, Sparkles } from "lucide-react";
+import ExercisePlayer from "@/components/allenamento/exercise-player";
 import { PiTrafficCone } from "react-icons/pi";
 import { Exercise } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -107,6 +108,23 @@ export function ExerciseViewDialog({ open, onOpenChange, exercise }: ExerciseVie
                       </p>
                     </div>
                   </div>
+
+                  {/* Animazione tattica: presente solo se l'esercizio e' stato
+                      generato con AI. Gli esercizi creati a mano non hanno il
+                      campo `tactical` e qui semplicemente non compare nulla. */}
+                  {exercise.tactical && exercise.tactical.steps?.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1">
+                        <Sparkles className="h-4 w-4 text-primary dark:text-brand-green" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">
+                          Lavagna Animata
+                        </h3>
+                      </div>
+                      <div className="flex justify-center rounded-3xl border border-border/50 dark:border-brand-green/10 bg-muted/20 dark:bg-zinc-900/30 p-4">
+                        <ExercisePlayer data={exercise.tactical} />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Sidebar: Media Resources */}
