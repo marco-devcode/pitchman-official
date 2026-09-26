@@ -321,8 +321,19 @@ export const aggregationRepository = {
                 if (!details) continue;
 
                 const isStarter = details.lineup?.starters.some(pid => (typeof pid === 'string' ? pid : pid.playerId) === player.id) ?? false;
+                // Presenza: non basta essere in panchina, serve essere entrato
+                // in campo. Un subentrato all'ULTIMO minuto di recupero ha 0
+                // minuti ma conta come presenza, e in questo aggregatore non
+                // avrebbe nessun documento stats: controllare solo isStarter o
+                // !!playerStats lo avrebbe fatto sparire dalle presenze.
+                const isSubstitute = details.lineup?.substitutes.some(pid => (typeof pid === 'string' ? pid : pid.playerId) === player.id) ?? false;
+                const hasComeOn = details.events.some(e =>
+                    e.type === 'substitution'
+                    && e.playerId === player.id
+                    && e.team === (match.isHome ? 'home' : 'away')
+                );
                 const playerStats = details.stats.find(s => s.playerId === player.id);
-                const hasPlayed = isStarter || !!playerStats;
+                const hasPlayed = isStarter || isSubstitute || !!playerStats || hasComeOn;
 
                 if (hasPlayed) {
                     appearances++;

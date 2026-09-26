@@ -55,6 +55,15 @@ export const MatchSchema = z.object({
   isHome: z.boolean(),
   type: MatchTypeSchema,
   duration: z.number().default(60),
+  // Recupero per periodo. z.record con chiavi 1TS/2TS: se non dichiarato
+  // resta assente, e assente significa "nessun recupero" (non si deduce dagli
+  // eventi). Vedi stoppage-time.ts.
+  addedTime: z
+    .object({
+      '1TS': z.number().int().min(0).max(30).optional(),
+      '2TS': z.number().int().min(0).max(30).optional(),
+    })
+    .optional(),
   result: MatchResultSchema.optional(),
   teamGoals: z.number().optional(),
   opponentGoals: z.number().optional(),

@@ -399,6 +399,13 @@ export type Match = {
   isHome: boolean;
   type: MatchType;
   duration: number;
+  /**
+   * Minuti di recupero per periodo (1TS = primo tempo, 2TS = secondo).
+   * Assente per le partite senza recupero dichiarato: NON si deduce dagli
+   * eventi registrati in 1TS/2TS, perche' registrarne uno non dichiara quanto
+   * recupero ci fosse. Vedi stoppage-time.ts.
+   */
+  addedTime?: Partial<Record<'1TS' | '2TS', number>>;
   result?: MatchResult;
   teamGoals?: number; // Normalized
   opponentGoals?: number; // Normalized

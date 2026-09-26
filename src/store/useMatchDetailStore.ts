@@ -15,6 +15,10 @@ import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
 import type { Match, Player, MatchLineup, MatchEvent, PlayerMatchStats } from '@/lib/types';
 import { countGoals } from '@/lib/goal-utils';
+import {
+  getAbsoluteMinute as absoluteMinute,
+  getMatchEndAbsolute as matchEndAbsolute,
+} from '@/lib/stoppage-time';
 
 interface MatchDetailState {
     matchId: string | null;
@@ -119,13 +123,19 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const duration = match.duration || 90;
         const halfTime = Math.floor(duration / 2);
         const pitchManTeam = match.isHome ? 'home' : 'away';
+        const addedTime = match.addedTime;
 
-        const getAbsoluteMinute = (event: MatchEvent) => {
-            const min = event.minute ?? 0;
-            if (event.period === '1T') return Math.min(min, halfTime);
-            if (event.period === '2T') return halfTime + Math.min(min, halfTime);
-            return min + duration; 
-        };
+        // getAbsoluteMinute gestisce i periodi 1TS/2TS: senza questo, un
+        // giocatore uscito nel recupero avrebbe minuti negativi (dato che
+        // il minuto assoluto del 2TS era calcolato come min + duration, ben
+        // oltre la fine partita).
+        const getAbsoluteMinute = (event: MatchEvent) =>
+            absoluteMinute(event, duration, addedTime);
+
+        // Fine partita REALE: 90 regolari + recupero. Senza questo un
+        // titolare in campo fino alla fine risulterebbe aver giocato 90 anche
+        // con 5 minuti di recupero dichiarati.
+        const endOfMatch = matchEndAbsolute(duration, addedTime);
 
         const chronologicalEvents = [...events].sort((a, b) => {
             const pA = periodOrder[a.period] || 0;
@@ -133,6 +143,18 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             if (pA !== pB) return pA - pB;
             return (a.minute ?? 0) - (b.minute ?? 0);
         });
+
+        // Chi e' entrato davvero in campo, anche se per pochi secondi: senza
+        // questo, un subentrato all'ULTIMO minuto di recupero avrebbe 0 minuti
+        // e verrebbe scartato dal filtro, perdendo la presenza. Il regolamento
+        // conta la presenza dal momento dell'ingresso.
+        const playedInStoppageOnly = new Set<string>();
+        for (const e of chronologicalEvents) {
+            if (e.type !== 'substitution' || e.team !== pitchManTeam) continue;
+            if (e.period === '1TS' || e.period === '2TS') {
+                if (e.playerId) playedInStoppageOnly.add(e.playerId);
+            }
+        }
 
         const newStats: PlayerMatchStats[] = allPlayers.map(player => {
             const playerId = player.id;
@@ -150,27 +172,33 @@ export const useMatchDetailStore = create<MatchDetailState>()(
 
             if (lineup && (isStarter || isSubstitute)) {
                 if (isStarter) {
-                    const subOutEvent = chronologicalEvents.find(e => 
+                    const subOutEvent = chronologicalEvents.find(e =>
                         e.type === 'substitution' && e.subOutPlayerId === playerId && e.team === pitchManTeam
                     );
-                    minutesPlayed = subOutEvent ? getAbsoluteMinute(subOutEvent) : duration;
+                    minutesPlayed = subOutEvent ? getAbsoluteMinute(subOutEvent) : endOfMatch;
                 } else {
-                    const subInEvent = chronologicalEvents.find(e => 
+                    const subInEvent = chronologicalEvents.find(e =>
                         e.type === 'substitution' && e.playerId === playerId && e.team === pitchManTeam
                     );
                     if (subInEvent) {
                         const subInMin = getAbsoluteMinute(subInEvent);
-                        const subOutEventLater = chronologicalEvents.find(e => 
+                        const subOutEventLater = chronologicalEvents.find(e =>
                             e.type === 'substitution' && e.subOutPlayerId === playerId && e.team === pitchManTeam && getAbsoluteMinute(e) > subInMin
                         );
-                        const endMin = subOutEventLater ? getAbsoluteMinute(subOutEventLater) : duration;
+                        // Se il subentrato non esce, gioca fino alla fine reale
+                        // (regolari + recupero). Se entra proprio nel recupero,
+                        // endOfMatch - subInMin e' gia' la differenza corretta:
+                        // es. entra al 2' di un 2TS da 5 -> 95 - 92 = 3 minuti,
+                        // cioe' quelli che gli restavano. Nessun caso speciale
+                        // serve, perche' entrambe le quantita' sono assolute.
+                        const endMin = subOutEventLater ? getAbsoluteMinute(subOutEventLater) : endOfMatch;
                         minutesPlayed = Math.max(0, endMin - subInMin);
                     }
                 }
             }
 
             return { matchId, playerId, minutesPlayed, goals, assists, yellowCards, redCards, teamOwnerId: user.id };
-        }).filter(s => s.minutesPlayed > 0 || s.goals > 0 || s.assists > 0 || s.yellowCards > 0 || s.redCards > 0);
+        }).filter(s => s.minutesPlayed > 0 || s.goals > 0 || s.assists > 0 || s.yellowCards > 0 || s.redCards > 0 || playedInStoppageOnly.has(s.playerId));
 
         set({ stats: newStats });
 
@@ -374,7 +402,12 @@ export const useMatchDetailStore = create<MatchDetailState>()(
 
         matchRepository.update(matchId, match.seasonId, updates);
         
-        if (updates.duration || updates.status === 'completed') {
+        // Ricalcola i minuti se cambiano durata, recupero o stato: il
+        // recupero modifica la fine partita reale (95 con 5 di 2TS), quindi
+        // senza questo i minuti resterebbero quelli senza recupero. La
+        // presenza dei minuti e' controllata con !== undefined, non truthiness:
+        // azzerare il recupero ({'2TS': 0}) deve ricalcolare come 90.
+        if (updates.duration !== undefined || updates.addedTime !== undefined || updates.status === 'completed') {
             get().syncAndPersistMinutes();
         }
     },
