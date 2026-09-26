@@ -43,12 +43,36 @@ function stileCondivisione(root: HTMLElement) {
       animation: none !important;
       transition: none !important;
       opacity: 1 !important;
-      transform: none !important;
       box-shadow: none !important;
+    }
+    /* Transform azzerato SOLO sull'elemento che ha l'animazione di ingresso
+       (quello con scale 0.95), NON su tutti i descendenti: i pallini sono
+       centrati sulla loro coordinata con -translate-x-1/2 -translate-y-1/2, e
+       azzerargli il transform li sposterebbe in basso a destra di meta'
+       dimensione, sbilanciando la formazione dentro il riquadro. */
+    [data-lineup-share-anim] {
+      transform: none !important;
+    }
+    /* Nomi dei titolari piu' grandi: sull'app servono 8-9px perche' 11
+       pallini stanno in un campo stretto, ma nell'immagine c'e' spazio. */
+    .nome-giocatore {
+      font-size: 13px !important;
+      line-height: 1.25 !important;
     }
   `;
   root.appendChild(stile);
   root.setAttribute('data-lineup-share', '');
+}
+
+/**
+ * Marca l'elemento del campo che ha l'animazione di ingresso, cosi' la regola
+ * sopra lo tocca senza propagarsi ai pallini. Va chiamata sul CLONE, non
+ * sull'originale a schermo, dove l'animazione deve restare.
+ */
+function segnalaCampoAnimato(clone: Element) {
+  const el = clone.querySelector('.animate-in');
+  if (el) el.setAttribute('data-lineup-share-anim', '');
+  else clone.setAttribute('data-lineup-share-anim', '');
 }
 
 /**
@@ -74,7 +98,7 @@ const NEON = '#ace504';
 function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
   const col = document.createElement('div');
   col.style.cssText =
-    'flex:1 1 auto;min-width:170px;color:#fff;' +
+    'flex:1 1 auto;min-width:195px;color:#fff;' +
     'font-family:system-ui,-apple-system,Segoe UI,sans-serif;';
 
   const ids = opts.substitutes.filter(Boolean);
@@ -83,9 +107,9 @@ function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
   // Il verde va sulla cornice, non sul testo, per non sporcare il nome squadra.
   const intestazione = document.createElement('div');
   intestazione.style.cssText =
-    'font-size:10.5px;font-weight:800;color:#fff;' +
+    'font-size:11.5px;font-weight:800;color:#fff;' +
     'letter-spacing:0.12em;text-transform:uppercase;white-space:nowrap;' +
-    'padding:4px 9px;border:1px solid ' + NEON + ';border-radius:4px;' +
+    'padding:4px 10px;border:1px solid ' + NEON + ';border-radius:4px;' +
     'display:inline-block;margin-bottom:10px;';
   intestazione.textContent = `Panchina (${ids.length})`;
   col.appendChild(intestazione);
@@ -110,7 +134,7 @@ function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
     if (!player) return;
     const riga = document.createElement('div');
     riga.style.cssText =
-      'font-size:11px;font-weight:700;color:#fff;line-height:1.5;' +
+      'font-size:13px;font-weight:700;color:#fff;line-height:1.5;' +
       'display:flex;gap:9px;align-items:center;padding:2.5px 0;';
 
     // Numero di maglia: era grigio al 35% e a questa dimensione si leggeva
@@ -118,7 +142,7 @@ function panchinaColonna(opts: ShareLineupOptions): HTMLElement {
     // resta staccato dal nome, ma non e' piu' una massa scura.
     const numero = document.createElement('span');
     numero.style.cssText =
-      'color:#fff;font-size:9px;font-weight:800;min-width:19px;' +
+      'color:#fff;font-size:10px;font-weight:800;min-width:22px;' +
       'text-align:center;line-height:1.5;padding:0 3px;' +
       'border:1px solid ' + NEON + ';border-radius:3px;';
     numero.textContent = String(i + 12); // R1 = maglia 12, come in partita
@@ -178,9 +202,11 @@ export function buildShareNode(pitch: HTMLElement, opts: ShareLineupOptions): HT
   campo.style.cssText =
     `flex:0 0 auto;width:${PITCH_WIDTH}px;` +
     'padding:7px;border:1px solid ' + NEON + ';border-radius:10px;';
-  campo.appendChild(pitch.cloneNode(true));
+  const clonoCampo = pitch.cloneNode(true) as HTMLElement;
+  // va fatto sul clone: l'originale a schermo deve mantenere l'animazione.
+  segnalaCampoAnimato(clonoCampo);
+  campo.appendChild(clonoCampo);
   body.appendChild(campo);
-
   body.appendChild(panchinaColonna(opts));
   wrap.appendChild(body);
 

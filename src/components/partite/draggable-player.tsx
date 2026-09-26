@@ -287,7 +287,13 @@ export function DraggablePlayer({
           {player && isInjured && (
             <Activity className="w-2 h-2 text-red-500 shrink-0" />
           )}
-          <p className="text-[8px] sm:text-[9px] font-black text-white uppercase truncate">
+          {/* Nomi piu' grandi nell'immagine condivisa (10px -> 12px su mobile,
+              11px -> 13px su desktop). La classe si chiama .nome-giocatore e
+              viene ingrandita da lineup-share.ts SOLO sul clone: sull'app
+              l'8px serve, perche' 11 pallini devono stare in un campo stretto
+              senza accavallarsi. Lo spazio nel riquadro e' gia' sufficiente
+              perche' la larghezza la decide il campo, non il nome. */}
+          <p className="nome-giocatore text-[10px] sm:text-[11px] font-black text-white uppercase truncate">
             {player ? displayStarterName(player) : acronym}
           </p>
         </div>
