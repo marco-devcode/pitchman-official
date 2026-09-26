@@ -53,12 +53,6 @@ function stileCondivisione(root: HTMLElement) {
     [data-lineup-share-anim] {
       transform: none !important;
     }
-    /* Nomi dei titolari piu' grandi: sull'app servono 8-9px perche' 11
-       pallini stanno in un campo stretto, ma nell'immagine c'e' spazio. */
-    .nome-giocatore {
-      font-size: 13px !important;
-      line-height: 1.25 !important;
-    }
   `;
   root.appendChild(stile);
   root.setAttribute('data-lineup-share', '');
