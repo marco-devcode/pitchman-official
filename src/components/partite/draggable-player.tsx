@@ -42,14 +42,27 @@ export function DraggablePlayer({
 
   const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPos = React.useRef<{ x: number; y: number } | null>(null);
+  // Copia dello stato di drag in un ref. handlePointerMove deve poter sapere
+  // se il drag e' partito GIA' nel frame in cui parte: se legesse isDragging
+  // dallo stato React, il primo pointermove successivo all'attivazione
+  // userebbe ancora il closure del render precedente (isDragging = false),
+  // interpreterebbe la mossa come scroll, chiamerebbe cancelGesture e
+  // sbloccherebbe la pagina sotto il dito che sta trascinando il pallino.
+  const isDraggingRef = React.useRef(false);
   // Riferimento al body, per congelare lo scroll durante il drag.
   const scrollLock = React.useRef<{ paddingRight: string; overflow: string } | null>(null);
   // Riferimento all'elemento radice, non a event.target: quest'ultimo e' il
   // figlio che ha ricevuto l'evento (span/icona) e disabilitargli i
   // pointer-events non liberava il campo per il drop target.
   const rootRef = React.useRef<HTMLDivElement>(null);
-  // Impedisce che un click sintetico successivo al drag apra il dialogo slot.
-  const suppressClick = React.useRef(false);
+  // Impedisce che il click che il browser emette subito dopo il rilascio di un
+  // drag apra il dialogo di selezione. Un flag booleano non basta: lo si
+  // consumerebbe col click sbagliato se il rilascio non ha prodotto uno swap,
+  // e resterebbe armato per il click successivo. Un timestamp e' immune a
+  // entrambi i casi.
+  const lastDragEndAt = React.useRef(0);
+  /** Finestra (ms) in cui un click e' considerato effetto del drag. */
+  const POST_DRAG_MS = 350;
 
   const clearTimer = React.useCallback(() => {
     if (longPressTimer.current) {
@@ -91,6 +104,8 @@ export function DraggablePlayer({
   const cancelGesture = React.useCallback(() => {
     clearTimer();
     startPos.current = null;
+    isDraggingRef.current = false;
+    setIsDragging(false);
     setIsArmed(false);
     unlockScroll();
   }, [clearTimer, unlockScroll]);
@@ -105,6 +120,7 @@ export function DraggablePlayer({
     setIsArmed(true);
 
     longPressTimer.current = setTimeout(() => {
+      isDraggingRef.current = true;
       setIsDragging(true);
       lockScroll();
       controls.start(event);
@@ -122,7 +138,7 @@ export function DraggablePlayer({
     // annulliamo la pressione prolungata. Una volta partito il drag non si
     // guarda piu' la distanza: il pallino segue il dito e il movimento e'
     // l'utenza, non uno scroll.
-    if (distance > MOVE_TOLERANCE && !isDragging) {
+    if (distance > MOVE_TOLERANCE && !isDraggingRef.current) {
       cancelGesture();
     }
   };
@@ -131,7 +147,8 @@ export function DraggablePlayer({
     cancelGesture();
   };
 
-  const handleDragEnd = (_event: unknown, info: { point: { x: number; y: number } }) => {
+  const handleDragEnd = (event: unknown, _info: unknown) => {
+    isDraggingRef.current = false;
     setIsDragging(false);
     setIsArmed(false);
     startPos.current = null;
@@ -139,6 +156,22 @@ export function DraggablePlayer({
     // Lo scroll torna subito disponibile: da qui in avanti il puntatore non
     // trascina piu' il pallino, quindi non deve piu' trascinare la pagina.
     unlockScroll();
+
+    // pointercancel = gesto abortito dal browser (ha preso il possesso del
+    // puntatore per uno scroll nativo, o la finestra ha perso il focus).
+    // Non e' un rilascio intenzionale: niente swap.
+    if (event && (event as PointerEvent).type === 'pointercancel') return;
+
+    // Coordinate del rilascio. Si usa l'evento DOM reale (clientX/clientY,
+    // coordinate viewport) e NON info.point di framer-motion: quest'ultimo e'
+    // in pageX/pageY, cioe' coordinate documento che contengono gia' lo
+    // scroll. Passarle a elementFromPoint, che accetta solo coordinate
+    // viewport, puntava a un punto piu' in basso di quanto il dito: lo swap
+    // finiva su uno slot lontano, o su nessuno.
+    const pointer = event as { clientX?: number; clientY?: number } | null;
+    const x = pointer?.clientX;
+    const y = pointer?.clientY;
+    if (typeof x !== 'number' || typeof y !== 'number') return;
 
     // Disabilita i pointer-events sull'intero elemento trascinato, cosi'
     // elementFromPoint restituisce il bersaglio che sta sotto e non se stesso.
@@ -151,7 +184,7 @@ export function DraggablePlayer({
 
     let dropTarget: Element | null = null;
     try {
-      const element = document.elementFromPoint(info.point.x, info.point.y);
+      const element = document.elementFromPoint(x, y);
       dropTarget = element?.closest('[data-drop-target="true"]') ?? null;
     } finally {
       node.style.pointerEvents = prevPointerEvents;
@@ -167,7 +200,10 @@ export function DraggablePlayer({
     // Scambiare uno slot con se stesso non ha senso: niente da fare.
     if (targetType === type && targetIndex === index) return;
 
-    suppressClick.current = true;
+    // Il click post-riilascio va ignorato, ma solo se il rilascio ha prodotto
+    // uno swap: un rilascio a vuoto lascia passare il click, che e' quello
+    // che l'utente voleva (aprire il selettore di quello slot).
+    lastDragEndAt.current = Date.now();
     onSwap({ type, index }, { type: targetType, index: targetIndex });
   };
 
@@ -195,13 +231,14 @@ export function DraggablePlayer({
         whileDrag={{ scale: 1.12, zIndex: 50, opacity: 0.85 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
         onClick={(e) => {
-          // Se il click segue un drag, non aprire il selettore.
-          if (suppressClick.current) {
-            suppressClick.current = false;
+          // Click emesso dal browser subito dopo il rilascio di un drag che ha
+          // scambiato due giocatori: ignorarlo, altrimenti si apre la lista di
+          // selezione sullo slot di destinazione.
+          if (Date.now() - lastDragEndAt.current < POST_DRAG_MS) {
             e.stopPropagation();
             return;
           }
-          if (!isDragging) onClick();
+          onClick();
         }}
         data-drop-target="true"
         data-slot-type={type}
