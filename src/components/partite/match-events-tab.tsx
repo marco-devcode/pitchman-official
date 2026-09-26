@@ -205,7 +205,12 @@ function TimelineEvent({ event, match, getEventIcon, getEventLabel, isHome, onOp
             "absolute whitespace-nowrap bg-muted/80 dark:bg-black/80 px-2.5 py-1 rounded-full border border-border dark:border-brand-green/10 text-[11px] font-black tabular-nums shadow-sm z-20",
             alignLeft ? "left-full ml-4" : "right-full mr-4"
           )}>
-            {formatDisplayMinute(event.minute, event.period, match?.duration)}
+            {/* Il recupero non ha un "minuto" da formattare: il suo minute e'
+                il NUMERO di minuti aggiuntivi, quindi formatDisplayMinute
+                produrrebbe roba tipo "105+15-8'". Si mostra il tempo. */}
+            {event.type === 'stoppage'
+              ? (event.period === '1TS' ? '1° TEMPO' : '2° TEMPO')
+              : formatDisplayMinute(event.minute, event.period, match?.duration)}
           </div>
         )}
 
@@ -249,6 +254,19 @@ function TimelineEvent({ event, match, getEventIcon, getEventLabel, isHome, onOp
             <p className="text-[11px] sm:text-xs font-medium tracking-tight text-foreground/80 break-words italic max-w-[140px] sm:max-w-[200px] select-text">
               &quot;{event.notes}&quot;
             </p>
+          ) : event.type === 'stoppage' ? (
+            // Minuti aggiuntivi: nessun giocatore, solo il blocco di recupero
+            // dichiarato per quel tempo. Barra orizzontale con i minuti, per
+            //che' si legga a colpo d'occhio nella cronaca.
+            <div className={cn("flex flex-col gap-1.5", alignLeft ? "items-end" : "items-start")}>
+              <div
+                className="h-1.5 rounded-full bg-primary dark:bg-brand-green w-full max-w-[120px] min-w-[52px]"
+                aria-hidden
+              />
+              <p className="text-[9px] font-black uppercase tracking-widest leading-none text-muted-foreground">
+                {getEventLabel(event)}
+              </p>
+            </div>
           ) : (
             <div className={cn("flex flex-col", alignLeft ? "items-end text-right" : "items-start text-left")}>
               <p className="font-black leading-tight uppercase text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">

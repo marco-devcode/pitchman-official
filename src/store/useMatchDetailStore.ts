@@ -19,6 +19,7 @@ import {
   getAbsoluteMinute as absoluteMinute,
   getMatchEndAbsolute as matchEndAbsolute,
 } from '@/lib/stoppage-time';
+import { getStoppageFromEvent } from '@/lib/match-events';
 
 interface MatchDetailState {
     matchId: string | null;
@@ -42,6 +43,36 @@ interface MatchDetailState {
 }
 
 const periodOrder: Record<string, number> = { '1T': 1, '2T': 2, '1TS': 3, '2TS': 4 };
+
+/**
+ * Dato il nuovo insieme di eventi, ricava il recupero dichiarato e lo scrive
+ * sulla partita.
+ *
+ * Il recupero e' un dato UNICO per periodo: se in cronaca ci sono piu' eventi
+ * 'stoppage' per lo stesso tempo, vince l'ultimo (in ordine di periodo e
+ * minuto). Non si sommano — 2TS = 5 seguito da 2TS = 3 significa "3", non 8:
+ * il primo valore era una dichiarazione superata, non un blocco diverso.
+ *
+ * Un solo evento per periodo, come concordato: 1TS e 2TS sono due voci
+ * distinte e non si toccano a vicenda.
+ *
+ * Se non ci sono piu' eventi stoppage per un periodo, il recupero di quel
+ * periodo torna a 0: cancellare l'evento deve cancellare il dato, altrimenti
+ * la partita resterebbe con minuti fantasma.
+ */
+export function deriveAddedTime(events: MatchEvent[]) {
+  const out: { '1TS'?: number; '2TS'?: number } = {};
+  for (const e of events) {
+    if (e.type !== 'stoppage') continue;
+    if (e.period !== '1TS' && e.period !== '2TS') continue;
+    const n = getStoppageFromEvent(e);
+    if (n > 0) out[e.period] = n;
+  }
+  return {
+    '1TS': out['1TS'],
+    '2TS': out['2TS'],
+  };
+}
 
 export const useMatchDetailStore = create<MatchDetailState>()(
   persist(
@@ -312,11 +343,19 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         });
 
         const { home: homeGoals, away: awayGoals } = countGoals(updatedEvents);
-        const updatedMatch = { ...match, result: { home: homeGoals, away: awayGoals } };
+        // Il recupero si ricava dagli eventi: aggiungere un evento
+        // 'stoppage' deve cambiare i minuti giocati, quindi va applicato
+        // PRIMA di syncAndPersistMinutes (che legge match.addedTime dallo
+        // stato) e non dopo.
+        const addedTime = deriveAddedTime(updatedEvents);
+        const updatedMatch = { ...match, result: { home: homeGoals, away: awayGoals }, addedTime };
 
         set({ events: updatedEvents, match: updatedMatch });
 
-        matchRepository.update(matchId, match.seasonId, { result: { home: homeGoals, away: awayGoals } });
+        matchRepository.update(matchId, match.seasonId, {
+            result: { home: homeGoals, away: awayGoals },
+            addedTime,
+        });
         get().syncAndPersistMinutes();
     },
 
@@ -335,7 +374,8 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         });
 
         const { home: homeGoals, away: awayGoals } = countGoals(updatedEvents);
-        const updatedMatch = { ...match, result: { home: homeGoals, away: awayGoals } };
+        const addedTime = deriveAddedTime(updatedEvents);
+        const updatedMatch = { ...match, result: { home: homeGoals, away: awayGoals }, addedTime };
 
         set({ events: updatedEvents, match: updatedMatch });
 
@@ -353,7 +393,10 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         }
 
         eventRepository.update(eventId, matchId, match.seasonId, eventData);
-        matchRepository.update(matchId, match.seasonId, { result: { home: homeGoals, away: awayGoals } });
+        matchRepository.update(matchId, match.seasonId, {
+            result: { home: homeGoals, away: awayGoals },
+            addedTime,
+        });
         get().syncAndPersistMinutes();
     },
 
@@ -364,7 +407,11 @@ export const useMatchDetailStore = create<MatchDetailState>()(
 
         const updatedEvents = currentEvents.filter(e => e.id !== eventId);
         const { home: homeGoals, away: awayGoals } = countGoals(updatedEvents);
-        const updatedMatch = { ...match, result: { home: homeGoals, away: awayGoals } };
+        // Cancellare l'evento 'stoppage' deve cancellare anche il recupero:
+        // senza questo la partita resterebbe con minuti che non hanno piu'
+        // nessun evento che li dichiari.
+        const addedTime = deriveAddedTime(updatedEvents);
+        const updatedMatch = { ...match, result: { home: homeGoals, away: awayGoals }, addedTime };
 
         set({ events: updatedEvents, match: updatedMatch });
 
@@ -382,8 +429,11 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         }
 
         eventRepository.delete(eventId, matchId, match.seasonId);
-        matchRepository.update(matchId, match.seasonId, { result: { home: homeGoals, away: awayGoals } });
-        
+        matchRepository.update(matchId, match.seasonId, {
+            result: { home: homeGoals, away: awayGoals },
+            addedTime,
+        });
+
         get().syncAndPersistMinutes();
     },
     

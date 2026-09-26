@@ -3,10 +3,10 @@
  */
 
 import React from "react";
-import { 
-  Info, Target, Zap, Flag, Handshake, XCircle, 
-  ArrowUp, ArrowDown, ArrowRightLeft 
-} from "lucide-react";
+import {
+  Info, Target, Zap, Flag, Handshake, XCircle, Timer,
+  ArrowUp, ArrowDown, ArrowRightLeft
+} from 'lucide-react';
 import { GiSoccerBall, GiGloves, GiTargetPoster, GiLightBulb } from "react-icons/gi";
 import { IoSquare } from "react-icons/io5";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,7 @@ export const getEventIcon = (event: Partial<MatchEvent>, size: string = "h-4 w-4
     case 'penalty_missed': return <XCircle className={getFinalClass("text-black dark:text-white")} />;
     case 'chance': return <GiLightBulb className={getFinalClass("text-black dark:text-white")} />;
     case 'woodwork': return <GiTargetPoster className={getFinalClass("text-black dark:text-white")} />;
+    case 'stoppage': return <Timer className={getFinalClass("text-black dark:text-white")} />;
     case 'note': return <Info className={getFinalClass("text-black dark:text-white")} />;
     default: return <Info className={getFinalClass("text-black dark:text-white")} />;
   }
@@ -68,7 +69,16 @@ export const getEventLabel = (event: Partial<MatchEvent>) => {
   }
   if (event.type === 'own_goal') return 'AUTOGOL';
   if (event.type === 'substitution') return 'SOSTITUZIONE';
-  
+  // Il recupero e' l'unico evento senza giocatore: il testo porta i minuti
+  // ("3 MIN AGGIUNTI") e il periodo lo dice gia' il tag del minuto. Il
+  // minute dell'evento non viene usato come numero di minuti aggiuntivi,
+  // perche' in un 1TS/2TS il minuto e' relativo al periodo, non assoluto.
+  if (event.type === 'stoppage') {
+    const n = getStoppageFromEvent(event);
+    if (n <= 0) return 'RECUPERO';
+    return `${n} MIN AGGIUNTI`;
+  }
+
   switch (event.type) {
     case 'yellow_card': return 'AMMONIZIONE';
     case 'red_card': return 'ESPULSIONE';
@@ -79,6 +89,26 @@ export const getEventLabel = (event: Partial<MatchEvent>) => {
     case 'note': return 'NOTA / ALTRO';
     default: return '';
   }
+};
+
+/**
+ * Minuti aggiuntivi dichiarati da un evento 'stoppage'.
+ *
+ * Il dato vive in `notes` come numero semplice ("3"): gli eventi hanno gia'
+ * `minute` (relativo al periodo) e non aggiungere un campo nuovo significa
+ * non toccare schema, repository e normalizzatori.
+ *
+ * NON confondere con getStoppage() di stoppage-time.ts, che legge il dato
+ * gia' salvato sulla partita. Questa legge l'evento in cronaca: e' il ponte
+ * fra i due, e vengono chiamate insieme quando si applica l'evento.
+ */
+export const getStoppageFromEvent = (event: Partial<MatchEvent>): number => {
+  const raw = (event.notes || '').trim();
+  if (!raw) return 0;
+  // tollera "3", "3'", "+3", "3 min", "3 minuti"
+  const m = raw.match(/^\+?(\d{1,2})/);
+  const n = m ? parseInt(m[1], 10) : 0;
+  return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
 /**

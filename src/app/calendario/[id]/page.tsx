@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MatchLineupTab } from "@/components/partite/match-lineup-tab";
 import { MatchEventsTab } from "@/components/partite/match-events-tab";
-import { MatchStoppageEditor } from "@/components/partite/match-stoppage-editor";
 import { MatchNotesTab } from "@/components/partite/match-notes-tab";
 import { useMatchDetailStore } from "@/store/useMatchDetailStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
@@ -165,9 +164,6 @@ function MatchDetailContent() {
 
         <TabsContent value="formazione" className="outline-none">
           <MatchLineupTab />
-          <div className="mt-8 max-w-5xl mx-auto">
-            <MatchStoppageEditor />
-          </div>
         </TabsContent>
 
         <TabsContent value="note" className="outline-none">

@@ -452,7 +452,7 @@ export type PlayerMatchStats = {
   teamOwnerId?: string;
 };
 
-export const EVENT_TYPES = ['goal', 'own_goal', 'yellow_card', 'red_card', 'substitution', 'assist', 'sub_in', 'sub_out', 'penalty_saved', 'penalty_missed', 'chance', 'woodwork', 'note'] as const;
+export const EVENT_TYPES = ['goal', 'own_goal', 'yellow_card', 'red_card', 'substitution', 'assist', 'sub_in', 'sub_out', 'penalty_saved', 'penalty_missed', 'chance', 'woodwork', 'stoppage', 'note'] as const;
 export type MatchEventType = typeof EVENT_TYPES[number];
 
 export const GOAL_TYPES = ['azione', 'rigore', 'punizione', 'calcio_angolo'] as const;

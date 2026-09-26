@@ -19,13 +19,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MatchEventType, MatchEvent, GoalType } from "@/lib/types";
-import { displayPlayerName } from "@/lib/utils";
+import { displayPlayerName, cn } from "@/lib/utils";
 
 import { Loader2 } from "lucide-react";
 
-import { PERIOD_ORDER } from "@/lib/match-events";
+import { PERIOD_ORDER, getStoppageFromEvent } from "@/lib/match-events";
 
-type UIEventType = 'goal' | 'own_goal' | 'yellow_card' | 'red_card' | 'substitution' | 'penalty_saved' | 'penalty_missed' | 'chance' | 'woodwork' | 'note';
+type UIEventType = 'goal' | 'own_goal' | 'yellow_card' | 'red_card' | 'substitution' | 'penalty_saved' | 'penalty_missed' | 'chance' | 'woodwork' | 'stoppage' | 'note';
 
 interface MatchEventDialogProps {
   open: boolean;
@@ -55,6 +55,13 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
   const [goalType, setGoalType] = React.useState<GoalType>('azione');
   const [notes, setNotes] = React.useState<string>("");
 
+  // Minuti aggiuntivi: periodo (1TS/2TS) e numero di minuti. Tenuti separati
+  // dal `period`/`minute` generali perche' il recupero ha una semantica
+  // diversa: il periodo dice a QUALE tempo si aggiungono i minuti, e il
+  // numero dice QUANTI. Il minute assoluto dell'evento non serve.
+  const [stoppagePeriod, setStoppagePeriod] = React.useState<'1TS' | '2TS'>('1TS');
+  const [stoppageMinutes, setStoppageMinutes] = React.useState<number>(1);
+
   const [openSelect, setOpenSelect] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
 
@@ -81,6 +88,12 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
         setSubInPlayerName(eventToEdit.playerName || "");
         setSubOutPlayerId(eventToEdit.subOutPlayerId || "");
         setSubOutPlayerName(eventToEdit.subOutPlayerName || "");
+      } else if (eventToEdit.type === 'stoppage') {
+        // Il recupero va ricaricato nei suoi due selettori: senza questo,
+        // aprire in modifica un 2TS da 5 mostrerebbe 1° Tempo e 1 minuto, e
+        // il salvataggio sovrascriverebbe il dato con valori sbagliati.
+        setStoppagePeriod(eventToEdit.period === '2TS' ? '2TS' : '1TS');
+        setStoppageMinutes(getStoppageFromEvent(eventToEdit) || 1);
       } else {
         setPlayerId(eventToEdit.playerId || "");
         setPlayerName(eventToEdit.playerName || "");
@@ -156,6 +169,8 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
     setPeriod('1T');
     setGoalType('azione');
     setNotes("");
+    setStoppagePeriod('1TS');
+    setStoppageMinutes(1);
   };
 
   const handleSave = async () => {
@@ -225,6 +240,18 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           type: 'note',
           notes: notes || "Nota",
           playerName: ""
+        });
+      } else if (uiType === 'stoppage') {
+        // Nessun giocatore: il recupero e' della partita. Il numero di
+        // minuti sta in notes come numero semplice, e il periodo e' 1TS o
+        // 2TS (non 1T/2T): sono i due tempi a cui il recupero si riferisce.
+        eventsToSave.push({
+          ...baseEvent,
+          type: 'stoppage',
+          period: stoppagePeriod,
+          minute: stoppageMinutes,
+          notes: String(stoppageMinutes),
+          playerName: "",
         });
       } else {
         const selectedPlayer = allPlayers.find(p => p.id === playerId);
@@ -313,10 +340,61 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
                 <SelectItem value="penalty_missed" className="text-[10px] font-black uppercase text-foreground">Rigore Sbagliato</SelectItem>
                 <SelectItem value="chance" className="text-[10px] font-black uppercase text-foreground">Occasione</SelectItem>
                 <SelectItem value="woodwork" className="text-[10px] font-black uppercase text-foreground">Palo/Traversa</SelectItem>
+                <SelectItem value="stoppage" className="text-[10px] font-black uppercase text-foreground">Minuti Aggiuntivi</SelectItem>
                 <SelectItem value="note" className="text-[10px] font-black uppercase text-foreground">Nota / Altro</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* MINUTI AGGIUNTIVI: periodo in cascata, poi il numero. */}
+          {uiType === 'stoppage' && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Tempo</span>
+                <div className="flex gap-1.5">
+                  {(['1TS', '2TS'] as const).map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => setStoppagePeriod(p)}
+                      className={cn(
+                        "h-9 px-4 rounded-lg border text-xs font-black transition-colors",
+                        stoppagePeriod === p
+                          ? "bg-primary text-primary-foreground dark:bg-brand-green dark:text-black border-primary dark:border-brand-green"
+                          : "bg-transparent border-border dark:border-brand-green/30 text-foreground dark:text-brand-green",
+                      )}
+                    >
+                      {p === '1TS' ? '1° Tempo' : '2° Tempo'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1 block mb-2">Minuti</span>
+                <div className="grid grid-cols-9 gap-1.5">
+                  {Array.from({ length: 9 }, (_, i) => i + 1).map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      disabled={isSaving}
+                      aria-pressed={stoppageMinutes === n}
+                      onClick={() => setStoppageMinutes(n)}
+                      className={cn(
+                        "h-9 rounded-lg border text-xs font-black tabular-nums transition-colors",
+                        stoppageMinutes === n
+                          ? "bg-primary text-primary-foreground dark:bg-brand-green dark:text-black border-primary dark:border-brand-green"
+                          : "bg-transparent border-border dark:border-brand-green/30 text-foreground dark:text-brand-green",
+                      )}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* TIPO GOAL (SOTTO TIPO EVENTO) */}
           {uiType === 'goal' && (
