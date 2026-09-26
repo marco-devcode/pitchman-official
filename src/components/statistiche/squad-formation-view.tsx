@@ -8,8 +8,15 @@ import { aggregationRepository } from "@/lib/repositories/aggregation-repository
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LayoutGrid, AlertCircle, Loader2 } from "lucide-react";
 import { cn, displayPlayerName } from "@/lib/utils";
-import { FORMATION_POSITIONS, getPositionAcronym } from "@/lib/lineup-mapping";
+import { FORMATION_POSITIONS, getPositionAcronym, MATCH_FORMATIONS } from "@/lib/lineup-mapping";
 
+/**
+ * Righe del campo per le statistiche: array di indici di slot, dalla punta in
+ * giù. Quarta copia della lista formazioni dell'app (dopo i tre componenti
+ * di partita e FORMATIONS in types.ts), quindi la stessa classe di difetto: il
+ * 3-4-3 mancava e ricadeva silenziosamente sul 4-4-2, mostrando una formazione
+ * con righe sbagliate. Completata e verificata sotto.
+ */
 const FORMATION_ROWS: Record<string, number[][]> = {
   "4-4-2": [[9, 10], [5, 6, 7, 8], [1, 2, 3, 4], [0]],
   "4-3-3": [[8, 9, 10], [5, 6, 7], [1, 2, 3, 4], [0]],
@@ -17,8 +24,27 @@ const FORMATION_ROWS: Record<string, number[][]> = {
   "4-2-3-1": [[10], [7, 8, 9], [5, 6], [1, 2, 3, 4], [0]],
   "3-4-2-1": [[10], [8, 9], [4, 5, 6, 7], [1, 2, 3], [0]],
   "3-4-1-2": [[9, 10], [8], [4, 5, 6, 7], [1, 2, 3], [0]],
-  "4-3-1-2": [[9, 10], [8], [5, 6, 7], [1, 2, 3, 4], [0]]
+  "4-3-1-2": [[9, 10], [8], [5, 6, 7], [1, 2, 3, 4], [0]],
+  "3-4-3": [[8, 9, 10], [4, 5, 6, 7], [1, 2, 3], [0]],
 };
+
+/**
+ * Ogni modulo deve comparire qui, altrimenti `FORMATION_ROWS[formation] ||
+ * FORMATION_ROWS["4-4-2"]` mostra il campo sbagliato senza segnalare nulla.
+ * Verificato in sviluppo, alla stessa stima delle altre assertion del progetto.
+ */
+function assertFormationRowsComplete() {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') return;
+  const mancanti = MATCH_FORMATIONS.filter((f) => !FORMATION_ROWS[f]);
+  if (mancanti.length) {
+    throw new Error(
+      `[squad-formation-view] senza righe: ${mancanti.join(', ')}. ` +
+      `Questi moduli mostrerebbero le righe del 4-4-2.`,
+    );
+  }
+}
+
+assertFormationRowsComplete();
 
 const formatPlayerName = (fullName: string) => {
   const parts = fullName.trim().split(/\s+/);

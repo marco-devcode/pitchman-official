@@ -26,6 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAsyncAction } from '@/lib/hooks/useAsyncAction';
 import { AsyncFeedback } from '@/components/ui/async-feedback';
+import { MATCH_FORMATIONS } from '@/lib/lineup-mapping';
 
 interface SmartLineupDialogProps {
   open: boolean;
@@ -100,13 +101,9 @@ export function SmartLineupDialog({ open, onOpenChange }: SmartLineupDialogProps
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card dark:bg-black border-border dark:border-brand-green/50 text-foreground dark:text-white">
-                <SelectItem value="4-4-2" className="text-[11px] font-black">4-4-2</SelectItem>
-                <SelectItem value="4-3-3" className="text-[11px] font-black">4-3-3</SelectItem>
-                <SelectItem value="3-5-2" className="text-[11px] font-black">3-5-2</SelectItem>
-                <SelectItem value="4-2-3-1" className="text-[11px] font-black">4-2-3-1</SelectItem>
-                <SelectItem value="3-4-2-1" className="text-[11px] font-black">3-4-2-1</SelectItem>
-                <SelectItem value="3-4-1-2" className="text-[11px] font-black">3-4-1-2</SelectItem>
-                <SelectItem value="4-3-1-2" className="text-[11px] font-black">4-3-1-2</SelectItem>
+                {MATCH_FORMATIONS.map((f) => (
+                  <SelectItem key={f} value={f} className="text-[11px] font-black">{f}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

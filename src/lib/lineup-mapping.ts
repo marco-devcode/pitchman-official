@@ -1,5 +1,20 @@
 /**
  * Single source of truth for jersey numbers based on tactical positions.
+ *
+ * NOTA: esistono due mappe di formazione in questo progetto, e sono
+ * deliberatamente diverse.
+ *   - questo file  -> campo PARTITA (tactical-pitch-editor, statistiche)
+ *   - types.ts     -> campo ROSA   (rosa/page, rosa-coverage)
+ * Le COORDINATE possono (e devono) divergere: la rosa e' una vista di
+ * copertura, il campo partita e' il posizionamento tattico reale, e non
+ * hanno bisogno di condividere il layout. Confermato dall'utente.
+ *
+ * Cio' che invece DEVE restare identico e' la sequenza degli ACRONIMI
+ * (FORMATION_POSITIONS qui, FORMATION_ROLES in types.ts): se i due
+ * divergono, la rosa dice "manca un CDC" mentre la partita lo schiera,
+ * oppure viceversa, e i due schermi si contraddicono. E' esattamente il
+ * difetto che aveva il 4-3-1-2 (CS, CD, CS invece di CS, CDC, CD).
+ * assertFormationInvariants() in fondo a questo file verifica anche questo.
  */
 
 export const FORMATION_NUMBERS: Record<string, number[]> = {
@@ -92,6 +107,46 @@ export const FORMATION_COORDINATES: Record<string, { top: number, left: number }
     { top: 15, left: 35 }, { top: 15, left: 65 }
   ]
 };
+
+/**
+ * I moduli selezionabili in PARTITA, derivati da FORMATIONS invece che
+ * hardcoded.
+ *
+ * Prima la lista viveva in tre file (match-lineup-tab, lineup-form-dialog,
+ * smart-lineup-dialog) con lo stesso array inline. Tre copie = tre posti
+ * dove dimenticarsi un modulo, e il risultato e' un modulo disponibile in
+ * meta' dell'app: il 3-4-3 era assente da tutte e tre, quindi irraggiungibile
+ * nonostante le sue tabelle esistessero.
+ *
+ * Un'unica sorgente elimina la classe di bug. La lista vive in
+ * formation-modules.ts (file base senza dipendenze, importato sia da qui sia
+ * da types.ts) e qui e' solo un alias, cosi' i tre componenti di partita
+ * parlano di "moduli" senza sapere da dove arriva. Il 3-4-3 era assente da
+ * tutte e tre le copie hardcoded, quindi irraggiungibile in partita.
+ */
+export { MATCH_FORMATIONS, type MatchFormation } from './formation-modules';
+import { MATCH_FORMATIONS } from './formation-modules';
+
+/**
+ * Verifica che ogni modulo selezionabile in partita abbia i dati completi.
+ * Un modulo nella lista senza tabelle si tradurrebbe in un fallback silenzioso
+ * sul 4-4-2: numeri di maglia e disposizione sbagliati, senza alcun errore.
+ */
+function assertMatchFormationsHaveData() {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') return;
+
+  const mancanti = MATCH_FORMATIONS.filter(
+    (f) => !FORMATION_NUMBERS[f] || !FORMATION_COORDINATES[f] || !FORMATION_POSITIONS[f],
+  );
+  if (mancanti.length) {
+    throw new Error(
+      `[lineup-mapping] moduli selezionabili senza tabelle: ${mancanti.join(', ')}. ` +
+      `Verdetto: quei moduli userebbero i dati del 4-4-2.`,
+    );
+  }
+}
+
+assertMatchFormationsHaveData();
 
 export function getJerseyNumber(formation: string, index: number): number {
   const numbers = FORMATION_NUMBERS[formation] || FORMATION_NUMBERS["4-4-2"];

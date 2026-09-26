@@ -1,3 +1,5 @@
+import { MATCH_FORMATIONS } from './formation-modules';
+
 export type AccountRole = 'developer' | 'director' | 'coach' | 'player';
 
 export interface UserProfile {
@@ -71,10 +73,25 @@ export const ROLE_CATEGORY_COLORS: Record<RoleCategory, string> = {
 
 export type FormationModule = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-2-1' | '3-4-3' | '3-4-1-2' | '4-3-1-2';
 
-// 4-3-1-2 mancava dalla lista pur essendo presente in lineup-mapping: nella
-// rosa non era selezionabile, e i salvataggi di quel modulo venivano scartati
-// dal guard (FORMATIONS as string[]).includes(stored) al ricaricamento.
-export const FORMATIONS: FormationModule[] = ['4-3-3', '4-2-3-1', '4-4-2', '3-5-2', '3-4-2-1', '3-4-3', '3-4-1-2', '4-3-1-2'];
+// Elenco canonico dei moduli: unica fonte per la rosa E per la partita.
+// Vive in formation-modules.ts (file base senza dipendenze) perche' types.ts
+// e lineup-mapping.ts si referenziano fra loro: mettere la lista in uno dei
+// due creerebbe un ciclo di import e l'assertion cross-map, che usa require
+// lazy, salterebbe in silenzio.
+//
+// Prima erano due liste indipendenti che divergevano — il 3-4-3 c'era in rosa
+// e non in partita, il 4-3-1-2 il contrario — e in partita la lista era
+// hardcoded in TRE file (match-lineup-tab, lineup-form-dialog,
+// smart-lineup-dialog), quindi bastava dimenticarsi uno per avere un modulo
+// disponibile in meta' dell'app.
+// Riferimento diretto, non una copia: una copia ([...MATCH_FORMATIONS])
+// continuerebbe a poter divergere dalla lista canonica in silenzio, che e'
+// esattamente il difetto che questo refactor elimina.
+export const FORMATIONS: FormationModule[] = MATCH_FORMATIONS;
+
+// Alias per i componenti di partita, che parlano di "moduli" e non di rosa:
+// importarli da qui rende chiaro che la lista e' condivisa, non una copia.
+export { MATCH_FORMATIONS, type MatchFormation } from './formation-modules';
 
 export const DEFAULT_FORMATION: FormationModule = '4-3-3';
 
@@ -205,6 +222,54 @@ export const FORMATION_POSITIONS: Record<FormationModule, SlotPosition[]> = {
     { top: '15%', left: '65%' },  // ATT dx
   ],
 };
+
+/**
+ * Le due mappe di formazione (questa e lineup-mapping.ts) devono concordare
+ * sugli ACRONIMI di ogni slot, anche se le COORDINATE sono deliberatamente
+ * diverse: la rosa e' una vista di copertura, il campo partita e' il
+ * posizionamento tattico reale, e i due layout non hanno motivo di
+ * coincidere. Sugli acronimi invece devono, altrimenti i due schermi si
+ * contraddicono ("manca un CDC" nella rosa mentre la partita lo schiera,
+ * o viceversa). Difetto reale: il 4-3-1-2 aveva CS, CD, CS qui e
+ * CS, CDC, CD nelle partite.
+ *
+ * require pigro e solo in sviluppo: cosi' i due moduli restano indipendenti,
+ * nessun import statico (e quindi nessun ciclo) viene creato, e se
+ * lineup-mapping non fosse raggiungibile non si blocca il caricamento.
+ */
+function assertCrossMapAcronyms() {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') return;
+
+  let matchMap: Record<string, string[]> | undefined;
+  try {
+    matchMap = (require('./lineup-mapping') as { FORMATION_POSITIONS: Record<string, string[]> }).FORMATION_POSITIONS;
+  } catch {
+    return;
+  }
+  if (!matchMap) return;
+
+  for (const [formation, roles] of Object.entries(FORMATION_ROLES)) {
+    const partita = matchMap[formation];
+    if (!partita) {
+      throw new Error(
+        `[types] ${formation}: presente nella rosa ma assente da lineup-mapping. Le due mappe devono elencare le stesse formazioni.`,
+      );
+    }
+    if (partita.length !== roles.length) {
+      throw new Error(`[types] ${formation}: ${partita.length} acronimi nelle partite contro ${roles.length} nella rosa.`);
+    }
+    for (let i = 0; i < roles.length; i++) {
+      if (partita[i] !== roles[i]) {
+        throw new Error(
+          `[types] ${formation} slot ${i}: acronimo divergente fra le due mappe — rosa=${roles[i]} partita=${partita[i]}. ` +
+          `I due schermi mostrerebbero ruoli diversi per lo stesso slot.`,
+        );
+      }
+    }
+  }
+}
+
+assertCrossMapAcronyms();
 
 export function getRoleCategory(role: PlayerRole): RoleCategory {
   for (const [cat, roles] of Object.entries(ROLE_CATEGORIES) as [RoleCategory, PlayerRole[]][]) {

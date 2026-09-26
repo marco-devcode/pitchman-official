@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChevronLeft, Users, LayoutGrid, Loader2 } from "lucide-react";
-import { getJerseyNumber, getSubstituteNumber, FORMATION_POSITIONS, getPositionAcronym } from "@/lib/lineup-mapping";
+import { getJerseyNumber, getSubstituteNumber, FORMATION_POSITIONS, getPositionAcronym, MATCH_FORMATIONS } from "@/lib/lineup-mapping";
 import { displayPlayerName } from "@/lib/utils";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { TacticalPitchEditor } from "./tactical-pitch-editor";
@@ -167,7 +167,7 @@ export function LineupFormDialog({ open, onOpenChange }: LineupFormDialogProps) 
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card dark:bg-black border-border dark:border-brand-green/50 text-foreground dark:text-white rounded-xl">
-                {["4-4-2", "4-3-3", "3-5-2", "4-2-3-1", "3-4-2-1", "3-4-1-2", "4-3-1-2"].map(f => (
+                {MATCH_FORMATIONS.map(f => (
                   <SelectItem key={f} value={f} className="text-sm font-black uppercase">{f}</SelectItem>
                 ))}
               </SelectContent>

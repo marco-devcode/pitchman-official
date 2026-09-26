@@ -33,6 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isPlayerInjured, activeInjury, formatInjuryDate } from "@/lib/player-utils";
 import { shareLineupAsImage } from "@/lib/lineup-share";
+import { MATCH_FORMATIONS } from "@/lib/lineup-mapping";
 import { displayPlayerName, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useSettingsStore } from "@/store/useSettingsStore";
@@ -234,7 +235,7 @@ export function MatchLineupTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card dark:bg-black border-border dark:border-brand-green/50 text-foreground dark:text-white rounded-xl">
-                  {["4-4-2", "4-3-3", "3-5-2", "4-2-3-1", "3-4-2-1", "3-4-1-2", "4-3-1-2"].map(f => (
+                  {MATCH_FORMATIONS.map(f => (
                     <SelectItem key={f} value={f} className="text-xs font-black uppercase">{f}</SelectItem>
                   ))}
                 </SelectContent>
