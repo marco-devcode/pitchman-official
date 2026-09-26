@@ -39,17 +39,31 @@ export function displayStarterName(player: { firstName?: string; lastName?: stri
 }
 
 /**
- * Formatta il nome come 'N. Cognome' (Iniziale. Cognome)
+ * Formatta il nome come 'N. COGNOME' (iniziale del nome + cognome).
+ *
+ * L'ordine di ingresso è "COGNOME NOME", non "Nome Cognome": tutto cio' che
+ * salva un evento (displayPlayerName, chiamata dal flusso live per gol,
+ * assist e sostituzioni) produce gia' "COGNOME NOME" e finisce in
+ * playerName / assistPlayerName / subIn / subOut.
+ *
+ * La versione precedente assumeva l'inverso e produceva "D. GIOVANNI" per
+ * "DESOLEI GIOVANNI": l'iniziale del cognome al posto del nome, e il nome
+ * per esteso al posto del cognome. Visibile in cronaca ma anche in ogni
+ * punto che riformatta un evento.
  */
 export function formatPlayerInitial(fullName: string): string {
-  if (!fullName || fullName === 'GIOCATORE' || fullName === 'AVVERSARIO' || fullName === 'Autogol') return fullName || "";
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length <= 1) return fullName.toUpperCase();
-  
-  // Se abbiamo "Mario Rossi" -> "M. ROSSI"
-  // Se abbiamo "Rossi Mario" -> assumiamo il primo sia il nome se non sappiamo altro, 
-  // ma solitamente l'input utente è Nome Cognome.
-  const firstName = parts[0];
-  const lastName = parts.slice(1).join(' ');
+  const raw = (fullName || '').trim();
+  if (!raw) return '';
+  // Etichette speciali: sono già nomi, non "cognome nome" da abbreviare.
+  if (/^(GIOCATORE|AVVERSARIO|AUTOGOL)$/i.test(raw)) return raw.toUpperCase();
+
+  const parts = raw.split(/\s+/);
+  // Una sola parola: non c'è un cognome da abbreviare, si lascia intatta.
+  if (parts.length <= 1) return raw.toUpperCase();
+
+  const lastName = parts[0];
+  // Il resto è il nome; se è composto ("MARCO MARIO ROSSI" salvato come
+  // "ROSSI MARCO MARIO") l'iniziale è comunque quella del primo nome.
+  const firstName = parts.slice(1).join(' ');
   return `${firstName.charAt(0).toUpperCase()}. ${lastName.toUpperCase()}`;
 }
