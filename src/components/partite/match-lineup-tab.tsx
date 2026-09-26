@@ -292,7 +292,10 @@ export function MatchLineupTab() {
                   const availablePlayers = allPlayers.filter(p => !allSelectedIds.includes(p.id) || p.id === s);
 
                   return (
-                    <div key={`${i}-${s || 'empty'}`} className="flex items-center gap-3 p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border/50 dark:border-white/5 hover:border-primary/20 dark:hover:border-brand-green/20 transition-all relative">
+                    // key solo per indice, non per playerId: altrimenti ogni
+                    // swap ricrea la riga della panchina mentre l'utente
+                    // trascina (vedi tactical-pitch-editor.tsx).
+                    <div key={i} className="flex items-center gap-3 p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border/50 dark:border-white/5 hover:border-primary/20 dark:hover:border-brand-green/20 transition-all relative">
                       <DraggablePlayer
                         player={player}
                         acronym={`R${i + 1}`}

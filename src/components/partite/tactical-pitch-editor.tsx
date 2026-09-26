@@ -45,8 +45,13 @@ export function TacticalPitchEditor({
           const isPOR = index === 0;
 
           return (
+            // key solo per indice, NON per playerId: includendo il playerId,
+            // ogni swap faceva remountare il componente sotto il cursore
+            // durante il drop, e il nodo veniva distrutto proprio mentre
+            // elementFromPoint lo stava cercando. L'indice e' gia' univoco
+            // perche' identifica lo slot, che e' cio' che non deve cambiare.
             <div
-              key={`${index}-${playerId || 'empty'}`}
+              key={index}
               className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300"
               style={{ top: `${coords.top}%`, left: `${coords.left}%`, zIndex: isEditing ? 10 : 1 }}
             >
