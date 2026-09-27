@@ -72,11 +72,13 @@ export default function ExercisePlayerInner({ data, className }: Props) {
 
       // Se l'azione parte da un punto diverso dalla posizione iniziale,
       // si parte da quello: altrimenti l'entita' salta all'inizio dello step.
-      // from e to sono gia' normalizzati 0-100, quindi si interpola nel
+      // from e to sono {x, y} normalizzati 0-100, quindi si interpola nel
       // dominio normalizzato e si converte solo alla fine: interpolare sui
       // pixel darebbe risultati diversi a seconda della dimensione del campo.
-      const [fx, fy] = action.from;
-      const [tx, ty] = action.to;
+      const fx = action.from?.x ?? entity.x;
+      const fy = action.from?.y ?? entity.y;
+      const tx = action.to?.x ?? fx;
+      const ty = action.to?.y ?? fy;
       return toPx({
         x: fx + (tx - fx) * progress,
         y: fy + (ty - fy) * progress,

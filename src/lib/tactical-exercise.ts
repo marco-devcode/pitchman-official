@@ -27,13 +27,25 @@ export interface TacticalEntity {
 
 export type TacticalActionType = 'pass' | 'run' | 'dribble' | 'shoot';
 
+/**
+ * Punto sul campo, coordinate normalizzate 0-100.
+ *
+ * Oggetto e non tupla `[x, y]`: uno schema con array annidati genera un campo
+ * "items" che l'API Gemini rifiuta con 400 "Proto field is not repeating", e il
+ * modello producendo {"x":..,"y":..} e' piu' leggibile di [12, 34].
+ */
+export interface TacticalPoint {
+  x: number;
+  y: number;
+}
+
 export interface TacticalAction {
   entityId: string;
   type: TacticalActionType;
-  /** Coordinata normalizzata di partenza. */
-  from: [number, number];
-  /** Coordinata normalizzata di arrivo. */
-  to: [number, number];
+  /** Punto di partenza. */
+  from: TacticalPoint;
+  /** Punto di arrivo. */
+  to: TacticalPoint;
   /** Durata in secondi. */
   duration: number;
 }

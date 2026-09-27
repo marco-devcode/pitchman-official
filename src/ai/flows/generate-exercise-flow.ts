@@ -23,11 +23,28 @@ const EntitySchema = z.object({
   height: z.number().optional().describe("Altezza della zona, solo per type 'zone'."),
 });
 
+// Niente z.tuple e Niente riuso dello stesso schema qui. Sono due errori distinti
+// di Gemini, entrambi verificati con una chiamata reale:
+//
+//  1. z.tuple -> il serializzatore emette un campo "items" annidato, e Gemini
+//     risponde 400 "Proto field is not repeating, cannot start list".
+//  2. riuso della stessa istanza (from e to che puntano allo stesso PointSchema)
+//     -> il serializzatore la emette come "$ref", e Gemini risponde 400
+//     "Unknown name $ref: Cannot find field".
+//
+// Quindi due oggetti identici ma SEPARATI: nessun annidamento, nessun riuso.
+// Il player accetta {x, y}, che e' anche piu' leggibile per il modello.
 const ActionSchema = z.object({
   entityId: z.string().describe("ID dell'entita' che agisce: deve esistere fra le initialEntities."),
   type: z.enum(['pass', 'run', 'dribble', 'shoot']),
-  from: z.tuple([z.number(), z.number()]).describe('Coordinate di partenza [x, y], entrambe 0-100.'),
-  to: z.tuple([z.number(), z.number()]).describe('Coordinate di arrivo [x, y], entrambe 0-100.'),
+  from: z.object({
+    x: z.number().describe('Coordinata X di partenza, 0-100.'),
+    y: z.number().describe('Coordinata Y di partenza, 0-100.'),
+  }).describe('Coordinate di partenza.'),
+  to: z.object({
+    x: z.number().describe('Coordinata X di arrivo, 0-100.'),
+    y: z.number().describe('Coordinata Y di arrivo, 0-100.'),
+  }).describe('Coordinate di arrivo.'),
   duration: z.number().describe('Durata in secondi, fra 0.5 e 8.'),
 });
 
@@ -41,7 +58,10 @@ const GenerateExerciseInputSchema = z.object({
   prompt: z.string().describe("La descrizione in testo libero dell'esercizio, scritta dall'allenatore."),
 });
 
-export const GenerateExerciseOutputSchema = z.object({
+// Privato: vedi la nota sul defineFlow. In 'use server' si esportano solo
+// funzioni async, e questo schema non serve al client (il tipo e' gia' in
+// GenerateExerciseOutput).
+const GenerateExerciseOutputSchema = z.object({
   title: z.string().describe("Titolo breve e parlante dell'esercizio, max 60 caratteri."),
   description: z.string().describe("Descrizione dell'esercizio in italiano, 2-4 frasi."),
   playersShown: z.number().describe('Numero di giocatori mostrati, portieri inclusi.'),
@@ -81,34 +101,115 @@ REGOLE SUL SEQUENZE:
 10. La posizione iniziale di ogni giocatore DEVE coincidere con il punto di partenza (from)
     della sua prima azione: altrimenti l'animazione lo sposta a scatti.
 
+FORMATO DELLE COORDINATE (rispettalo alla lettera):
+   from e to sono oggetti con due proprietà: {"x": numero, "y": numero}.
+   Non sono liste fra parentesi quadre.
+
+DISEGNA IL PRIMO STEP COME FOSSE GIA' FINITO:
+   Prima di rispondere, posiziona mentalmente i giocatori sul campo e usa quelle
+   coordinate come from delle loro prime azioni. Il primo step deve gia' essere
+   una posizione plausibile, non un punto di partenza vuoto da cui far partire
+   tutto: un allenatore guarda l'animazione e deve riconoscere subito la
+   situazione iniziale.
+
+ESEMPIO DEL FORMATTO (2 vs 2 con due porticine, 4 giocatori + pallone):
+{
+  "title": "2 vs 2 su due porticine",
+  "playersShown": 5,
+  "initialEntities": [
+    { "id": "gk1", "type": "player", "team": "gk", "label": "GK", "x": 8, "y": 50 },
+    { "id": "a1", "type": "player", "team": "blue", "label": "1", "x": 40, "y": 30 },
+    { "id": "a2", "type": "player", "team": "blue", "label": "2", "x": 40, "y": 70 },
+    { "id": "b1", "type": "player", "team": "red", "label": "3", "x": 60, "y": 35 },
+    { "id": "b2", "type": "player", "team": "red", "label": "4", "x": 60, "y": 65 },
+    { "id": "ball", "type": "ball", "x": 40, "y": 30 }
+  ],
+  "steps": [
+    {
+      "stepNumber": 1,
+      "description": "1 passa al 2 in appoggio, togliendo il tempo al pressing.",
+      "actions": [
+        { "entityId": "a1", "type": "pass", "from": { "x": 40, "y": 30 }, "to": { "x": 40, "y": 70 }, "duration": 1.5 },
+        { "entityId": "ball", "type": "pass", "from": { "x": 40, "y": 30 }, "to": { "x": 40, "y": 70 }, "duration": 1.5 }
+      ]
+    }
+  ]
+}
+NB: in un passaggio si muovono SIA il giocatore che il pallone, con la stessa
+durata. Se muovi il pallone e non il giocatore che lo riceve, l'animazione e'
+incoerente.
+
 Se l'esercizio richiede piu' di ${MAX_STEPS} step, riducilo: e' meglio un esercizio
 completo e animabile che uno spezzettato e incomprensibile.`,
 });
 
-export const generateExerciseFlow = ai.defineFlow(
+// NON esportare questo come const. In un file 'use server' si possono
+// esportare solo funzioni async: un export di tipo valore (l'oggetto restituito
+// da defineFlow) fa fallire il render dei Server Components con "An error
+// occurred in the Server Components render", che e' l'errore che si vedeva
+// premendo Genera.
+//
+// Il flusso resta quindi privato, come in suggest-lineup-flow e
+// import-players-flow, e sotto si esporta solo la funzione wrapper.
+const generateExerciseFlow = ai.defineFlow(
   {
     name: 'generateExerciseFlow',
     inputSchema: GenerateExerciseInputSchema,
     outputSchema: GenerateExerciseOutputSchema,
   },
   async (input) => {
-    try {
-      const { output } = await prompt(input);
-      if (output) return output;
-      throw new Error('Nessun output dal modello');
-    } catch (error: any) {
-      // Stesso comportamento degli altri flussi: si tenta un modello piu'
-      // capace e, se anche quello fallisce, si solleva un errore leggibile
-      // invece di far trapelare il dettaglio tecnico alla UI.
-      console.warn('[generateExercise] modello predefinito fallito, provo il fallback:', error?.message);
+    // I 503 "high demand" sono spike temporanei, non un errore di
+    // configurazione: verificati 8 fallimenti consecutivi e, subito dopo,
+    // una chiamata riuscita con lo stesso schema. Senza attesa il flusso
+    // fallisce immediatamente e l'allenatore vede "Servizio AI non
+    // disponibile" mentre il servizio era solo saturo per qualche secondo.
+    const attendeMs = [0, 3000, 8000];
+
+    for (let tentativo = 0; tentativo < attendeMs.length; tentativo++) {
+      if (attendeMs[tentativo] > 0) {
+        console.warn(
+          `[generateExercise] tentativo ${tentativo + 1} fallito, riprovo fra ${attendeMs[tentativo]}ms`,
+        );
+        await new Promise((r) => setTimeout(r, attendeMs[tentativo]));
+      }
       try {
-        const { output } = await prompt(input, { model: 'googleai/gemini-flash-latest' });
-        if (!output) throw new Error("L'AI non ha restituito un esercizio valido.");
-        return output;
-      } catch (fallbackError: any) {
-        console.error('[generateExercise] anche il fallback è fallito:', fallbackError);
-        throw new Error("Servizio AI momentaneamente non disponibile. Riprova più tardi.");
+        const { output } = await prompt(input);
+        if (output) return output;
+        throw new Error('Nessun output dal modello');
+      } catch (error: any) {
+        console.warn(
+          `[generateExercise] modello predefinito fallito (${tentativo + 1}/${attendeMs.length}):`,
+          error?.message,
+        );
       }
     }
+
+    // Modello di riserva, con lo stesso tentativo: se il 3.8 e' saturo, il
+    // flash-latest spesso risponde lo stesso.
+    for (let tentativo = 0; tentativo < 2; tentativo++) {
+      try {
+        const { output } = await prompt(input, { model: 'googleai/gemini-flash-latest' });
+        if (output) return output;
+      } catch (fallbackError: any) {
+        console.error('[generateExercise] anche il fallback è fallito:', fallbackError);
+      }
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+
+    throw new Error(
+      "Il servizio AI è molto richiesto in questo momento. Riprova fra qualche secondo.",
+    );
   },
 );
+
+/**
+ * Punto d'ingresso per il client.
+ *
+ * E' l'unico export del file, ed e' una funzione: il requisito di 'use server'.
+ * Non chiamare mai generateExerciseFlow direttamente dal client.
+ */
+export async function generateExercise(
+  input: GenerateExerciseInput,
+): Promise<GenerateExerciseOutput> {
+  return await generateExerciseFlow(input);
+}

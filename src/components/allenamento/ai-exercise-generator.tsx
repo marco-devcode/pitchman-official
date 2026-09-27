@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Loader2, Save, RotateCcw, AlertTriangle } from 'lucide-react';
 
-import { generateExerciseFlow, type GenerateExerciseOutput } from '@/ai/flows/generate-exercise-flow';
+import { generateExercise, type GenerateExerciseOutput } from '@/ai/flows/generate-exercise-flow';
 import type { TacticalExercise } from '@/lib/tactical-exercise';
 import { useExerciseStore } from '@/store/useExerciseStore';
 import ExercisePlayer from '@/components/allenamento/exercise-player';
@@ -75,7 +75,7 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
     setResult(null);
     setSaved(false);
     try {
-      const data = await generateExerciseFlow({ prompt: testo });
+      const data = await generateExercise({ prompt: testo });
       setResult(data);
     } catch (e: any) {
       setError(e?.message || "Generazione non riuscita. Riprova.");
