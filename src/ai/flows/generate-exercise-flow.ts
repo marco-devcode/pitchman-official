@@ -90,15 +90,29 @@ REGOLE SPAZIALI (fundamentalmente importanti):
 4. Ogni entita' ha un ID univoco e stabile. Le azioni devono riferirsi a ID esistenti.
 5. Il pallone esiste SEMPRE: se l'esercizio non lo menziona, aggiungilo in una posizione sensata.
 
+REGOLA FONDAMENTALE — GLI INGRESSI:
+6. initialEntities contiene TUTTI i giocatori che appariranno in QUALSIASI momento
+   dell'esercizio, compresi quelli che entrano DOPO. Un giocatore citato in uno
+   step ma assente da initialEntities non puo' essere animato e semplicemente non
+   si vedra': e' il modo piu' frequente in cui l'esercizio risulta "lontano" da
+   quello chiesto.
+   - Se l'esercizio dice "entrano due giocatori", quei due vanno in
+     initialEntities, con la squadra giusta e la posizione da cui entrano.
+   - Le loro azioni devono partire da quel punto di ingresso, cosi' l'animazione
+     mostra il subentro e non un giocatore che appare dal nulla.
+   - Chi esce si puo' fermare sul posto: non serve animare chi lascia il campo.
+7. playersShown e' il numero TOTALE di giocatori che si vedono, non quelli
+   presenti solo all'inizio.
+
 REGOLE SUL SEQUENZE:
-6. Massimo ${MAX_STEPS} step, in ordine logico e comprensibile.
-7. Ogni step ha una description in italiano che spieghi cosa succede, e anche il PERCHE'
+8. Massimo ${MAX_STEPS} step, in ordine logico e comprensibile.
+9. Ogni step ha una description in italiano che spieghi cosa succede, e anche il PERCHE'
    tattico quando e' rilevante (apertura, ampiezza, densita', uscita dalla pressione).
-8. Le azioni dentro uno step devono essere coerenti fra loro: un passaggio ha senso solo se
-   il pallone e' vicino al giocatore che lo riceve.
-9. Rispetta la realta' calcistica: movimenti possibili, niente sovrapposizioni impossibili
-   e niente teletrasporti.
-10. La posizione iniziale di ogni giocatore DEVE coincidere con il punto di partenza (from)
+10. Le azioni dentro uno step devono essere coerenti fra loro: un passaggio ha senso solo se
+    il pallone e' vicino al giocatore che lo riceve.
+11. Rispetta la realta' calcistica: movimenti possibili, niente sovrapposizioni impossibili
+    e niente teletrasporti.
+12. La posizione iniziale di ogni giocatore DEVE coincidere con il punto di partenza (from)
     della sua prima azione: altrimenti l'animazione lo sposta a scatti.
 
 FORMATO DELLE COORDINATE (rispettalo alla lettera):
@@ -139,6 +153,45 @@ NB: in un passaggio si muovono SIA il giocatore che il pallone, con la stessa
 durata. Se muovi il pallone e non il giocatore che lo riceve, l'animazione e'
 incoerente.
 
+ESEMPIO CHIAVE — 2vs2 con porticine, quando una squadra SUBISCE GOL entrano
+altri due della stessa squadra. Nota come i due nuovi (r3, r4) siano gia' in
+initialEntities, e come le loro azioni partano dal punto di ingresso:
+{
+  "title": "2vs2 con porticine: risposta al gol subito",
+  "description": "Dopo il gol subito entrano due giocatori della squadra in difesa: si passa da 2 a 4 in campo.",
+  "playersShown": 6,
+  "initialEntities": [
+    { "id": "gk1", "type": "player", "team": "gk", "label": "GK", "x": 8, "y": 50 },
+    { "id": "b1", "type": "player", "team": "blue", "label": "1", "x": 40, "y": 30 },
+    { "id": "b2", "type": "player", "team": "blue", "label": "2", "x": 40, "y": 70 },
+    { "id": "r1", "type": "player", "team": "red", "label": "3", "x": 62, "y": 35 },
+    { "id": "r2", "type": "player", "team": "red", "label": "4", "x": 62, "y": 65 },
+    { "id": "r3", "type": "player", "team": "red", "label": "5", "x": 88, "y": 45 },
+    { "id": "r4", "type": "player", "team": "red", "label": "6", "x": 88, "y": 55 },
+    { "id": "ball", "type": "ball", "x": 40, "y": 30 }
+  ],
+  "steps": [
+    { "stepNumber": 1, "description": "Blu 1 passa a Blu 2 in appoggio.", "actions": [
+      { "entityId": "b1", "type": "pass", "from": { "x": 40, "y": 30 }, "to": { "x": 40, "y": 70 }, "duration": 1.5 },
+      { "entityId": "ball", "type": "pass", "from": { "x": 40, "y": 30 }, "to": { "x": 40, "y": 70 }, "duration": 1.5 }
+    ]},
+    { "stepNumber": 2, "description": "Blu 2 segna nella porticina.", "actions": [
+      { "entityId": "b2", "type": "shoot", "from": { "x": 40, "y": 70 }, "to": { "x": 72, "y": 70 }, "duration": 1.2 }
+    ]},
+    { "stepNumber": 3, "description": "Rosso 1 e Rosso 2 escono dopo il gol subito.", "actions": [
+      { "entityId": "r1", "type": "run", "from": { "x": 62, "y": 35 }, "to": { "x": 78, "y": 30 }, "duration": 1.5 },
+      { "entityId": "r2", "type": "run", "from": { "x": 62, "y": 65 }, "to": { "x": 78, "y": 70 }, "duration": 1.5 }
+    ]},
+    { "stepNumber": 4, "description": "Entrano Rosso 3 e Rosso 4, che riorganizzano il 2vs2.", "actions": [
+      { "entityId": "r3", "type": "run", "from": { "x": 88, "y": 45 }, "to": { "x": 62, "y": 40 }, "duration": 1.5 },
+      { "entityId": "r4", "type": "run", "from": { "x": 88, "y": 55 }, "to": { "x": 62, "y": 60 }, "duration": 1.5 }
+    ]}
+  ]
+}
+NB: i due nuovi entrano dal BORDO del campo (x=88, vicino alla porta avversaria da
+cui si entra) e si muovono verso il centro. Se li mettessi gia' al centro, non si
+vedrebbe che sono entrati.
+
 Se l'esercizio richiede piu' di ${MAX_STEPS} step, riducilo: e' meglio un esercizio
 completo e animabile che uno spezzettato e incomprensibile.`,
 });
@@ -154,29 +207,35 @@ completo e animabile che uno spezzettato e incomprensibile.`,
 /**
  * Catena di modelli per la generazione dell'esercizio.
  *
- * L'ordine non e' arbitrario: e' quello verificato con chiamate reali usando
- * lo schema esatto del flusso (niente tuple, niente riuso), il 26/09.
+ * Scelta verificata con chiamate reali, usando lo schema esatto del flusso
+ * (niente tuple, niente riuso) e il prompt "2vs2 con porticine, quando una
+ * squadra subisce gol entrano altri due della stessa squadra".
  *
- *   gemini-3.8-flash     -> 200 con schema valido, ma va in 429 quando la
- *                           quota del progetto finisce. Resta il predefinito
- *                           perche' e' il piu' capace quando c'e' quota.
- *   gemini-3.6-flash     -> 503 frequenti ma risponde; 3 tentativi su 3 con lo
- *                           schema reale hanno prodotto un esercizio valido
- *                           ("2vs2 con Porte Piccole", 9 entita', 4 step).
- *   gemini-3.5-flash-lite -> ha risposto subito, ed e' un "lite": tiene il
- *                           servizio in piedi quando gli altri sono saturi.
+ * IN CATENA:
+ *   gemini-3.8-flash -> 200 con schema valido, il piu' capace. Va in 429 quando
+ *                       la quota del progetto finisce.
+ *   gemini-3.6-flash -> 503 frequenti ma risponde: 6-8 giocatori e 4-5 step,
+ *                       esattamente la richiesta dell'allenatore.
  *
- * NON usare come fallback:
- *   gemini-2.5-flash-lite -> 404, "no longer available to new users".
- *   gemini-flash-latest    -> alias che punta a un modello deprecato per
- *                             questo progetto: risponde 429 con la quota
- *                             esaurita. Era il fallback di suggest-lineup e
- *                             generate-exercise, quindi era morto in tutti e due.
+ * ESCLUSI, con la ragione verificata:
+ *   gemini-3.7-flash      risponde 200 ma IGNORA la richiesta: due prove su due
+ *                         hanno prodotto "Costruzione dal basso 3vs2" e "uscita
+ *                         con terzo uomo", senza mai nominare 2vs2 ne porticine.
+ *   gemini-3.5-flash-lite peggiora: 1 solo giocatore e 1 solo step, contro i
+ *                         6 e 5 del 3.6 sullo stesso prompt.
+ *   gemini-2.5-flash-lite 404, "no longer available to new users".
+ *   gemini-flash-latest    alias deprecato per questo progetto: 429 a quota
+ *                         esaurita. Era il fallback di suggest-lineup, quindi
+ *                         anche quel flusso ha la catena morta.
+ *
+ * Nota: un modello che risponde e sbaglia e' PEGGIO di uno che fallisce,
+ * perche' l'allenatore non ha modo di accorgersene. Meglio un errore esplicito
+ * che una lavagna vuota o fuori topic. E' il motivo per cui la catena e' corta
+ * e non "tutti i modelli disponibili".
  */
 const CATENA_MODELLI = [
   'googleai/gemini-3.8-flash',
   'googleai/gemini-3.6-flash',
-  'googleai/gemini-3.5-flash-lite',
 ] as const;
 
 const generateExerciseFlow = ai.defineFlow(

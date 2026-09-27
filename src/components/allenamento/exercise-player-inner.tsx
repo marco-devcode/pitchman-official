@@ -55,8 +55,26 @@ export default function ExercisePlayerInner({ data, className }: Props) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(1);
+  // True nella pausa fra uno step e il successivo: blocca i comandi, cosi' un
+  // doppio tap sul play non desincronizza indice e animazione.
+  const [inPausa, setInPausa] = useState(false);
+
+  /** Pausa fra uno step e il successivo, in ms. */
+  const PAUSA_TRA_STEP = 900;
 
   const frameRef = useRef<number | null>(null);
+  // ReturnType invece di number: in Node setTimeout restituisce un oggetto
+  // Timeout, e annotarlo come number non compila sotto tsconfig con i tipi Node.
+  const pausaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Il timer della pausa fra step va cancellato se l'utente cambia step o
+  // ferma il play: altrimenti il setTimeout sopravvive, avanza l'indice
+  // all'improvviso e l'indice si desincronizza da quello mostrato.
+  useEffect(() => {
+    return () => {
+      if (pausaRef.current !== null) clearTimeout(pausaRef.current);
+    };
+  }, []);
 
   // Il modello può non avere step (o averne di strani): senza questo i
   // controlli crasherebbero su steps[0] undefined.
@@ -99,7 +117,7 @@ export default function ExercisePlayerInner({ data, className }: Props) {
   }, [currentStep]);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || inPausa) return;
 
     const duration = stepDuration() / speed;
     let start: number | null = null;
@@ -112,26 +130,61 @@ export default function ExercisePlayerInner({ data, className }: Props) {
 
       if (next < 1) {
         frameRef.current = requestAnimationFrame(animate);
-      } else {
-        setIsPlaying(false);
-        // Resta sull'ultimo frame dello step: così si vede la posizione
-        // finale, non un ritorno a metà strada.
+        return;
       }
+
+      // Fine dello step.
+      //
+      // Prima si fermava qui, e il play mostrava un solo step: era un bug, non
+      // una scelta. Ora si passa al successivo, ma con una pausa: senza, la
+      // descrizione dello step appena finito scorrerebbe via prima di essere
+      // letta, che e' proprio la parte che l'allenatore deve guardare.
+      if (safeIndex >= steps.length - 1) {
+        // Fine dell'esercizio: si torna all'inizio, cosi' ripremere play
+        // riproduce tutto da capo.
+        setProgress(0);
+        setIsPlaying(false);
+        return;
+      }
+
+      setProgress(0);
+      // Pausa reale: si sospende l'animazione e si riparte dopo 900ms. Il
+      // timer e' tenuto in un ref cosi' puo' essere cancellato se l'utente
+      // cambia step nel frattempo.
+      setInPausa(true);
+      if (pausaRef.current !== null) clearTimeout(pausaRef.current);
+      pausaRef.current = setTimeout(() => {
+        pausaRef.current = null;
+        setInPausa(false);
+        setStepIndex((i) => i + 1);
+      }, PAUSA_TRA_STEP);
     };
 
     frameRef.current = requestAnimationFrame(animate);
     return () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
-  }, [isPlaying, safeIndex, speed, stepDuration]);
+  }, [isPlaying, safeIndex, speed, stepDuration, steps.length, inPausa]);
 
   const goTo = (next: number) => {
+    // Cancella la pausa in corso: altrimenti il suo timer avanzerebbe
+    // l'indice DOPO che l'utente ha gia' scelto un altro step.
+    if (pausaRef.current !== null) {
+      clearTimeout(pausaRef.current);
+      pausaRef.current = null;
+    }
+    setInPausa(false);
     setStepIndex(Math.max(0, Math.min(steps.length - 1, next)));
     setProgress(0);
     setIsPlaying(false);
   };
 
   const reset = () => {
+    if (pausaRef.current !== null) {
+      clearTimeout(pausaRef.current);
+      pausaRef.current = null;
+    }
+    setInPausa(false);
     setProgress(0);
     setIsPlaying(false);
   };
@@ -293,16 +346,25 @@ export default function ExercisePlayerInner({ data, className }: Props) {
         <button
           type="button"
           onClick={() => {
-            // Al termine riparte da capo invece di fermarsi: play/pause sullo
-            // stesso step deve poter essere ripetuto.
-            if (progress >= 1) setProgress(0);
-            setIsPlaying((p) => !p);
+            // Pausa durante la riproduzione: il pulsante resta un interruttore.
+            if (isPlaying) {
+              setIsPlaying(false);
+              return;
+            }
+            // Se l'esercizio e' finito riparte dal primo step: altrimenti
+            // ripremere play non farebbe nulla, perche' l'indice e' gia' all'
+            // ultimo e l'animazione si fermerebbe subito.
+            if (progress >= 1 || safeIndex >= steps.length - 1) {
+              setStepIndex(0);
+              setProgress(0);
+            }
+            setIsPlaying(true);
           }}
-          disabled={steps.length === 0}
-          aria-label={isPlaying ? 'Pausa' : 'Riproduci'}
+          disabled={steps.length === 0 || inPausa}
+          aria-label={isPlaying && !inPausa ? 'Pausa' : 'Riproduci'}
           className="p-3 bg-brand-green text-black rounded-full hover:opacity-90 font-bold disabled:opacity-30 disabled:pointer-events-none"
         >
-          {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+          {isPlaying && !inPausa ? <Pause size={20} /> : <Play size={20} />}
         </button>
 
         <button
