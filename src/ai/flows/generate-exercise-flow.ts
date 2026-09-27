@@ -147,10 +147,38 @@ completo e animabile che uno spezzettato e incomprensibile.`,
 // esportare solo funzioni async: un export di tipo valore (l'oggetto restituito
 // da defineFlow) fa fallire il render dei Server Components con "An error
 // occurred in the Server Components render", che e' l'errore che si vedeva
-// premendo Genera.
-//
-// Il flusso resta quindi privato, come in suggest-lineup-flow e
-// import-players-flow, e sotto si esporta solo la funzione wrapper.
+// premendo Genera. Il flusso resta quindi privato, come in
+// suggest-lineup-flow e import-players-flow, e sotto si esporta solo la
+// funzione wrapper.
+
+/**
+ * Catena di modelli per la generazione dell'esercizio.
+ *
+ * L'ordine non e' arbitrario: e' quello verificato con chiamate reali usando
+ * lo schema esatto del flusso (niente tuple, niente riuso), il 26/09.
+ *
+ *   gemini-3.8-flash     -> 200 con schema valido, ma va in 429 quando la
+ *                           quota del progetto finisce. Resta il predefinito
+ *                           perche' e' il piu' capace quando c'e' quota.
+ *   gemini-3.6-flash     -> 503 frequenti ma risponde; 3 tentativi su 3 con lo
+ *                           schema reale hanno prodotto un esercizio valido
+ *                           ("2vs2 con Porte Piccole", 9 entita', 4 step).
+ *   gemini-3.5-flash-lite -> ha risposto subito, ed e' un "lite": tiene il
+ *                           servizio in piedi quando gli altri sono saturi.
+ *
+ * NON usare come fallback:
+ *   gemini-2.5-flash-lite -> 404, "no longer available to new users".
+ *   gemini-flash-latest    -> alias che punta a un modello deprecato per
+ *                             questo progetto: risponde 429 con la quota
+ *                             esaurita. Era il fallback di suggest-lineup e
+ *                             generate-exercise, quindi era morto in tutti e due.
+ */
+const CATENA_MODELLI = [
+  'googleai/gemini-3.8-flash',
+  'googleai/gemini-3.6-flash',
+  'googleai/gemini-3.5-flash-lite',
+] as const;
+
 const generateExerciseFlow = ai.defineFlow(
   {
     name: 'generateExerciseFlow',
@@ -158,46 +186,73 @@ const generateExerciseFlow = ai.defineFlow(
     outputSchema: GenerateExerciseOutputSchema,
   },
   async (input) => {
-    // I 503 "high demand" sono spike temporanei, non un errore di
-    // configurazione: verificati 8 fallimenti consecutivi e, subito dopo,
-    // una chiamata riuscita con lo stesso schema. Senza attesa il flusso
-    // fallisce immediatamente e l'allenatore vede "Servizio AI non
-    // disponibile" mentre il servizio era solo saturo per qualche secondo.
-    const attendeMs = [0, 3000, 8000];
+    // I 503 "high demand" sono spike temporanei e colpiscono i modelli uno alla
+    // volta: mentre il 3.8 era in quota, il 3.6 rispondeva. Per questo la
+    // catena avanza invece di insistere sullo stesso modello.
+    //
+    // Un errore di schema (400) pero' non si risolve cambiando modello: si
+    // risolve correggendo lo schema. Distinguerlo evita di mascherare un bug
+    // dietro quattro tentativi inutili.
+    let ultimoErrore: any = null;
 
-    for (let tentativo = 0; tentativo < attendeMs.length; tentativo++) {
-      if (attendeMs[tentativo] > 0) {
-        console.warn(
-          `[generateExercise] tentativo ${tentativo + 1} fallito, riprovo fra ${attendeMs[tentativo]}ms`,
-        );
-        await new Promise((r) => setTimeout(r, attendeMs[tentativo]));
+    for (let i = 0; i < CATENA_MODELLI.length; i++) {
+      const modello = CATENA_MODELLI[i];
+      // Tre tentativi per modello: il 503 dura pochi secondi, non minuti.
+      for (let tentativo = 0; tentativo < 3; tentativo++) {
+        if (tentativo > 0) {
+          const attesa = tentativo === 1 ? 3000 : 8000;
+          console.warn(
+            `[generateExercise] ${modello} tentativo ${tentativo} fallito, riprovo fra ${attesa}ms`,
+          );
+          await new Promise((r) => setTimeout(r, attesa));
+        }
+        try {
+          const { output } = await prompt(input, { model: modello });
+          if (output) {
+            if (i > 0 || tentativo > 0) {
+              console.warn(`[generateExercise] riuscito con ${modello}`);
+            }
+            return output;
+          }
+          ultimoErrore = new Error(`Nessun output da ${modello}`);
+        } catch (error: any) {
+          ultimoErrore = error;
+          const testo = String(error?.message || error);
+
+          // 400 = schema non accettato dal modello. Non ha senso provare gli
+          // altri: fallirebbero uguale, e mascherebbe un bug dietro tentativi
+          // inutili.
+          //
+          // Match preciso: "[400 ]" e' il separatore che usa l'errore di fetch.
+          // Cercare la sequenza "400" nuda e' un falso positivo — la stringa
+          // del 429 contiene ".../gemini-api/docs/rate-limits", e "400" ci
+          // finisce dentro per caso. Cosi' la catena moriva sul primo 429
+          // invece di passare al modello successivo.
+          const e400 = /\[400\s*\]/.test(testo) || testo.includes('Invalid JSON payload');
+          if (e400) {
+            console.error(
+              `[generateExercise] ${modello} ha rifiutato lo schema:`,
+              testo.slice(0, 300),
+            );
+            throw new Error("Il generatore ha un problema tecnico. Riprova fra poco.");
+          }
+
+          console.warn(
+            `[generateExercise] ${modello} fallito (${tentativo + 1}/3):`,
+            testo.slice(0, 120),
+          );
+        }
       }
-      try {
-        const { output } = await prompt(input);
-        if (output) return output;
-        throw new Error('Nessun output dal modello');
-      } catch (error: any) {
-        console.warn(
-          `[generateExercise] modello predefinito fallito (${tentativo + 1}/${attendeMs.length}):`,
-          error?.message,
-        );
-      }
+      // Prossimo modello della catena.
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
-    // Modello di riserva, con lo stesso tentativo: se il 3.8 e' saturo, il
-    // flash-latest spesso risponde lo stesso.
-    for (let tentativo = 0; tentativo < 2; tentativo++) {
-      try {
-        const { output } = await prompt(input, { model: 'googleai/gemini-flash-latest' });
-        if (output) return output;
-      } catch (fallbackError: any) {
-        console.error('[generateExercise] anche il fallback è fallito:', fallbackError);
-      }
-      await new Promise((r) => setTimeout(r, 4000));
-    }
-
+    const quota = String(ultimoErrore?.message || '').includes('429');
+    console.error('[generateExercise] catena esaurita, ultimo errore:', ultimoErrore);
     throw new Error(
-      "Il servizio AI è molto richiesto in questo momento. Riprova fra qualche secondo.",
+      quota
+        ? "Quota del servizio AI esaurita. Ripristinala dalla console Google per generare esercizi."
+        : "Il servizio AI è molto richiesto in questo momento. Riprova fra qualche secondo.",
     );
   },
 );
