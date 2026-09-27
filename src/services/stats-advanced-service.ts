@@ -35,8 +35,19 @@ export function normalizeMatch(match: Match): Match {
 
     return {
         ...match,
-        teamGoals: match.teamGoals ?? teamGoals,
-        opponentGoals: match.opponentGoals ?? opponentGoals,
+        // DERIVATI, non persistiti: si ricalcolano da result a ogni lettura.
+        //
+        // Prima veniva usato `match.teamGoals ?? teamGoals`, cioe' se il
+        // campo persistito esisteva vinceva quello. Ma nessuno scrive mai
+        // teamGoals/opponentGoals su Firestore, e un valore presente in un
+        // documento vecchio restava l'unico letto: il calendario mostrava 0-0
+        // anche con result corretto a 6-0. Per partita: due fonti di verita'
+        // e la stantia vinceva sempre perche' era la prima.
+        //
+        // result e' la sola fonte: e' quello che il calendario, la pagina
+        // partita e i calcoli dei minuti leggono e ricalcolano.
+        teamGoals,
+        opponentGoals,
         resultType: match.resultType ?? resultType
     };
 }

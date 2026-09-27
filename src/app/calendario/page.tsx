@@ -362,7 +362,7 @@ export default function CalendarioPage() {
                       "text-2xl font-black",
                       lastMatch.resultType === 'W' ? "text-brand-green" : lastMatch.resultType === 'L' ? "text-rose-500" : "text-foreground dark:text-white"
                     )}>
-                      {lastMatch.teamGoals ?? (lastMatch.isHome ? lastMatch.result?.home : lastMatch.result?.away) ?? 0} - {lastMatch.opponentGoals ?? (lastMatch.isHome ? lastMatch.result?.away : lastMatch.result?.home) ?? 0}
+                      {Number(lastMatch.isHome ? lastMatch.result?.home : lastMatch.result?.away ?? 0)} - {Number(lastMatch.isHome ? lastMatch.result?.away : lastMatch.result?.home ?? 0)}
                     </span>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
@@ -479,7 +479,7 @@ export default function CalendarioPage() {
                         "text-xs font-black whitespace-nowrap",
                         m.resultType === 'W' ? "text-brand-green" : m.resultType === 'L' ? "text-rose-500" : "text-foreground dark:text-white"
                       )}>
-                        {m.teamGoals ?? (m.isHome ? m.result?.home : m.result?.away) ?? 0} - {m.opponentGoals ?? (m.isHome ? m.result?.away : m.result?.home) ?? 0}
+                        {Number(m.isHome ? m.result?.home ?? 0 : m.result?.away ?? 0)} - {Number(m.isHome ? m.result?.away ?? 0 : m.result?.home ?? 0)}
                       </span>
                     </div>
                   ) : m.status === 'canceled' ? (

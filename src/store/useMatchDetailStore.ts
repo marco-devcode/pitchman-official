@@ -137,15 +137,44 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                 statsRepository.getForMatch(matchId, targetSeasonId, currentUser.id)
             ]);
 
-            set({ 
-                match, 
+            // Ricalcola il risultato dagli eventi appena riletti, invece di
+            // fidarsi di match.result salvato su Firestore.
+            //
+            // Il campo persistito puo' essere stantio: l'app lo aggiorna a ogni
+            // evento, ma se una scrittura e' fallita, o se la partita e' stata
+            // completata (che inizializza result a 0-0), oppure se gli eventi
+            // sono stati corretti da un altro dispositivo, quel campo resta
+            // indietro. Il sintomo era: gli eventi in cronaca c'erano tutti e
+            // corretti, ma il punteggio mostrava 0-0 e il risultato non
+            // riparava piu' da solo.
+            //
+            // Gli eventi sono la fonte di verita: se esistono, il risultato si
+            // conta da loro. Se NON esistono eventi, si lascia il risultato
+            // salvato: una partita con il risultato impostato a mano e senza
+            // eventi registrati deve restare com'e'.
+            const eventi = matchEvents || [];
+            const haEventi = eventi.length > 0;
+            const ricalcolato = countGoals(eventi);
+            const resultFinale = haEventi
+                ? { home: ricalcolato.home, away: ricalcolato.away }
+                : match.result;
+
+            set({
+                match: { ...match, result: resultFinale },
                 allPlayers,
-                events: matchEvents || [],
+                events: eventi,
                 lineup: matchLineup || null,
                 stats: matchStats || [],
                 loading: false,
                 error: null
             });
+
+            // Ripara su Firestore il risultato stantio, cosi' anche la lista
+            // calendario (che legge il campo salvato) torna corretta. Senza
+            // questo il reload riparerebbe solo lo schermo della partita.
+            if (haEventi && match.result && (match.result.home !== resultFinale!.home || match.result.away !== resultFinale!.away)) {
+                await matchRepository.update(matchId, targetSeasonId, { result: resultFinale });
+            }
         } catch (e: any) {
             console.error("Match load error:", e);
             set({ 
