@@ -191,7 +191,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
 
         if (isPitchManSide) {
           if (playerId) goalEvent.playerId = playerId;
-          goalEvent.playerName = selectedScorer?.name || "GIOCATORE";
+          goalEvent.playerName = displayPlayerName(selectedScorer) || "GIOCATORE";
           if (assistPlayerId && assistPlayerId !== "none") {
             goalEvent.assistPlayerId = assistPlayerId;
             if (selectedAssist) goalEvent.assistPlayerName = selectedAssist.name;
@@ -210,7 +210,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
 
         if (isPitchManSide) {
           if (playerId) ownGoalEvent.playerId = playerId;
-          ownGoalEvent.playerName = selectedPlayer?.name || "GIOCATORE";
+          ownGoalEvent.playerName = displayPlayerName(selectedPlayer) || "GIOCATORE";
         } else {
           ownGoalEvent.playerName = playerName || match?.opponent || "Avversario";
         }
@@ -226,7 +226,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
 
         if (isPitchManSide) {
           if (subInPlayerId) subEvent.playerId = subInPlayerId;
-          subEvent.playerName = selectedIn?.name || "Subentrante";
+          subEvent.playerName = displayPlayerName(selectedIn) || "Subentrante";
           if (subOutPlayerId) subEvent.subOutPlayerId = subOutPlayerId;
           subEvent.subOutPlayerName = selectedOut?.name || "Uscente";
         } else {
@@ -263,7 +263,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
 
         if (isPitchManSide) {
           if (playerId) simpleEvent.playerId = playerId;
-          simpleEvent.playerName = selectedPlayer?.name || "Giocatore";
+          simpleEvent.playerName = displayPlayerName(selectedPlayer) || "Giocatore";
         } else {
           simpleEvent.playerName = playerName || match?.opponent || "Avversario";
         }

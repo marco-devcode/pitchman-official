@@ -16,10 +16,10 @@ import { useLiveTimerStore } from "@/store/useLiveTimerStore";
 import { GiGloves, GiTargetPoster, GiLightBulb } from "react-icons/gi";
 import { useRouter } from "next/navigation";
 import { getEventIcon, getEventLabel, formatDisplayMinute, PERIOD_ORDER } from "@/lib/match-events";
-import { cn, formatPlayerInitial } from "@/lib/utils";
+import { cn, formatPlayerInitial, displayPlayerName, isTeamName } from "@/lib/utils";
 
 export function MatchEventsTab() {
-  const { events, deleteEvent, match } = useMatchDetailStore();
+  const { events, deleteEvent, match, allPlayers } = useMatchDetailStore();
   const { isTrackerOpen, setIsTrackerOpen } = useLiveTimerStore();
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<MatchEvent | undefined>(undefined);
@@ -125,6 +125,7 @@ export function MatchEventsTab() {
                             isHome={event.type === 'own_goal' ? event.team !== 'home' : event.team === 'home'}
                             onOptionsClick={setSelectedEventOptions}
                             formatMinute={formatDisplayMinute}
+                            allPlayers={allPlayers}
                           />
                         </div>
                       );
@@ -149,6 +150,7 @@ export function MatchEventsTab() {
                         isHome={event.type === 'own_goal' ? event.team !== 'home' : event.team === 'home'}
                         onOptionsClick={setSelectedEventOptions}
                         formatMinute={formatDisplayMinute}
+                        allPlayers={allPlayers}
                       />
                     ))}
                   </div>
@@ -187,11 +189,38 @@ export function MatchEventsTab() {
   );
 }
 
-function TimelineEvent({ event, match, getEventIcon, getEventLabel, isHome, onOptionsClick, formatMinute }: any) {
+function TimelineEvent({ event, match, getEventIcon, getEventLabel, isHome, onOptionsClick, formatMinute, allPlayers }: any) {
   const isPitchManTeam = match?.isHome ? isHome : !isHome;
   const mainName = event.playerName || (isPitchManTeam ? 'GIOCATORE' : (match?.opponent || 'AVVERSARIO'));
   const alignLeft = isHome;
   const isCard = event.type === 'yellow_card' || event.type === 'red_card';
+
+  /**
+   * Nome abbreviato di un giocatore citato in un evento.
+   *
+   * Se l'evento ha playerId risolviamo il giocatore dal database e usiamo
+   * firstName/lastName, che non ambigui: displayPlayerName sa cosa e' cognome
+   * e cosa e' nome. La stringa salvata nell'evento non basta, perche' il
+   * dialog prima salvava il campo `name` grezzo del giocatore, che
+   * nell'import puo' essere "Nome Cognome": da li' si ricavava l'iniziale
+   * dal nome e il nome per esteso al posto del cognome — "C. LEVI" invece di
+   * "C. LEVI" con l'iniziale sbagliata a seconda di com'e' stato importato.
+   *
+   * Senza playerId (avversario, nome libero) si cade sul testo.
+   */
+  const abbreviato = (playerId: string | undefined, testo: string | undefined): string => {
+    const p = playerId ? (allPlayers || []).find((x: any) => x.id === playerId) : undefined;
+    if (p) return formatPlayerInitial(displayPlayerName(p));
+
+    // Nessun playerId: o e' un avversario (nome squadra) o un nome libero.
+    // Un nome squadra NON va abbreviato: "Real Milano" diventerebbe
+    // "M. REAL", che non e' niente. Le squadre hanno nomi di due o piu'
+    // parole, i nomi di giocatore quasi sempre due: la distinzione non e'
+    // affidabile, quindi ci si appoggia a un campo dedicato.
+    const t = testo || '';
+    if (isTeamName(t)) return t.toUpperCase();
+    return formatPlayerInitial(t);
+  };
 
   return (
     <div className={cn(
@@ -240,13 +269,13 @@ function TimelineEvent({ event, match, getEventIcon, getEventLabel, isHome, onOp
               <div className={cn("flex items-center gap-2", alignLeft && "flex-row-reverse")}>
                 <ArrowUp className="h-3 w-3 text-emerald-500" />
                 <p className="font-black leading-tight uppercase text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
-                  {formatPlayerInitial(event.playerName)}
+                  {abbreviato(event.playerId, event.playerName)}
                 </p>
               </div>
               <div className={cn("flex items-center gap-2 mt-0.5 opacity-60", alignLeft && "flex-row-reverse")}>
                 <ArrowDown className="h-3 w-3 text-rose-500" />
                 <p className="text-[10px] sm:text-[11px] font-bold leading-tight uppercase">
-                  {formatPlayerInitial(event.subOutPlayerName)}
+                  {abbreviato(event.subOutPlayerId, event.subOutPlayerName)}
                 </p>
               </div>
             </div>
@@ -270,7 +299,7 @@ function TimelineEvent({ event, match, getEventIcon, getEventLabel, isHome, onOp
           ) : (
             <div className={cn("flex flex-col", alignLeft ? "items-end text-right" : "items-start text-left")}>
               <p className="font-black leading-tight uppercase text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
-                {formatPlayerInitial(mainName)}
+                {abbreviato(event.playerId, mainName)}
               </p>
               <div className={cn("flex items-center gap-2 mt-1", alignLeft ? "flex-row-reverse" : "flex-row")}>
                 <p className="text-[9px] text-muted-foreground font-black tracking-widest leading-none">
@@ -279,7 +308,7 @@ function TimelineEvent({ event, match, getEventIcon, getEventLabel, isHome, onOp
               </div>
               {event.type === 'goal' && event.assistPlayerName && (
                 <div className={cn("flex items-center gap-1 mt-1 opacity-70", alignLeft ? "flex-row-reverse" : "flex-row")}>
-                  <p className="text-[9px] font-bold uppercase tracking-wider">Assist: {formatPlayerInitial(event.assistPlayerName)}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider">Assist: {abbreviato(event.assistPlayerId, event.assistPlayerName)}</p>
                 </div>
               )}
             </div>

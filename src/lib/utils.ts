@@ -10,7 +10,10 @@ export function cn(...inputs: ClassValue[]) {
  * Se il giocatore ha firstName e lastName separati li usa direttamente,
  * altrimenti inverte le parti del fullName.
  */
-export function displayPlayerName(player: { firstName?: string; lastName?: string; name: string }): string {
+export function displayPlayerName(player: { firstName?: string; lastName?: string; name: string } | undefined | null): string {
+  // Tollera undefined: i chiamanti passano quasi sempre `find(...)` che puo'
+  // non trovare nulla, e il fallback "GIOCATORE" va gestito nel chiamante.
+  if (!player) return '';
   if (player.lastName && player.firstName) {
     return `${player.lastName} ${player.firstName}`.trim().toUpperCase();
   }
@@ -41,16 +44,43 @@ export function displayStarterName(player: { firstName?: string; lastName?: stri
 /**
  * Formatta il nome come 'N. COGNOME' (iniziale del nome + cognome).
  *
- * L'ordine di ingresso è "COGNOME NOME", non "Nome Cognome": tutto cio' che
- * salva un evento (displayPlayerName, chiamata dal flusso live per gol,
- * assist e sostituzioni) produce gia' "COGNOME NOME" e finisce in
- * playerName / assistPlayerName / subIn / subOut.
+ * L'ordine atteso in ingresso è "COGNOME NOME", che è quello che produce
+ * displayPlayerName — la funzione con cui tutti gli eventi vengono salvati.
+ * Ma gli eventi già scritti prima del fix possono avere l'ordine inverso:
+ * il dialog salvava il campo `name` grezzo del giocatore, che nell'import
+ * può essere "Nome Cognome". In quel caso l'iniziale verrebbe presa dal nome
+ * e il nome per esteso al posto del cognome.
  *
- * La versione precedente assumeva l'inverso e produceva "D. GIOVANNI" per
- * "DESOLEI GIOVANNI": l'iniziale del cognome al posto del nome, e il nome
- * per esteso al posto del cognome. Visibile in cronaca ma anche in ogni
- * punto che riformatta un evento.
+ * Non si può distinguere "LEVI CARLO" da "CARLO LEVI" con certezza, quindi qui
+ * si affianca displayPlayerName che conosce i campi firstName/lastName: se il
+ * chiamante ha il giocatore completo, formatPlayerInitial va su quello. Il
+ * fallback a stringa resta per l'avversario e i nomi libi.
  */
+
+/**
+ * E' un nome squadra, non un nome di giocatore?
+ *
+ * Serve perche' "Real Milano" passato a formatPlayerInitial diventerebbe
+ * "M. REAL": prenderebbe l'iniziale di "Milano" come nome e "Real" come
+ * cognome. Un nome squadra va mostrato per intero.
+ *
+ * Non si puo' basare sul numero di parole (squadre e giocatori hanno entrambi
+ * due parole), quindi si cerca un indizio: sigla societaria iniziale o finale
+ * (AC, AS, FC, SS, US...) oppure un toponimo noto che non e' un nome di
+ * persona. Elenco minimale: nessun club ci mette dentro se il nome non e' uno
+ * di questi, e in quel caso resta un nome di persona.
+ */
+export function isTeamName(testo: string): boolean {
+  const t = (testo || '').trim();
+  if (!t) return false;
+  // Sigla societaria: iniziale ("AC Milan") o finale ("Milan AC", "AC", "AS").
+  if (/^(AC|A\.C\.|AS|FC|SS|US|SSD|GS|ASD|AC[SD])\b/i.test(t)) return true;
+  if (/\b(AC|A\.C\.|AS|FC|SS|US|SSD|GS|ASD)\b\.?$/i.test(t)) return true;
+  // Toponimi e nomi propri tipici dei club italiani, che non sono cognomi.
+  const club = /\b(Real|Inter|Intercalcio|Milan|Juventus|Juve|Roma|Napoli|Lazio|Fiorentina|Torino|Bologna|Sampdoria|Genoa|Como|Venezia|Palermo|Sassuolo|Empoli|Spezia|Cagliari|Verona|Parma|Lecco|Lecce|Brescia|Salernitana|Pisa|Cremonese|Sudtirol|Juvestus|Volvera|AlbinoLeffe|Alb|Leffe|Treviso|Foggia|Reggina|Spal|Sirenesse|Pescara|Cittadella|Cesena|Modena|Sassuolo|Ascoli|Sudtirol|Carpi|Alessandria|Pistoiese|Ferrarese|Reggiana|Albatro|Manciano|Vis Pesaro|Gubbio|Lucchese|Torinese|Siracusa)\b/i;
+  return club.test(t);
+}
+
 export function formatPlayerInitial(fullName: string): string {
   const raw = (fullName || '').trim();
   if (!raw) return '';
