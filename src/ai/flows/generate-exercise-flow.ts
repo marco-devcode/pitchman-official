@@ -102,7 +102,7 @@ export const generateExerciseFlow = ai.defineFlow(
       // invece di far trapelare il dettaglio tecnico alla UI.
       console.warn('[generateExercise] modello predefinito fallito, provo il fallback:', error?.message);
       try {
-        const { output } = await prompt(input, { model: 'googleai/gemini-1.5-pro' });
+        const { output } = await prompt(input, { model: 'googleai/gemini-flash-latest' });
         if (!output) throw new Error("L'AI non ha restituito un esercizio valido.");
         return output;
       } catch (fallbackError: any) {

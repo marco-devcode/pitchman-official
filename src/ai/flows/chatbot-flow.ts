@@ -166,10 +166,10 @@ STILE:
 - Quando analizzi dati, fornisci insight tattici e suggerimenti concreti
 - Quando rispondi a domande sull'app, sii chiaro e guida l'utente passo-passo`;
 
-      // ── Chiamata a Gemini 2.5 Flash con Fallback ──
+      // ── Chiamata a Gemini 3.8 Flash con Fallback ──
       try {
         const result = await ai.generate({
-          model: 'googleai/gemini-2.5-flash',
+          model: 'googleai/gemini-3.8-flash',
           prompt: input.message,
           system: systemPrompt,
         });
@@ -184,7 +184,7 @@ STILE:
           errorString.includes('overloaded') ||
           errorString.includes('service unavailable')
         ) {
-          console.warn("[Chatbot] Gemini 2.5 Flash 503 Error, falling back to gemini-flash-latest", genError);
+          console.warn("[Chatbot] Gemini 3.8 Flash 503 Error, falling back to gemini-flash-latest", genError);
           
           const fallbackResult = await ai.generate({
             model: 'googleai/gemini-flash-latest',

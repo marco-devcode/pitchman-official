@@ -86,11 +86,12 @@ const suggestLineupFlow = ai.defineFlow(
       if (output) return output;
       throw new Error('No output from default model');
     } catch (error: any) {
-      console.warn("AI Default Model failed, attempting fallback to Gemini 3.0:", error.message);
+      console.warn("AI Default Model failed, attempting fallback to gemini-flash-latest:", error.message);
 
       try {
-        // Fallback su Gemini 1.5 Pro
-        const { output } = await prompt(input, { model: 'googleai/gemini-1.5-pro' });
+        // Fallback su gemini-flash-latest: gemini-1.5-pro non esiste piu' su
+        // v1beta (404 "not found for API version v1beta"), verificato a mano.
+        const { output } = await prompt(input, { model: 'googleai/gemini-flash-latest' });
         if (!output) {
           throw new Error('L\'AI non ha restituito una risposta valida nemmeno con il fallback.');
         }
