@@ -28,6 +28,14 @@ export interface TacticalEntity {
 export type TacticalActionType = 'pass' | 'run' | 'dribble' | 'shoot';
 
 /**
+ * Andamento del movimento. Riguarda COME si arriva al punto di arrivo, non
+ * dove: linear e' rettilineo, easeIn parte piano e accelera, easeOut parte
+ * veloce e frena (il modo giusto per una palla che arriva e si ferma),
+ * easeInOut accelera e poi decelera (il modo giusto per una corsa).
+ */
+export type TacticalEasing = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
+
+/**
  * Punto sul campo, coordinate normalizzate 0-100.
  *
  * Oggetto e non tupla `[x, y]`: uno schema con array annidati genera un campo
@@ -48,6 +56,11 @@ export interface TacticalAction {
   to: TacticalPoint;
   /** Durata in secondi. */
   duration: number;
+  /** Ritardo in secondi dall'inizio dello step: e' cio' che evita che tutte le
+   * azioni partano insieme e l'animazione risulti illeggibile. */
+  startAt?: number;
+  /** Come evolve il movimento. */
+  easing?: TacticalEasing;
 }
 
 export interface TacticalStep {

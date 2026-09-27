@@ -45,7 +45,22 @@ const ActionSchema = z.object({
     x: z.number().describe('Coordinata X di arrivo, 0-100.'),
     y: z.number().describe('Coordinata Y di arrivo, 0-100.'),
   }).describe('Coordinate di arrivo.'),
-  duration: z.number().describe('Durata in secondi, fra 0.5 e 8.'),
+  // SECONDI, non millisecondi. Va detto esplicitamente perche' il modello,
+  // visto il contratto di altri tool di animazione, tende a produrre 1500
+  // pensando in millisecondi: un passo di 1500 secondi bloccherebbe l'app.
+  duration: z.number().describe('Durata del movimento in SECONDI, fra 0.5 e 8.'),
+  // Ritardo in secondi rispetto all'inizio dello step. E' cio' che evita
+  // l'animazione "tutto insieme": senza, ogni azione parte quando parte lo
+  // step e non si vede piu' nulla.
+  startAt: z.number().optional().describe(
+    'Ritardo in secondi dall\'inizio dello step, fra 0 e 3. 0 = parte subito.',
+  ),
+  // Dettaglio dell'ANDAMENTO, non del punto d\'arrivo. easeInOut per le corse,
+  // easeOut per i passaggi (la palla arriva e si ferma).
+  easing: z
+    .enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
+    .optional()
+    .describe("Come evolve il movimento: 'linear', 'easeIn', 'easeOut', 'easeInOut'."),
 });
 
 const StepSchema = z.object({
@@ -79,10 +94,15 @@ const prompt = ai.definePrompt({
   prompt: `Sei un allenatore di calcio professionista ed esperto di lavagne tattiche 2D.
 Converti la descrizione di un esercizio, scritta in linguaggio naturale, in dati strutturati per un'animazione su campo.
 
-REGOLE SPAZIALI (fundamentalmente importanti):
-1. Il campo usa coordinate NORMALIZZATE 0-100:
-   - X: 0 = porta propria (dove attacca la squadra "blue"), 100 = porta avversaria.
-   - Y: 0 = fallo laterale sinistro, 100 = fallo laterale destro.
+REGOLE SPAZIALI (fondamentali, se le sbagli l'esercizio e' illeggibile):
+1. Il campo e' un rettangolo VISTO DALL'ALTO, con la squadra "blue" che attacca
+   verso l'alto. Sistema di coordinate NORMALIZZATE 0-100, origine in ALTO a
+   SINISTRA:
+   - X: 0 = touchline sinistro, 100 = touchline destro. Scorri ORAZZONTALMENTE.
+   - Y: 0 = riga di fondo, 100 = riga di fondo AVVERSARIA (in alto sullo
+     schermo). Scorri VERTICALMENTE andando AVANTI.
+   Con queste due righe, il portiere di chi attacca sta a y vicino a 90 e gli
+   attaccanti a y vicino a 8. Se pensi "il portiere in basso", è y alto, non basso.
    Tutte le coordinate, iniziali e di azione, devono stare fra 0 e 100.
 2. I giocatori della squadra che attacca sono "blue", quelli che difendono "red".
    I portieri sono "gk".

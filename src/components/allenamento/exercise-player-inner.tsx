@@ -35,7 +35,11 @@ const TEAM_FILL: Record<string, string> = {
   gk: '#10b981',
 };
 
-const SPEEDS = [0.5, 1, 1.5];
+// 0.5 / 1 / 1.5 / 2 come nella guida di riferimento. La velocità moltiplica il
+// tempo simulato, non cambia le durate nel JSON: raddoppiando la velocità
+// ogni azione dura meta' secondi reali, ma la descrizione del passo resta
+// quella scritta dal modello.
+const SPEEDS = [0.5, 1, 1.5, 2];
 
 /** Converte una coordinata normalizzata in pixel del canvas. */
 function toPx(e: { x: number; y: number }) {
@@ -82,7 +86,27 @@ export default function ExercisePlayerInner({ data, className }: Props) {
   const safeIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
   const currentStep = steps[safeIndex];
 
-  /** Posizione corrente di un'entita', interpolata sul progresso dello step. */
+  /** Applica l'andamento richiesto al parametro 0..1. */
+  const ease = (t: number, kind?: string): number => {
+    switch (kind) {
+      case 'easeIn':
+        return t * t;
+      case 'easeOut':
+        return t * (2 - t);
+      case 'easeInOut':
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      default:
+        return t;
+    }
+  };
+
+  /**
+   * Posizione corrente di un'entita', interpolata sul progresso dello step.
+   *
+   * `progress` e' il tempo trascorso nello step in secondi, non una frazione:
+   * e' cosi' che startAt (ritardo) e duration (durata propria) si sommano
+   * nello stesso dominio.
+   */
   const positionOf = useCallback(
     (entity: TacticalEntity) => {
       const action = currentStep?.actions?.find((a) => a.entityId === entity.id);
@@ -97,38 +121,59 @@ export default function ExercisePlayerInner({ data, className }: Props) {
       const fy = action.from?.y ?? entity.y;
       const tx = action.to?.x ?? fx;
       const ty = action.to?.y ?? fy;
+
+      const dur = Math.max(0.1, action.duration ?? 1);
+      const attesa = Math.max(0, action.startAt ?? 0);
+      // Prima di startAt l'entita' e' ferma sul punto di partenza; dopo la
+      // durata e' ferma su quello d'arrivo.
+      const locale = (progress - attesa) / dur;
+      const t = ease(Math.max(0, Math.min(1, locale)), action.easing);
+
       return toPx({
-        x: fx + (tx - fx) * progress,
-        y: fy + (ty - fy) * progress,
+        x: fx + (tx - fx) * t,
+        y: fy + (ty - fy) * t,
       });
     },
     [currentStep, progress],
   );
 
-  // Il passo dura quanto la piu' lunga azione dello step: le azioni piu'
-  // brevi finiscono prima e restano ferme sul arrivo, che e' quello che si
-  // vuole vedere.
+  /**
+   * Durata TOTALE dello step, in secondi.
+   *
+   * E' il massimo di (startAt + duration) su tutte le azioni, non il massimo
+   * delle duration: un'azione che inizia dopo 2 secondi e dura 1 finisce a 3,
+   * e se lo step durasse 1 secondo non si vedrebbe mai arrivare. Le azioni piu'
+   * brevi finiscono prima e restano ferme sull'arrivo, che e' quello che si
+   * vuole vedere.
+   */
   const stepDuration = useCallback(() => {
-    const durations = currentStep?.actions?.map((a) => a.duration) ?? [];
-    const max = durations.length ? Math.max(...durations) : 2;
+    const azioni = currentStep?.actions ?? [];
+    if (!azioni.length) return 2;
+    const fine = azioni.map((a) => Math.max(0, a.startAt ?? 0) + Math.max(0.1, a.duration ?? 1));
+    const max = Math.max(...fine);
     // Clamp: un duration assurdo dal modello bloccherebbe l'animazione per
-    // minuti, e uno zero renderebbe lo step invisibile.
-    return Math.max(0.5, Math.min(8, max || 2));
+    // minuti, e uno zero renderebbe lo step invisibile. 8 secondi e' il tetto:
+    // oltre, l'allenatore aspetta troppo prima di vedere il passo seguente.
+    return Math.max(0.5, Math.min(8, max));
   }, [currentStep]);
 
   useEffect(() => {
     if (!isPlaying || inPausa) return;
 
-    const duration = stepDuration() / speed;
+    // `progress` e' il tempo trascorso NELLO STEP, in secondi di simulazione
+    // (gia' divisi per la velocita'), non una frazione 0..1. Serve perche'
+    // ogni azione abbia il proprio startAt e la propria duration: con una
+    // frazione unica tutte le azioni finirebbero insieme a fine step.
+    const totale = stepDuration();
     let start: number | null = null;
 
     const animate = (timestamp: number) => {
       if (start === null) start = timestamp;
-      const elapsed = (timestamp - start) / 1000;
-      const next = Math.min(elapsed / duration, 1);
+      const trascorso = ((timestamp - start) / 1000) * speed;
+      const next = Math.min(trascorso, totale);
       setProgress(next);
 
-      if (next < 1) {
+      if (trascorso < totale) {
         frameRef.current = requestAnimationFrame(animate);
         return;
       }
@@ -354,7 +399,12 @@ export default function ExercisePlayerInner({ data, className }: Props) {
             // Se l'esercizio e' finito riparte dal primo step: altrimenti
             // ripremere play non farebbe nulla, perche' l'indice e' gia' all'
             // ultimo e l'animazione si fermerebbe subito.
-            if (progress >= 1 || safeIndex >= steps.length - 1) {
+            // progress e' in secondi, non una frazione: il confronto va con la
+            // durata dello step, non con 1. Con `progress >= 1` la condizione
+            // sarebbe vera quasi subito e ripremere play ripartirebbe sempre
+            // dall'inizio.
+            const aFineStep = progress >= stepDuration();
+            if (aFineStep || safeIndex >= steps.length - 1) {
               setStepIndex(0);
               setProgress(0);
             }
