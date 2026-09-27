@@ -45,6 +45,15 @@ interface MatchDetailState {
 const periodOrder: Record<string, number> = { '1T': 1, '2T': 2, '1TS': 3, '2TS': 4 };
 
 /**
+ * Contatore degli id temporanei.
+ *
+ * Serve perche' il solo Date.now() non garantisce l'unicita': ha risoluzione
+ * al millisecondo, e piu' eventi salvati nella stessa milliseconda si
+ * ritrovano con lo stesso id temporaneo. Vedi addEvent.
+ */
+let tempCounter = 0;
+
+/**
  * Dato il nuovo insieme di eventi, ricava il recupero dichiarato e lo scrive
  * sulla partita.
  *
@@ -279,7 +288,15 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
 
-        const tempId = `temp-${Date.now()}`;
+        // Id temporaneo UNICO per evento. Date.now() non basta: ha risoluzione
+        // di un millisecondo, e aggiungendo piu' eventi in sequenza stretta
+        // (due dialog confermati in fretta) due eventi prendono lo stesso id.
+        // Il map() di sostituzione piu' sotto cerca per id, quindi con id
+        // collisionati sostituiva TUTTI gli eventi con lo stesso temp-id con un
+        // solo risultato: 6 gol salvati di fila diventavano 2 visibili in
+        // cronaca, che e' il bug segnalato. Il contatore e unico per sessione,
+        // quindi lo stesso id non si ripete mai.
+        const tempId = `temp-${Date.now()}-${tempCounter++}`;
         const newEvent: MatchEvent = { ...eventData, id: tempId, matchId };
         const updatedEvents = [...currentEvents, newEvent].sort((a, b) => {
             const pA = periodOrder[a.period] || 0;
@@ -306,13 +323,23 @@ export const useMatchDetailStore = create<MatchDetailState>()(
           return;
         }
 
-        eventRepository.add({ ...eventData, matchId }, match.seasonId, user.id).then((savedEvent) => {
+        // Il salvataggio del risultato va ATTESO, e va fatto DOPO la risposta di
+        // Firestore sugli eventi. Senza await, piu' salvataggi in sequenza
+        // partono in parallelo e l'ultimo ad arrivare vince: ognuno porta il
+        // conteggio che aveva calcolato al proprio momento, quindi il risultato
+        // finale puo' essere un conteggio vecchio (2 invece di 6).
+        // Con await gli eventi sono gia' confermati e il conteggio e' quello
+        // finale.
+        try {
+            const savedEvent = await eventRepository.add({ ...eventData, matchId }, match.seasonId, user.id);
             set(state => ({
                 events: state.events.map(e => e.id === tempId ? savedEvent : e)
             }));
-        });
-        
-        matchRepository.update(matchId, match.seasonId, { result: { home: homeGoals, away: awayGoals } });
+            await matchRepository.update(matchId, match.seasonId, { result: { home: homeGoals, away: awayGoals } });
+        } catch (e) {
+            console.error("Errore nel salvataggio dell'evento:", e);
+        }
+
         get().syncAndPersistMinutes();
     },
 
@@ -321,18 +348,38 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
 
+        // Salva tutti gli eventi e ASPETTA: senza attendere, le scritture
+        // partono in parallelo e l'ultima ad arrivare sul risultato vince con
+        // un conteggio vecchio.
+        //
+        // Promise.all mantiene l'ordine degli input, quindi salvati[i]
+        // corrisponde a eventsData[i] e quindi al tempId[i]. La sostituzione
+        // si fa per posizione, non confrontando id: l'id reale di Firestore e'
+        // diverso da quello temporaneo, quindi un confronto per valore non
+        // abbinerebbe mai.
+        const tempIds: string[] = [];
         let updatedEvents = [...currentEvents];
-        const tempMappings: Record<string, string> = {};
 
         for (const data of eventsData) {
-            const tempId = `temp-${Math.random()}`;
+            const tempId = `temp-${Date.now()}-${tempCounter++}`;
+            tempIds.push(tempId);
             updatedEvents.push({ ...data, id: tempId, matchId });
-            
-            eventRepository.add({ ...data, matchId }, match.seasonId, user.id).then(saved => {
-              set(state => ({
-                events: state.events.map(e => e.id === tempId ? saved : e)
-              }));
-            });
+        }
+
+        try {
+            const salvati = await Promise.all(
+                eventsData.map((data) =>
+                    eventRepository.add({ ...data, matchId }, match.seasonId, user.id),
+                ),
+            );
+            set((state) => ({
+                events: state.events.map((e) => {
+                    const idx = tempIds.indexOf(e.id);
+                    return idx >= 0 ? salvati[idx] : e;
+                }),
+            }));
+        } catch (e) {
+            console.error("Errore nel salvataggio degli eventi:", e);
         }
 
         updatedEvents.sort((a, b) => {
@@ -352,7 +399,7 @@ export const useMatchDetailStore = create<MatchDetailState>()(
 
         set({ events: updatedEvents, match: updatedMatch });
 
-        matchRepository.update(matchId, match.seasonId, {
+        await matchRepository.update(matchId, match.seasonId, {
             result: { home: homeGoals, away: awayGoals },
             addedTime,
         });
@@ -392,11 +439,17 @@ export const useMatchDetailStore = create<MatchDetailState>()(
           return;
         }
 
-        eventRepository.update(eventId, matchId, match.seasonId, eventData);
-        matchRepository.update(matchId, match.seasonId, {
-            result: { home: homeGoals, away: awayGoals },
-            addedTime,
-        });
+        // Atteso, come in addEvent/addEvents: scritture non attese si
+        // sovrascrivono a vicenda e l'ultima arriva con dati vecchi.
+        try {
+            await eventRepository.update(eventId, matchId, match.seasonId, eventData);
+            await matchRepository.update(matchId, match.seasonId, {
+                result: { home: homeGoals, away: awayGoals },
+                addedTime,
+            });
+        } catch (e) {
+            console.error("Errore nell'aggiornamento dell'evento:", e);
+        }
         get().syncAndPersistMinutes();
     },
 
@@ -428,11 +481,18 @@ export const useMatchDetailStore = create<MatchDetailState>()(
           return;
         }
 
-        eventRepository.delete(eventId, matchId, match.seasonId);
-        matchRepository.update(matchId, match.seasonId, {
-            result: { home: homeGoals, away: awayGoals },
-            addedTime,
-        });
+        // Atteso, come negli altri percorsi: cancellare un evento e salvare
+        // il risultato devono essere sequenziali, altrimenti il risultato puo'
+        // arrivare prima della cancellazione e contare un gol che non c'e' piu'.
+        try {
+            await eventRepository.delete(eventId, matchId, match.seasonId);
+            await matchRepository.update(matchId, match.seasonId, {
+                result: { home: homeGoals, away: awayGoals },
+                addedTime,
+            });
+        } catch (e) {
+            console.error("Errore nella cancellazione dell'evento:", e);
+        }
 
         get().syncAndPersistMinutes();
     },
