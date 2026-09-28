@@ -23,6 +23,7 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { MATCH_FILTERS, type FilterType } from '@/lib/aggregators/filter';
+import { parseError } from '@/lib/error-utils';
 import { useRouter } from 'next/navigation';
 import {
   Select,
@@ -217,7 +218,12 @@ export default function AltroPage() {
       setJoinCode('');
       setIsJoinDialogOpen(false);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Errore", description: error.message || "Impossibile unirsi alla stagione." });
+      // error.message grezzo mostrava "Missing or insufficient permissions."
+      // Passa da parseError: il messaggio e' gia' in italiano e diagnostico,
+      // e vuol sapere QUALE problema e', non solo che qualcosa e' fallito.
+      console.error("[join] errore:", error);
+      const parsed = parseError(error);
+      toast({ variant: "destructive", title: "Errore", description: parsed.message });
     } finally {
       setIsJoining(false);
     }

@@ -99,12 +99,47 @@ service cloud.firestore {
     // ─── /teams/{seasonId} ───────────────────────────────────────────────────
     
     match /teams/{seasonId} {
-      allow get:    if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid || request.auth.uid in resource.data.sharedWith);
+      // ─── Accesso con codice di invito ───────────────────────────────────────
+      //
+      // Il join con codice ("Partecipa con codice") ha bisogno di DUE cose
+      // che prima non erano permesse, ed e' per questo che falliva con
+      // "Missing or insufficient permissions.":
+      //
+      // 1. LEGGERE il documento per verificare che il codice esista. La regola
+      //    precedente permetteva la lettura solo a owner e a chi era gia' in
+      //    sharedWith: chi sta per entrare non e' in nessuno dei due, quindi
+      //    la getDoc veniva negata e il flusso moriva sul primo passo.
+      //
+      // 2. SCRIVERE per aggiungersi. La regola precedente permetteva
+      //    l'update a un non-proprietario solo se il documento in arrivo
+      //    conteneva gia' il suo uid in sharedWith — cioe' se era gia' dentro.
+      //    Richiedere di essere gia' dentro per poter entrare e' circolare, e
+      //    nessuna variante della stessa regola lo risolve: serve una via
+      //    d'ingresso che non passi da "l'ho gia' letto".
+      //
+      // La barriera di sicurezza e' il codice: `S-` + 5 caratteri base36
+      // casuali (~60 milioni di combinazioni). Chi e' autenticato e conosce il
+      // codice puo' entrare: e' il comportamento atteso della funzione.
+      // I documenti figli (players, matches, sessions, ...) restano protetti
+      // da isSeasonAuthorized, quindi NON diventano leggibili solo per aver
+      // letto il documento della stagione: si ottiene l'accesso scrivendo il
+      // proprio uid in sharedWith, che e' l'unico modo per ottenerlo.
+      allow get:    if isSignedIn();
       allow list:   if isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.uid in resource.data.sharedWith);
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isSignedIn() && (
                       (resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == request.auth.uid) ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith']) && request.auth.uid in request.resource.data.sharedWith)
+                      // Aggiungersi a se' stessi con il codice di invito.
+                      // hasOnly(['sharedWith','updatedAt']) perche' joinSeason
+                      // scrive anche updatedAt: hasOnly(['sharedWith']) lo
+                      // renderebbe DENIED per un campo extra.
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'updatedAt']) &&
+                       request.auth.uid in request.resource.data.sharedWith &&
+                       // Non si puo' aggiungere qualcun altro al posto proprio:
+                       // l'array deve crescere di esattamente il proprio uid.
+                       request.resource.data.sharedWith.hasAll(resource.data.sharedWith) &&
+                       request.resource.data.sharedWith.hasOnly(resource.data.sharedWith + [request.auth.uid])
+                      )
                     );
       allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
 

@@ -79,26 +79,58 @@ export const seasonRepository = {
     async joinSeason(seasonId: string, userId: string) {
         const db = getFirestore();
         const seasonRef = doc(db, 'teams', seasonId);
-        const seasonSnap = await getDoc(seasonRef);
-        
-        if (!seasonSnap.exists()) {
-            throw new Error("Stagione non trovata. Controlla il codice d'invito.");
+        // Errori con testo gia' scritto per l'utente: parseError li lascia
+        // passare invece di sostituirli con "errore imprevisto".
+        const userError = (message: string) =>
+            Object.assign(new Error(message), { userFacing: true });
+
+        // PASSO 1: verificare che il codice corrisponda a una stagione.
+        // Questa lettura veniva negata dalle regole (si puo' leggere solo la
+        // propria stagione o quelle in cui si e' gia' dentro), quindi il join
+        // falliva subito qui con "Missing or insufficient permissions".
+        let seasonSnap;
+        try {
+            seasonSnap = await getDoc(seasonRef);
+        } catch (e: any) {
+            console.error("[join] lettura stagione fallita:", e);
+            throw userError(
+                `Non riesco a leggere la stagione con il codice "${seasonId}". ` +
+                `Se l'hai creata su un altro account o le regole non sono ancora state pubblicate, ` +
+                `quello che vedi è un problema di permessi, non un codice sbagliato.`
+            );
         }
-        
+
+        if (!seasonSnap.exists()) {
+            throw userError("Stagione non trovata. Controlla il codice d'invito.");
+        }
+
         const seasonData = seasonSnap.data() as Season;
         if (seasonData.ownerId === userId) {
-            throw new Error("Sei già il proprietario di questa stagione.");
+            throw userError("Sei già il proprietario di questa stagione.");
         }
-        
+
         if (seasonData.sharedWith?.includes(userId)) {
-            throw new Error("Hai già partecipato a questa stagione.");
+            throw userError("Hai già partecipato a questa stagione.");
         }
-        
-        await updateDoc(seasonRef, {
-            sharedWith: arrayUnion(userId),
-            updatedAt: new Date().toISOString()
-        });
-        
+
+        // PASSO 2: aggiungersi. Scrive solo sharedWith e updatedAt, e la
+        // regola permette a un non-proprietario esattamente questa forma.
+        try {
+            await updateDoc(seasonRef, {
+                sharedWith: arrayUnion(userId),
+                updatedAt: new Date().toISOString()
+            });
+        } catch (e: any) {
+            console.error("[join] iscrizione fallita:", e);
+            const negato = e?.code === 'permission-denied' ||
+                /insufficient permissions/i.test(e?.message ?? '');
+            throw userError(negato
+                ? `Accesso negato: le regole del database non permettono ancora di entrare con il codice. ` +
+                  `Le regole Firestore vanno pubblicate (firebase deploy --only firestore:rules).`
+                : `Non riesco a entrare nella stagione "${seasonId}". Riprova.`
+            );
+        }
+
         return seasonSnap.id;
     },
 

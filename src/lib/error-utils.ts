@@ -58,16 +58,49 @@ export function parseError(error: unknown): AppError {
 
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
+    const code = (error as { code?: string }).code?.toLowerCase() ?? '';
 
-    if (
+    // ─── Permessi ────────────────────────────────────────────────────────────
+    //
+    // Il messaggio del Firestore web SDK moderno e' "Missing or insufficient
+    // permissions." — NON contiene 'permission-denied' ne' 'unauthorized'.
+    // Cercando solo quelle due stringhe, ogni denial finiva in 'unknown' con
+    // "errore imprevisto", che e' esattamente cio' che rendeva questo bug
+    // impossibile da diagnosticare. La variante col punto fermo e' quella
+    // reale: e' quella che si vede a schermo.
+    const permessoNegato =
+      code === 'permission-denied' ||
       msg.includes('permission-denied') ||
+      // Firestore web SDK: "Missing or insufficient permissions."
+      msg.includes('missing or insufficient permissions') ||
+      msg.includes('insufficient permissions') ||
+      // Formato dei client non-web / admin: "PERMISSION_DENIED: Permission denied"
+      msg.includes('permission_denied') ||
+      msg.includes('permission denied') ||
       msg.includes('unauthorized') ||
-      msg.includes('unauthenticated')
-    ) {
+      msg.includes('unauthenticated');
+
+    if (permessoNegato) {
       return { type: 'unauthorized', ...ERROR_MESSAGES.unauthorized };
     }
 
-    if (msg.includes('not-found') || msg.includes('no document')) {
+    // ─── Codice di invito / join stagione ────────────────────────────────────
+    // Arriva dal repository con un messaggio gia' in italiano e senza `code`,
+    // quindi va lasciato passare: sostituirlo con un messaggio generico
+    // ("errore imprevisto") cancella l'unica informazione utile.
+    const messaggioUtente = (error as { userFacing?: boolean }).userFacing;
+    if (messaggioUtente && msg.length > 0) {
+      return { type: 'unknown', message: error.message, actionLabel: 'Riprova' };
+    }
+
+    if (
+      msg.includes('not-found') ||
+      msg.includes('not_found') ||
+      // "5 NOT_FOUND: no entity to update" — Firestore usa il codice numerico
+      // come prefisso, quindi il messaggio contiene 'not_found' con underscore.
+      msg.includes('no entity to update') ||
+      msg.includes('no document')
+    ) {
       return { type: 'not-found', ...ERROR_MESSAGES['not-found'] };
     }
 
