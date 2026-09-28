@@ -206,23 +206,37 @@ export const seasonRepository = {
     async ensureDefaultSeason(userId: string) {
         if (!userId) return undefined;
 
-        const all = await this.getAll(userId);
+        // Nulla di tutto questo puo' far fallire il caricamento delle stagioni.
+        //
+        // ensureDefaultSeason sta PRIMA di getAll in fetchAll: se solleva,
+        // l'errore risale fino a fetchAll, che lo intercetta e lascia la lista
+        // VUOTA. E' successo: un percorso del documento sbagliato faceva
+        // fallire la scrittura della preferenza, e il sintomo era "nessuno
+        // vede piu' le stagioni" per tutti gli utenti. La scelta della
+        // stagione attiva e' una preferenza: se non si puo' salvare o leggere,
+        // l'app deve comunque funzionare.
+        try {
+            const all = await this.getAll(userId);
 
-        // La stagione attiva e' una scelta PERSONALE: si legge dal documento
-        // dell'utente, non dal documento della stagione (che e' condiviso e
-        // porterebbe a due allenatori con la stessa stagione attiva).
-        const savedId = await activeSeasonRepository.get(userId);
-        const saved = savedId ? all.find(s => s.id === savedId) : undefined;
+            // La stagione attiva e' una scelta PERSONALE: si legge dal documento
+            // dell'utente, non dal documento della stagione (che e' condiviso e
+            // porterebbe a due allenatori con la stessa stagione attiva).
+            const savedId = await activeSeasonRepository.get(userId);
+            const saved = savedId ? all.find(s => s.id === savedId) : undefined;
 
-        if (saved) return saved;
+            if (saved) return saved;
 
-        // Nessuna scelta salvata, o scelta che non e' piu' raggiungibile
-        // (stagione cancellata, o revocata la condivisione): si sceglie la
-        // piu' recente e la si salva per questo utente.
-        if (all.length > 0) {
-            const target = all[0];
-            await activeSeasonRepository.set(userId, target.id);
-            return target;
+            // Nessuna scelta salvata, o scelta che non e' piu' raggiungibile
+            // (stagione cancellata, o revocata la condivisione): si sceglie la
+            // piu' recente e la si salva per questo utente.
+            if (all.length > 0) {
+                const target = all[0];
+                await activeSeasonRepository.set(userId, target.id);
+                return target;
+            }
+        } catch (e) {
+            console.error("[seasonRepository.ensureDefaultSeason] continuo senza stagione attiva:", e);
+            return undefined;
         }
 
         const defaultId = `S-DEFAULT-${userId.substring(0, 6).toUpperCase()}`;
