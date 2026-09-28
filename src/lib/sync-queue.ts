@@ -4,6 +4,7 @@ import { eventRepository } from './repositories/event-repository';
 import { playerRepository } from './repositories/player-repository';
 import { matchRepository } from './repositories/match-repository';
 import { statsRepository } from './repositories/stats-repository';
+import { countGoals } from './goal-utils';
 /**
  * Queue a mutation when the device is offline. The mutation is persisted in
  * Dexie and flushed to Firestore when connectivity returns.
@@ -68,7 +69,58 @@ export async function flushQueue(userId: string): Promise<number> {
       console.error('[sync] mutation failed, keeping in queue', mutation, e);
     }
   }
+  await recalcResultsForTouchedMatches(userId, pending);
   return applied;
+}
+
+/**
+ * Ricalcola e scrive il risultato delle partite toccate dalla coda.
+ *
+ * Finche' la coda scrive solo gli eventi, il risultato resta indietro: la
+ * partita mostra i gol corretti dentro (arrivano dalla coda) ma il calendario
+ * continua a leggere il campo `result` salvato, che non e' mai stato
+ * aggiornato. Il sintomo e' "il gol c'e' ma fuori non si vede", che e'
+ * indistinguibile da una scrittura fallita.
+ *
+ * Il risultato e' derivato: si conta dagli eventi, che sono la fonte di
+ * verita'. Non e' un quarto campo da mantenere allineato a mano.
+ *
+ * Va fatto DOPO il ciclo di flush, non dentro: cosi' conta gli eventi di tutte
+ * le mutazioni applicate, non solo gli ultimi.
+ */
+async function recalcResultsForTouchedMatches(
+  userId: string,
+  appliedMutations: Array<Omit<SyncMutation, 'id'> & { id?: number }>
+): Promise<void> {
+  const byKey = new Map<string, { matchId: string; seasonId: string }>();
+  for (const m of appliedMutations) {
+    // Solo gli eventi incidono sul risultato: formazione, presenze e
+    // statistiche non cambiano i gol segnati.
+    if (m.collection !== 'matchEvents') continue;
+    if (!m.matchId || !m.seasonId) continue;
+    byKey.set(`${m.seasonId}/${m.matchId}`, { matchId: m.matchId, seasonId: m.seasonId });
+  }
+
+  for (const { matchId, seasonId } of byKey.values()) {
+    try {
+      const [match, events] = await Promise.all([
+        matchRepository.getById(matchId, seasonId),
+        eventRepository.getForMatch(matchId, seasonId, userId),
+      ]);
+      // Nessun gol registrato: il risultato salvato e' l'unica fonte (puo'
+      // essere stato inserito a mano) e non va toccato. Un'ammonizione o una
+      // sostituzione non sono gol e non devono azzerare un punteggio digitato.
+      if (!match || !events || events.length === 0) continue;
+      const conGol = events.some(e => e.type === 'goal' || e.type === 'own_goal');
+      if (!conGol) continue;
+      const { home, away } = countGoals(events);
+      const salvato = match.result;
+      if (salvato && salvato.home === home && salvato.away === away) continue;
+      await matchRepository.update(matchId, seasonId, { result: { home, away } });
+    } catch (e) {
+      console.error('[sync] ricalcolo risultato fallito', matchId, e);
+    }
+  }
 }
 
 /**

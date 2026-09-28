@@ -20,6 +20,7 @@ import {
   getMatchEndAbsolute as matchEndAbsolute,
 } from '@/lib/stoppage-time';
 import { getStoppageFromEvent } from '@/lib/match-events';
+import { parseISO, startOfDay } from 'date-fns';
 
 interface MatchDetailState {
     matchId: string | null;
@@ -153,9 +154,16 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             // salvato: una partita con il risultato impostato a mano e senza
             // eventi registrati deve restare com'e'.
             const eventi = matchEvents || [];
-            const haEventi = eventi.length > 0;
+            // `haEventi` da solo NON basta per decidere di riscrivere il
+            // risultato: un'ammonizione, una sostituzione o un gol di recupero
+            // non sono gol. Con una partita il cui risultato e' stato inserito
+            // a mano e un solo cartellino giallo, `haEventi` era vero e il
+            // risultato veniva ricalcolato a 0-0, cancellando il punteggio
+            // digitato. La riscrittura parte solo se ci sono eventi che
+            // incidono sui gol.
+            const eventiConGol = eventi.some(e => e.type === 'goal' || e.type === 'own_goal');
             const ricalcolato = countGoals(eventi);
-            const resultFinale = haEventi
+            const resultFinale = eventiConGol
                 ? { home: ricalcolato.home, away: ricalcolato.away }
                 : match.result;
 
@@ -172,8 +180,37 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             // Ripara su Firestore il risultato stantio, cosi' anche la lista
             // calendario (che legge il campo salvato) torna corretta. Senza
             // questo il reload riparerebbe solo lo schermo della partita.
-            if (haEventi && match.result && (match.result.home !== resultFinale!.home || match.result.away !== resultFinale!.away)) {
-                await matchRepository.update(matchId, targetSeasonId, { result: resultFinale });
+            //
+            // Il caso che mancava: `result` ASSENTE. La guardia precedente
+            // richiedeva `match.result &&`, quindi con il campo assente la
+            // riparazione non partiva e la partita restava stantia per sempre,
+            // anche avendo gli eventi corretti. Il calendario mostrava 0-0 con
+            // la partita in "completed" (il 0-0 e' il fallback di `?? 0`, non un
+            // dato salvato) mentre dentro la partita i gol c'erano tutti: e'
+            // il sintomo "passa ma non rimane".
+            //
+            // Quindi: se ci sono eventi che contano come gol, il risultato
+            // salvato deve essere allineato a quello ricalcolato, sia quando
+            // e' diverso sia quando non esiste. Se non ci sono gol registrati si
+            // lascia tutto com'e': una partita col risultato inserito a mano
+            // non deve essere azzerata da un'ammonizione o una sostituzione.
+            if (eventiConGol) {
+                const salvato = match.result;
+                const diversoDaSalvato = !salvato || salvato.home !== resultFinale!.home || salvato.away !== resultFinale!.away;
+                if (diversoDaSalvato) {
+                    await matchRepository.update(matchId, targetSeasonId, { result: resultFinale });
+                }
+
+                // Una partita con eventi registrati ma ancora 'scheduled' resta
+                // fuori dai "ultimi incontri" e non entra nelle statistiche
+                // (record, bomber, tab per tipo partita), perche' quei
+                // calcolatori filtrano su status === 'completed'. La segnaliamo
+                // come giocata solo se la data e' gia' passata: una partita in
+                // corso non va completata da sola.
+                const partitaGiaPassata = parseISO(match.date) < startOfDay(new Date());
+                if (match.status === 'scheduled' && partitaGiaPassata) {
+                    await matchRepository.update(matchId, targetSeasonId, { status: 'completed' });
+                }
             }
         } catch (e: any) {
             console.error("Match load error:", e);
