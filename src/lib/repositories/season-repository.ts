@@ -54,8 +54,14 @@ export const seasonRepository = {
 
     async getActive(userId: string) {
         if (!userId) return undefined;
+        // NON usare `seasons.find(s => s.isActive)`: il campo isActive sui
+        // documenti delle stagioni e' stantio (potenzialmente true su piu'
+        // righe, perche' nessuno lo puliva piu') e darebbe un risultato
+        // arbitrario. La sorgente vera e' il documento utente.
+        const savedId = await activeSeasonRepository.get(userId);
+        if (!savedId) return undefined;
         const seasons = await this.getAll(userId);
-        return seasons.find(s => s.isActive);
+        return seasons.find(s => s.id === savedId);
     },
 
     async add(name: string, userId: string) {
@@ -136,24 +142,14 @@ export const seasonRepository = {
     },
 
     async setActive(id: string, userId: string) {
-        if (!userId) return;
-        const db = getFirestore();
-        const batch = writeBatch(db);
-        
-        // Fetch all seasons the user has access to (needed to deactivate others)
-        const seasons = await this.getAll(userId);
-        
-        // Deactivate all that are currently active
-        seasons.forEach(season => {
-            if (season.isActive && season.id !== id) {
-                batch.update(doc(db, 'teams', season.id), { isActive: false, updatedAt: new Date().toISOString() });
-            }
-        });
-        
-        // Activate target season
-        batch.update(doc(db, 'teams', id), { isActive: true, updatedAt: new Date().toISOString() });
-        
-        await batch.commit();
+        if (!userId || !id) return;
+        // Scrive nel documento dell'utente, non su quello della stagione.
+        // La versione precedente faceva batch.update(isActive) su TUTTE le
+        // stagioni: su una stagione condivisa la scrittura viene negata dalle
+        // regole (un ospite puo' toccare solo sharedWith e updatedAt) e,
+        // quando va a buon fine, cambia la stagione attiva anche del
+        // proprietario. Vedi active-season-repository.
+        await activeSeasonRepository.set(userId, id);
     },
 
     async delete(id: string) {
@@ -229,8 +225,16 @@ export const seasonRepository = {
             // Nessuna scelta salvata, o scelta che non e' piu' raggiungibile
             // (stagione cancellata, o revocata la condivisione): si sceglie la
             // piu' recente e la si salva per questo utente.
+            //
+            // getAll NON e' ordinato: restituisce i documenti nell'ordine in
+            // cui il server li restituisce, quindi all[0] era arbitrario. Su
+            // due stagioni poteva scegliere quella sbagliata, ed e' cosi' che
+            // un utente entrava con il codice e si ritrovava su una stagione
+            // vuota, con quella giusta in lista ma mai attiva.
             if (all.length > 0) {
-                const target = all[0];
+                const target = [...all].sort(
+                    (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+                )[0];
                 await activeSeasonRepository.set(userId, target.id);
                 return target;
             }

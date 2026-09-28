@@ -40,13 +40,26 @@ export const useSeasonsStore = create<SeasonsState>((set, get) => ({
             const all = await seasonRepository.getAll(user.id);
 
             // Ordiniamo le stagioni per data di creazione (dalla più recente alla meno recente)
-            const sortedSeasons = all.sort((a, b) =>
+            const sorted = all.sort((a, b) =>
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
 
+            // Una sola stagione attiva, e la sua identita' viene dalla
+            // scelta PERSONALE salvata nel documento utente, non dal campo
+            // `isActive` di ogni stagione.
+            //
+            // Il campo isActive esiste ancora sui documenti delle stagioni ma
+            // e' STANTIO: era la sorgente unica quando la stagione non era
+            // condivisa, e su piu' stagioni porta a piu' righe con il badge
+            // "Attiva" contemporaneamente — perche' nessuno le puliva piu'. La
+            // sorgente vera e' activeSeasonId, quindi si DERIVA isActive da
+            // qui invece di leggerlo dal documento.
+            const activeId = active?.id ?? (sorted.length > 0 ? sorted[0].id : null);
+            const seasonsWithActive = sorted.map((s) => ({ ...s, isActive: s.id === activeId }));
+
             set({
-                seasons: sortedSeasons,
-                activeSeason: active || (sortedSeasons.length > 0 ? sortedSeasons[0] : null),
+                seasons: seasonsWithActive,
+                activeSeason: activeId ? seasonsWithActive.find((s) => s.id === activeId) ?? null : null,
                 loading: false,
                 error: null,
             });
@@ -136,6 +149,13 @@ export const useSeasonsStore = create<SeasonsState>((set, get) => ({
         const user = useAuthStore.getState().user;
         if (!user) return;
         await seasonRepository.joinSeason(id, user.id);
+        // La stagione appena unita DIVENTA quella attiva.
+        //
+        // Senza questo l'utente entra nella stagione e si ritrova su un'altra,
+        // quella di prima: la app funziona, ma lui sta guardando una stagione
+        // vuota e pensa che la condivisione non abbia funzionato. Il codice
+        // che ha appena inserito indica esattamente dove voleva andare.
+        await activeSeasonRepository.set(user.id, id);
         await get().fetchAll();
     }
 }));
