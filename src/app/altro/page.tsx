@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Download, Moon, Sun, Plus, CheckCircle2, History, AlertTriangle, RefreshCw, LogOut, User, Trash2, Clock, Loader2, Bell, Shield, ChevronRight, Shirt, Share2, Copy, Pencil } from 'lucide-react';
+import { Download, Moon, Sun, Plus, CheckCircle2, History, AlertTriangle, RefreshCw, LogOut, User, Trash2, Clock, Loader2, Bell, Shield, ChevronRight, Shirt, Share2, Copy, Pencil, BarChart3 } from 'lucide-react';
 import { PiTrafficCone } from "react-icons/pi";
 import { useToast } from '@/hooks/use-toast';
 import { playerRepository } from '@/lib/repositories/player-repository';
@@ -22,6 +22,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { MATCH_FILTERS, type FilterType } from '@/lib/aggregators/filter';
 import { useRouter } from 'next/navigation';
 import {
   Select,
@@ -75,8 +76,10 @@ export default function AltroPage() {
     autoSetPresenceOnGenerate, setAutoSetPresenceOnGenerate,
     teamName, setTeamName, saveSettings, fetchSettings,
     matchNotificationEnabled, matchNotificationTime,
-    trainingNotificationEnabled, trainingNotificationTime
+    trainingNotificationEnabled, trainingNotificationTime,
+    statsDefaultFilter, setStatsDefaultFilter
   } = useSettingsStore();
+  const { applyDefaultFilter } = useStatsStore();
 
   const [localTeamName, setLocalTeamName] = useState('');
   const [localDefaultDuration, setLocalDefaultDuration] = useState(90);
@@ -86,6 +89,7 @@ export default function AltroPage() {
   const [localMatchNotificationTime, setLocalMatchNotificationTime] = useState('20:00');
   const [localTrainingNotificationEnabled, setLocalTrainingNotificationEnabled] = useState(false);
   const [localTrainingNotificationTime, setLocalTrainingNotificationTime] = useState('20:00');
+  const [localStatsDefaultFilter, setLocalStatsDefaultFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     if (isSquadraOpen) {
@@ -93,8 +97,9 @@ export default function AltroPage() {
       setLocalDefaultDuration(defaultDuration);
       setLocalTrainingDays(trainingDays);
       setLocalAutoSetPresenceOnGenerate(autoSetPresenceOnGenerate);
+      setLocalStatsDefaultFilter(statsDefaultFilter ?? 'all');
     }
-  }, [isSquadraOpen, teamName, defaultDuration, trainingDays, autoSetPresenceOnGenerate]);
+  }, [isSquadraOpen, teamName, defaultDuration, trainingDays, autoSetPresenceOnGenerate, statsDefaultFilter]);
 
   useEffect(() => {
     if (isNotificheOpen) {
@@ -109,13 +114,17 @@ export default function AltroPage() {
 
   const handleSaveSettings = async () => {
     if (!user) return;
+    setStatsDefaultFilter(localStatsDefaultFilter);
     await saveSettings(user.id, {
       teamName: localTeamName,
       defaultDuration: localDefaultDuration,
       trainingDays: localTrainingDays,
       sessionsPerWeek: localTrainingDays.length,
-      autoSetPresenceOnGenerate: localAutoSetPresenceOnGenerate
+      autoSetPresenceOnGenerate: localAutoSetPresenceOnGenerate,
+      statsDefaultFilter: localStatsDefaultFilter
     });
+    // La preferenza appena salvata deve avere effetto subito, senza ricaricare la pagina
+    applyDefaultFilter();
     setIsSquadraOpen(false);
     toast({ title: "Impostazioni Salvate", description: "Le modifiche alla squadra sono state applicate." });
   };
@@ -563,6 +572,26 @@ export default function AltroPage() {
                 </div>
                 <p className="text-[10px] text-muted-foreground/60 font-medium">Marcare tutti come presenti alla creazione automatica degli allenamenti.</p>
               </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 dark:bg-card/20 hover:bg-muted/50 dark:hover:bg-card/30 border border-border dark:border-transparent">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-primary dark:text-brand-green" />
+                  <Label className="text-sm font-bold">Statistiche su</Label>
+                </div>
+                <Select value={localStatsDefaultFilter} onValueChange={(v) => setLocalStatsDefaultFilter(v as FilterType)}>
+                  <SelectTrigger className="w-40 h-9 text-xs font-bold uppercase bg-background dark:bg-black border border-border dark:border-brand-green/30 focus:ring-1 focus:ring-primary dark:focus:ring-brand-green">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border dark:border-white/10 text-foreground">
+                    {MATCH_FILTERS.map(f => (
+                      <SelectItem key={f} value={f} className="text-xs font-bold uppercase">
+                        {f === 'all' ? 'Totale' : f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[10px] text-muted-foreground/60 font-medium -mt-2">Tab predefinita per Bomber, Assistman, Fedelissimo e per le statistiche del giocatore. Le amichevoli non finiscono nel campionato.</p>
             </div>
 
             <Button 

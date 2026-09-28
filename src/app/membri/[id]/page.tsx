@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -13,8 +13,11 @@ import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { PhysicalTab } from "@/components/allenamento/physical-tab";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useThemeStore } from "@/store/useThemeStore";
-import { aggregationRepository } from "@/lib/repositories/aggregation-repository";
+import { aggregationRepository, type SeasonDataContext } from "@/lib/repositories/aggregation-repository";
 import { trainingRepository } from "@/lib/repositories/training-repository";
+import { filterContextByType, type FilterType } from "@/lib/aggregators/filter";
+import { useSettingsStore } from "@/store/useSettingsStore";
+import { MatchTypeFilters } from "@/components/statistiche/match-type-filters";
 import type { Player, TrainingSession, TrainingAttendance, TrainingStatus, Match, PlayerRole } from "@/lib/types";
 import { getPrimaryRole } from "@/lib/types";
 import { parseISO, isAfter, startOfDay } from "date-fns";
@@ -338,6 +341,153 @@ function MatchHeatmap({ records }: { records: MatchRecord[] }) {
   );
 }
 
+// ─── Helper: il giocatore era infortunato in quella data? ──────────────────────
+function isInjuredAtDate(dateStr: string, injuries?: { startDate: string; endDate: string }[]): boolean {
+  if (!injuries || injuries.length === 0) return false;
+  const d = new Date(dateStr);
+  return injuries.some(inj => {
+    const s = new Date(inj.startDate);
+    const e = new Date(inj.endDate);
+    return d >= s && d <= e;
+  });
+}
+
+// ─── Calcolo statistiche di un giocatore su un contesto GIÀ filtrato per tipo partita ──
+// Pure function: prende il contesto, non lo legge dallo store. Chiamata da un useMemo
+// con il contesto filtrato, così cambiare tab ricalcola tutto senza rifetch.
+function computePlayerStats(
+  context: SeasonDataContext,
+  playerId: string,
+  player: Player | null,
+  isInjuredAtDate: (dateStr: string, injuries?: { startDate: string; endDate: string }[]) => boolean
+): { playerStats: PlayerDetailStats; matchRecords: MatchRecord[] } {
+  const allStats = aggregationRepository.getPlayersAggregatedStatsFromContext(context);
+  const pStats = allStats.find((s) => s.playerId === playerId);
+
+  // Calcola W/D/L e metriche "On Pitch"
+  let wins = 0, draws = 0, losses = 0;
+  let totalMinutes = 0;
+  let cleanSheets = 0;
+  let goalsConcededOnPitch = 0;
+  let goalsScoredOnPitch = 0;
+  let starts = 0;
+  let subs = 0;
+
+  const completedMatches = context.matches.filter((m) => m.status === "completed");
+  for (const match of completedMatches) {
+    const details = context.matchesDetails[match.id];
+    if (!details) continue;
+    const isStarter = details.lineup?.starters.includes(playerId) ?? false;
+    const isSub = details.lineup?.substitutes.includes(playerId) ?? false;
+    const stat = details.stats.find((s) => s.playerId === playerId);
+    // La presenza viene dall'ingresso in campo (titolare o sub), non da "minuti > 0":
+    // un subentrato all'ultimo minuto di recupero ha 0 minuti ma ha comunque giocato.
+    const hasPlayed = isStarter || isSub || !!stat;
+
+    if (hasPlayed) {
+      totalMinutes += stat?.minutesPlayed ?? 0;
+      if (isStarter) starts++;
+      else if (stat && stat.minutesPlayed > 0) subs++;
+
+      // Calcolo On-Pitch Goals
+      const chronologicalEvents = [...details.events].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
+      const myTeam = match.isHome ? 'home' : 'away';
+      const oppTeam = match.isHome ? 'away' : 'home';
+
+      let enterMin = 0;
+      let exitMin = match.duration || 90;
+
+      if (!isStarter && stat && stat.minutesPlayed > 0) {
+        const subIn = chronologicalEvents.find(e => e.type === 'substitution' && e.playerId === playerId);
+        enterMin = subIn ? (subIn.minute ?? 0) : 0;
+      }
+      const subOut = chronologicalEvents.find(e => e.type === 'substitution' && e.subOutPlayerId === playerId);
+      if (subOut) exitMin = subOut.minute ?? (match.duration || 90);
+
+      let matchGoalsConcededCount = 0;
+      chronologicalEvents.forEach(e => {
+        if (e.minute !== null && e.minute >= enterMin && e.minute <= exitMin) {
+          if (e.type === 'goal') {
+            if (e.team === myTeam) goalsScoredOnPitch++;
+            if (e.team === oppTeam) {
+              goalsConcededOnPitch++;
+              matchGoalsConcededCount++;
+            }
+          } else if (e.type === 'own_goal') {
+            // Autogol: un own_goal della mia squadra = gol subito, dell'avversario = gol fatto
+            if (e.team === myTeam) {
+              goalsConcededOnPitch++;
+              matchGoalsConcededCount++;
+            }
+            if (e.team === oppTeam) goalsScoredOnPitch++;
+          }
+        }
+      });
+
+      // Applica clean sheet logic
+      if (player && getPrimaryRole(player) === 'POR' && matchGoalsConcededCount === 0) cleanSheets++;
+
+      if (!match.result) continue;
+      const scored = match.isHome ? match.result.home : match.result.away;
+      const conceded = match.isHome ? match.result.away : match.result.home;
+      if (scored > conceded) wins++;
+      else if (scored < conceded) losses++;
+      else draws++;
+    }
+  }
+
+  const ninety = totalMinutes > 0 ? totalMinutes / 90 : 0;
+  const playerStats: PlayerDetailStats = pStats
+    ? {
+      appearances: pStats.stats.appearances,
+      goals: pStats.stats.goals,
+      assists: pStats.stats.assists,
+      avgMinutes: pStats.stats.avgMinutes,
+      yellowCards: pStats.stats.yellowCards ?? 0,
+      redCards: pStats.stats.redCards ?? 0,
+      totalMinutes,
+      wins,
+      losses,
+      draws,
+      cleanSheets,
+      goalsConcededOnPitch,
+      goalsScoredOnPitch,
+      starts,
+      subs,
+      goalsPer90: ninety > 0 ? Math.round((pStats.stats.goals / ninety) * 100) / 100 : 0,
+      assistsPer90: ninety > 0 ? Math.round((pStats.stats.assists / ninety) * 100) / 100 : 0,
+      gaPer90: ninety > 0 ? Math.round(((pStats.stats.goals + pStats.stats.assists) / ninety) * 100) / 100 : 0,
+      trainingAttendanceRate: null,
+    }
+    : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, trainingAttendanceRate: null };
+
+  // Storico presenze partite
+  const allMatches = [...context.matches].sort((a, b) => a.date.localeCompare(b.date));
+  const matchRecords: MatchRecord[] = allMatches.map(match => {
+    if (match.status !== "completed") return { match, status: "da_giocare" };
+    const details = context.matchesDetails[match.id];
+    if (!details || !details.lineup) return { match, status: "non_convocato" };
+
+    const isStarter = details.lineup.starters.includes(playerId);
+    const isSub = details.lineup.substitutes.includes(playerId);
+    const stat = details.stats.find((s) => s.playerId === playerId);
+    const minutesPlayed = stat?.minutesPlayed ?? 0;
+
+    if (isStarter) return { match, status: "titolare" };
+    if (isSub) {
+      if (minutesPlayed > 0) return { match, status: "entrato" };
+      return { match, status: "inutilizzato" };
+    }
+
+    if (isInjuredAtDate(match.date, player?.injuries)) {
+      return { match, status: "infortunato" };
+    }
+    return { match, status: "non_convocato" };
+  });
+
+  return { playerStats, matchRecords };
+}
+
 // ─── Pagina principale ─────────────────────────────────────────────────────────
 export default function PlayerDetailPage() {
   const params = useParams();
@@ -350,9 +500,16 @@ export default function PlayerDetailPage() {
   const chartColors = useChartColors();
 
   const [loadingData, setLoadingData] = useState(true);
-  const [playerStats, setPlayerStats] = useState<PlayerDetailStats | null>(null);
+  const [playerContext, setPlayerContext] = useState<SeasonDataContext | null>(null);
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
-  const [matchRecords, setMatchRecords] = useState<MatchRecord[]>([]);
+  const [statsFilter, setStatsFilter] = useState<FilterType>('all');
+  const [filterTouched, setFilterTouched] = useState(false);
+  const statsDefaultFilter = useSettingsStore((s) => s.statsDefaultFilter);
+
+  const handleFilterChange = useCallback((f: FilterType) => {
+    setStatsFilter(f);
+    setFilterTouched(true);
+  }, []);
 
   // Ricerca giocatore nella lista già in cache oppure aspettiamo il fetch
   const player = useMemo(
@@ -374,142 +531,13 @@ export default function PlayerDetailPage() {
     const loadStats = async () => {
       setLoadingData(true);
       try {
-        const isInjuredAtDate = (dateStr: string, injuries?: {startDate: string, endDate: string}[]) => {
-          if (!injuries || injuries.length === 0) return false;
-          const d = new Date(dateStr);
-          return injuries.some(inj => {
-            const s = new Date(inj.startDate);
-            const e = new Date(inj.endDate);
-            return d >= s && d <= e;
-          });
-        };
-        // Aggregazione ottimizzata per SOLO questo giocatore
+        // Aggregazione ottimizzata per SOLO questo giocatore.
+        // Il contesto greggio viene tenuto in stato: il filtro per tipo partita
+        // viene applicato DOPO, in un useMemo, così cambiare tab non rifetcha nulla.
         const context = await aggregationRepository.getPlayerDetailedContext(user.id, activeSeason.id, playerId);
-        const allStats = aggregationRepository.getPlayersAggregatedStatsFromContext(context);
-        const pStats = allStats.find((s) => s.playerId === playerId);
+        setPlayerContext(context);
 
-        // Calcola W/D/L e metriche "On Pitch"
-        let wins = 0, draws = 0, losses = 0;
-        let totalMinutes = 0;
-        let cleanSheets = 0;
-        let goalsConcededOnPitch = 0;
-        let goalsScoredOnPitch = 0;
-        let starts = 0;
-        let subs = 0;
-
-        const completedMatches = context.matches.filter((m) => m.status === "completed");
-        for (const match of completedMatches) {
-          const details = context.matchesDetails[match.id];
-          if (!details) continue;
-          const isStarter = details.lineup?.starters.includes(playerId) ?? false;
-          const stat = details.stats.find((s) => s.playerId === playerId);
-          const hasPlayed = isStarter || !!stat;
-
-          if (hasPlayed) {
-            totalMinutes += stat?.minutesPlayed ?? 0;
-            if (isStarter) starts++;
-            else if (stat && stat.minutesPlayed > 0) subs++;
-
-            // Calcolo On-Pitch Goals
-            const chronologicalEvents = [...details.events].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
-            const myTeam = match.isHome ? 'home' : 'away';
-            const oppTeam = match.isHome ? 'away' : 'home';
-
-            let enterMin = 0;
-            let exitMin = match.duration || 90;
-
-            if (!isStarter && stat && stat.minutesPlayed > 0) {
-              const subIn = chronologicalEvents.find(e => e.type === 'substitution' && e.playerId === playerId);
-              enterMin = subIn ? (subIn.minute ?? 0) : 0;
-            }
-            const subOut = chronologicalEvents.find(e => e.type === 'substitution' && e.subOutPlayerId === playerId);
-            if (subOut) exitMin = subOut.minute ?? (match.duration || 90);
-
-            let matchGoalsConcededCount = 0;
-            chronologicalEvents.forEach(e => {
-              if (e.minute !== null && e.minute >= enterMin && e.minute <= exitMin) {
-                if (e.type === 'goal') {
-                  if (e.team === myTeam) goalsScoredOnPitch++;
-                  if (e.team === oppTeam) {
-                    goalsConcededOnPitch++;
-                    matchGoalsConcededCount++;
-                  }
-                } else if (e.type === 'own_goal') {
-                  // Autogol: un own_goal della mia squadra = gol subito, dell'avversario = gol fatto
-                  if (e.team === myTeam) {
-                    goalsConcededOnPitch++;
-                    matchGoalsConcededCount++;
-                  }
-                  if (e.team === oppTeam) goalsScoredOnPitch++;
-                }
-              }
-            });
-
-            // Applica clean sheet logic
-            if (player && getPrimaryRole(player) === 'POR' && matchGoalsConcededCount === 0) cleanSheets++;
-
-            if (!match.result) continue;
-            const scored = match.isHome ? match.result.home : match.result.away;
-            const conceded = match.isHome ? match.result.away : match.result.home;
-            if (scored > conceded) wins++;
-            else if (scored < conceded) losses++;
-            else draws++;
-          }
-        }
-
-        const ninety = totalMinutes > 0 ? totalMinutes / 90 : 0;
-        setPlayerStats(
-          pStats
-            ? {
-              appearances: pStats.stats.appearances,
-              goals: pStats.stats.goals,
-              assists: pStats.stats.assists,
-              avgMinutes: pStats.stats.avgMinutes,
-              yellowCards: pStats.stats.yellowCards ?? 0,
-              redCards: pStats.stats.redCards ?? 0,
-              totalMinutes,
-              wins,
-              losses,
-              draws,
-              cleanSheets,
-              goalsConcededOnPitch,
-              goalsScoredOnPitch,
-              starts,
-              subs,
-              goalsPer90: ninety > 0 ? Math.round((pStats.stats.goals / ninety) * 100) / 100 : 0,
-              assistsPer90: ninety > 0 ? Math.round((pStats.stats.assists / ninety) * 100) / 100 : 0,
-              gaPer90: ninety > 0 ? Math.round(((pStats.stats.goals + pStats.stats.assists) / ninety) * 100) / 100 : 0,
-              trainingAttendanceRate: null,
-            }
-            : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, trainingAttendanceRate: null }
-        );
-
-        // Storico presenze partite
-        const allMatches = context.matches.sort((a, b) => a.date.localeCompare(b.date));
-        const mRecords: MatchRecord[] = allMatches.map(match => {
-          if (match.status !== "completed") return { match, status: "da_giocare" };
-          const details = context.matchesDetails[match.id];
-          if (!details || !details.lineup) return { match, status: "non_convocato" };
-
-          const isStarter = details.lineup.starters.includes(playerId);
-          const isSub = details.lineup.substitutes.includes(playerId);
-          const stat = details.stats.find((s) => s.playerId === playerId);
-          const minutesPlayed = stat?.minutesPlayed ?? 0;
-
-          if (isStarter) return { match, status: "titolare" };
-          if (isSub) {
-            if (minutesPlayed > 0) return { match, status: "entrato" };
-            return { match, status: "inutilizzato" };
-          }
-          
-          if (isInjuredAtDate(match.date, player?.injuries)) {
-            return { match, status: "infortunato" };
-          }
-          return { match, status: "non_convocato" };
-        });
-        setMatchRecords(mRecords);
-
-        // Storico presenze allenamenti
+        // Storico presenze allenamenti (indipendente dal tipo partita)
         const sessions = await trainingRepository.getAll(user.id, activeSeason.id);
         const sortedSessions = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
         const sessionIds = sortedSessions.map((s) => s.id);
@@ -519,11 +547,11 @@ export default function PlayerDetailPage() {
           const attRecord = allAtt.find((a) => a.sessionId === session.id);
           const playerAtt = attRecord?.attendance.find((a) => a.playerId === playerId);
           let status = playerAtt?.status ?? null;
-          
+
           if (isInjuredAtDate(session.date, player?.injuries) && (!status || status === "assente")) {
              status = "infortunato" as any;
           }
-          
+
           return { session, status };
         });
         setTrainingRecords(records);
@@ -536,6 +564,21 @@ export default function PlayerDetailPage() {
 
     loadStats();
   }, [user, activeSeason, playerId]);
+
+  // La tab scelta vale finche l'utente non ne sceglie un'altra: la preferenza salvata
+  // in Gestione Squadra e' il default, non un override di una scelta esplicita.
+  useEffect(() => {
+    if (filterTouched) return;
+    setStatsFilter(statsDefaultFilter ?? 'all');
+  }, [filterTouched, statsDefaultFilter]);
+
+  // Statistiche e heatmap partite ricalcolate sul contesto FILTRATO per tipo partita.
+  // Il filtro agisce sui dati, non solo sull'etichetta della tab.
+  const { playerStats, matchRecords } = useMemo(() => {
+    if (!playerContext) return { playerStats: null, matchRecords: [] as MatchRecord[] };
+    const filtered = filterContextByType(playerContext, statsFilter);
+    return computePlayerStats(filtered, playerId, player, isInjuredAtDate);
+  }, [playerContext, statsFilter, playerId, player]);
 
   const radarData = useMemo(() => {
     if (!playerStats) return [];
@@ -672,6 +715,14 @@ export default function PlayerDetailPage() {
           </Button>
         </Link>
       </PageHeader>
+
+      {/* Tab filtro tipo partita: filtrano davvero statistiche, heatmap e grafici */}
+      <MatchTypeFilters
+        context={playerContext || undefined}
+        loadingContext={loadingData || !playerContext}
+        filter={statsFilter}
+        onFilterChange={handleFilterChange}
+      />
 
       {/* Statistiche principali e avanzate */}
       <div className="space-y-2">

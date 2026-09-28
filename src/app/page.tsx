@@ -10,6 +10,7 @@ import { useStatsStore } from '@/store/useStatsStore';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { useAppStore } from '@/store/useAppStore';
 import { ErrorState } from '@/components/ui/error-state';
+import { MatchTypeFilters } from '@/components/statistiche/match-type-filters';
 import { parseError } from '@/lib/error-utils';
 import { getPrimaryRole } from '@/lib/types';
 import type { MatchCreateData } from '@/lib/repositories/match-repository';
@@ -48,7 +49,7 @@ export default function HomePage() {
   const { players } = usePlayersStore();
   const { matches, add: addMatch } = useMatchesStore();
   const { sessions } = useTrainingStore();
-  const { playerLeaderboard } = useStatsStore();
+  const { playerLeaderboard, matchFilter, setMatchFilter, detailedContext } = useStatsStore();
 
   useEffect(() => {
     setMounted(true);
@@ -241,6 +242,14 @@ export default function HomePage() {
           Vedi Statistiche <ArrowRight className="ml-1 h-3 w-3" />
         </Button>
       </div>
+
+      {/* Tab filtro tipo partita: pilotano gli aggregati dello store (non solo l'etichetta) */}
+      <MatchTypeFilters
+        context={detailedContext || undefined}
+        loadingContext={!detailedContext}
+        filter={matchFilter}
+        onFilterChange={setMatchFilter}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {/* Capocannoniere */}

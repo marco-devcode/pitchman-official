@@ -1,4 +1,5 @@
 import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
+import type { FilterType } from '@/lib/aggregators/filter';
 
 export interface UserSettings {
   defaultDuration: number;
@@ -10,6 +11,8 @@ export interface UserSettings {
   matchNotificationTime?: string;
   trainingNotificationEnabled?: boolean;
   trainingNotificationTime?: string;
+  /** Tab statistica predefinita: 'all' | 'Campionato' | 'Torneo' | 'Amichevole' */
+  statsDefaultFilter?: FilterType;
 }
 
 export const settingsRepository = {

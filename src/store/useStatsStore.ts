@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { aggregationRepository, type SeasonDataContext } from '@/lib/repositories/aggregation-repository';
 import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
+import { useSettingsStore } from './useSettingsStore';
 import type { AdvancedStatsLeaderboard, MatchType } from '@/lib/types';
 import { getErrorMessage } from '@/lib/error-utils';
 import { filterContextByType, type FilterType } from '@/lib/aggregators/filter';
@@ -55,10 +56,14 @@ interface StatsState {
     loading: boolean;
     error: string | null;
     matchFilter: FilterType;
+    /** true se l'utente ha scelto la tab a mano: la preferenza salvata non la sovrascrive */
+    matchFilterFromUser: boolean;
     detailedContext: SeasonDataContext | null;
     loadSummaryStats: (seasonId?: string) => Promise<void>;
     loadDetailedStats: (seasonId?: string) => Promise<void>;
     setMatchFilter: (filter: FilterType) => void;
+    /** Riapplica la preferenza salvata in Gestione Squadra (azzera la scelta manuale) */
+    applyDefaultFilter: () => void;
 }
 
 function reaggregate(ctx: SeasonDataContext, seasonId: string) {
@@ -94,6 +99,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     loading: true,
     error: null,
     matchFilter: 'all',
+    matchFilterFromUser: false,
     detailedContext: null,
 
     loadSummaryStats: async (seasonId?: string) => {
@@ -137,12 +143,16 @@ export const useStatsStore = create<StatsState>((set, get) => ({
 
         try {
             const context = await aggregationRepository.getDetailedContext(user.id, activeSeasonId);
-            const currentFilter = get().matchFilter;
+            // Se l'utente non ha ancora scelto una tab, si usa la preferenza salvata in Gestione Squadra.
+            const currentFilter = get().matchFilterFromUser
+                ? get().matchFilter
+                : (useSettingsStore.getState().statsDefaultFilter ?? 'all');
             const filtered = filterContextByType(context, currentFilter);
             const agg = reaggregate(filtered, activeSeasonId);
 
             set({
                 detailedContext: context,
+                matchFilter: currentFilter,
                 ...agg,
                 loading: false,
                 error: null,
@@ -157,11 +167,24 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         const ctx = get().detailedContext;
         const activeSeasonId = useSeasonsStore.getState().activeSeason?.id;
         if (!ctx || !activeSeasonId) {
-            set({ matchFilter: filter });
+            set({ matchFilter: filter, matchFilterFromUser: true });
             return;
         }
         const filtered = filterContextByType(ctx, filter);
         const agg = reaggregate(filtered, activeSeasonId);
-        set({ matchFilter: filter, ...agg });
+        set({ matchFilter: filter, matchFilterFromUser: true, ...agg });
+    },
+
+    applyDefaultFilter: () => {
+        const filter = useSettingsStore.getState().statsDefaultFilter ?? 'all';
+        const ctx = get().detailedContext;
+        const activeSeasonId = useSeasonsStore.getState().activeSeason?.id;
+        if (!ctx || !activeSeasonId) {
+            set({ matchFilter: filter, matchFilterFromUser: false });
+            return;
+        }
+        const filtered = filterContextByType(ctx, filter);
+        const agg = reaggregate(filtered, activeSeasonId);
+        set({ matchFilter: filter, matchFilterFromUser: false, ...agg });
     },
 }));
