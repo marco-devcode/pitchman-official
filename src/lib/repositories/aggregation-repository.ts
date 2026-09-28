@@ -5,7 +5,6 @@ import {
     getDoc,
     collection,
     query,
-    where,
     getDocs,
     writeBatch
 } from 'firebase/firestore';

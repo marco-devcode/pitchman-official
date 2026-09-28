@@ -8,7 +8,6 @@ import {
   updateDoc,
   doc, 
   query,
-  where
 } from 'firebase/firestore';
 import type { MatchEvent } from '@/lib/types';
 
@@ -25,10 +24,7 @@ export const eventRepository = {
         const db = getFirestore();
         const eventsRef = collection(db, 'teams', seasonId, 'matches', matchId, 'events');
         
-        const q = query(
-          eventsRef, 
-          where('teamOwnerId', '==', userId)
-        );
+        const q = query(eventsRef);
         
         const snapshot = await getDocs(q);
         const events = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as MatchEvent));

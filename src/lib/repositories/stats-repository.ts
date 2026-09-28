@@ -6,7 +6,6 @@ import {
   doc, 
   setDoc,
   query,
-  where
 } from 'firebase/firestore';
 import type { PlayerMatchStats } from '@/lib/types';
 
@@ -19,10 +18,7 @@ export const statsRepository = {
         const statsRef = collection(db, 'teams', seasonId, 'matches', matchId, 'stats');
         
         // Obbligatorio il filtro teamOwnerId per le Security Rules
-        const q = query(
-          statsRef, 
-          where('teamOwnerId', '==', userId)
-        );
+        const q = query(statsRef);
         
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ ...doc.data(), playerId: doc.id } as PlayerMatchStats));

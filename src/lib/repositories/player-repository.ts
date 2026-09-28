@@ -9,7 +9,6 @@ import {
   updateDoc, 
   deleteDoc, 
   query, 
-  where,
   writeBatch
 } from 'firebase/firestore';
 import type { Player, Role, PlayerRole } from '@/lib/types';
@@ -40,7 +39,7 @@ export const playerRepository = {
     if (!userId || !seasonId) return [];
     const db = getFirestore();
     const playersRef = collection(db, 'teams', seasonId, 'players');
-    const q = query(playersRef, where('teamOwnerId', '==', userId));
+    const q = query(playersRef);
     const snapshot = await getDocs(q);
     const players = snapshot.docs.map(doc => {
       const pData = doc.data();
@@ -156,7 +155,7 @@ export const playerRepository = {
     if (!userId || !seasonId) return;
     const db = getFirestore();
     const playersRef = collection(db, 'teams', seasonId, 'players');
-    const q = query(playersRef, where('teamOwnerId', '==', userId));
+    const q = query(playersRef);
     const snapshot = await getDocs(q);
     
     if (snapshot.empty) return;

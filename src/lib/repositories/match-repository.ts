@@ -8,7 +8,6 @@ import {
   updateDoc, 
   deleteDoc, 
   query, 
-  where,
   writeBatch
 } from 'firebase/firestore';
 import type { Match } from '@/lib/types';
@@ -42,7 +41,7 @@ export const matchRepository = {
     if (!userId || !seasonId) return [];
     const db = getFirestore();
     const matchesRef = collection(db, 'teams', seasonId, 'matches');
-    const q = query(matchesRef, where('teamOwnerId', '==', userId));
+    const q = query(matchesRef);
     const snapshot = await getDocs(q);
     const matches = snapshot.docs.map(doc => {
       const data = doc.data();
@@ -149,7 +148,7 @@ export const matchRepository = {
     if (!userId || !seasonId) return;
     const db = getFirestore();
     const matchesRef = collection(db, 'teams', seasonId, 'matches');
-    const q = query(matchesRef, where('teamOwnerId', '==', userId));
+    const q = query(matchesRef);
     const snapshot = await getDocs(q);
     
     if (snapshot.empty) return;

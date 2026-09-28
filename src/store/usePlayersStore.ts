@@ -13,7 +13,7 @@ import { useAuthStore } from './useAuthStore';
 import { mutate } from 'swr';
 import { getErrorMessage } from '@/lib/error-utils';
 import { enqueueMutation, isOffline } from '@/lib/sync-queue';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 
 interface PlayerState {
@@ -137,7 +137,7 @@ export const usePlayersStore = create<PlayerState>()(
       subscribe: (userId: string, seasonId: string) => {
         const db = getFirestore();
         const playersRef = collection(db, 'teams', seasonId, 'players');
-        const q = query(playersRef, where('teamOwnerId', '==', userId));
+        const q = query(playersRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const players = snapshot.docs.map(doc => {
             const pData = doc.data();

@@ -8,7 +8,7 @@ import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
 import { getErrorMessage } from '@/lib/error-utils';
 import { enqueueMutation, isOffline } from '@/lib/sync-queue';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { MatchSchema } from '@/lib/schemas';
 
@@ -106,7 +106,7 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
     subscribe: (userId: string, seasonId: string) => {
         const db = getFirestore();
         const matchesRef = collection(db, 'teams', seasonId, 'matches');
-        const q = query(matchesRef, where('teamOwnerId', '==', userId));
+        const q = query(matchesRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const matches = snapshot.docs.map(doc => {
                 const data = { ...doc.data(), id: doc.id };
