@@ -136,9 +136,14 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'updatedAt']) &&
                        request.auth.uid in request.resource.data.sharedWith &&
                        // Non si puo' aggiungere qualcun altro al posto proprio:
-                       // l'array deve crescere di esattamente il proprio uid.
+                       // l'array deve conservare tutti gli uid precedenti e
+                       // crescere di ESATTAMENTE un elemento.
+                       // (La concatenazione di liste con '+' non e' valida in
+                       // Firestore rules — il compilatore la segnala come
+                       // "Invalid type ... Expected one of [list, set]".
+                       // hasAll + size e' l'equivalente corretto.)
                        request.resource.data.sharedWith.hasAll(resource.data.sharedWith) &&
-                       request.resource.data.sharedWith.hasOnly(resource.data.sharedWith + [request.auth.uid])
+                       request.resource.data.sharedWith.size() == resource.data.sharedWith.size() + 1
                       )
                     );
       allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
