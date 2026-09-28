@@ -87,6 +87,17 @@ service cloud.firestore {
         }
       }
 
+      // ─── Stagione attiva per utente ──────────────────────────────────────
+      //
+      // `isActive` non puo' stare sul documento della stagione: quel documento
+      // e' condiviso, quindi il flag sarebbe condiviso e due allenatori si
+      // pesterebbero i piedi. La scelta della stagione attiva e' per utente e
+      // vive qui. Non contiene dati della squadra: solo quale stagione hai
+      // scelto di guardare in questo momento.
+      match /settings/{settingId} {
+        allow get, create, update, delete: if isOwner(userId);
+      }
+
       // ─── Physical Tests ───────────────────────────────────────────────────
       match /physicalTests/{testId} {
         allow get, list: if isOwner(userId);
@@ -215,6 +226,26 @@ service cloud.firestore {
       match /aggregates/{aggregateId=**} {
         allow get, list: if isSignedIn() && isSeasonAuthorized(seasonId);
         allow write:    if isSignedIn() && isSeasonAuthorized(seasonId);
+      }
+
+      // ─── Presence: chi e' online su questa stagione (2026-09) ────────────
+      //
+      // Ogni utente scrive il proprio documento in
+      // teams/{seasonId}/presence/{uid} con un battito periodico. Un
+      // onSnapshot su questa collezione dice chi c'e' SENZA refresh, e fa
+      // comparire l'avviso "un altro allenatore e' su questa stagione,
+      // le modifiche possono sovrascriversi".
+      //
+      // Il documento contiene SOLO lastSeen: nessun dato della squadra, e le
+      // regole lo impongono con hasOnly, cosi' nessuno puo' nascondere altro
+      // dentro. Nota sul delete: e' consentito a chiunque della stagione
+      // perche' serve a ripulire i documenti scaduti, e un documento di
+      // presenza non contiene nulla di riservato.
+      match /presence/{uid} {
+        allow get, list: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow create: if isSignedIn() && isSeasonAuthorized(seasonId) && request.resource.data.keys().hasOnly(['lastSeen']);
+        allow update: if isSignedIn() && isSeasonAuthorized(seasonId) && request.resource.data.keys().hasOnly(['lastSeen']);
+        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
       }
     }
 

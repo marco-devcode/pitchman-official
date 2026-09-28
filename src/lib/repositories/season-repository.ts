@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import type { Season } from '@/lib/types';
 import { SeasonSchema } from '@/lib/schemas';
+import { activeSeasonRepository } from '@/lib/repositories/active-season-repository';
 
 export const seasonRepository = {
     async getAll(userId: string) {
@@ -204,21 +205,26 @@ export const seasonRepository = {
 
     async ensureDefaultSeason(userId: string) {
         if (!userId) return undefined;
-        
+
         const all = await this.getAll(userId);
-        const activeSeasons = all.filter(s => s.isActive);
-        
-        if (activeSeasons.length === 1) {
-            return activeSeasons[0];
-        }
-        
+
+        // La stagione attiva e' una scelta PERSONALE: si legge dal documento
+        // dell'utente, non dal documento della stagione (che e' condiviso e
+        // porterebbe a due allenatori con la stessa stagione attiva).
+        const savedId = await activeSeasonRepository.get(userId);
+        const saved = savedId ? all.find(s => s.id === savedId) : undefined;
+
+        if (saved) return saved;
+
+        // Nessuna scelta salvata, o scelta che non e' piu' raggiungibile
+        // (stagione cancellata, o revocata la condivisione): si sceglie la
+        // piu' recente e la si salva per questo utente.
         if (all.length > 0) {
-            const targetId = activeSeasons.length > 1 ? activeSeasons[0].id : all[0].id;
-            await this.setActive(targetId, userId);
-            const updatedSeasons = await this.getAll(userId);
-            return updatedSeasons.find(s => s.id === targetId);
+            const target = all[0];
+            await activeSeasonRepository.set(userId, target.id);
+            return target;
         }
-        
+
         const defaultId = `S-DEFAULT-${userId.substring(0, 6).toUpperCase()}`;
         const db = getFirestore();
         

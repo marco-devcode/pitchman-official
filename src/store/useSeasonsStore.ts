@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import { seasonRepository } from '@/lib/repositories/season-repository';
+import { activeSeasonRepository } from '@/lib/repositories/active-season-repository';
 import type { Season } from '@/lib/types';
 import { useAuthStore } from './useAuthStore';
 import { getErrorMessage } from '@/lib/error-utils';
@@ -72,11 +73,18 @@ export const useSeasonsStore = create<SeasonsState>((set, get) => ({
     setActiveSeason: async (id) => {
         const user = useAuthStore.getState().user;
         if (!user) return;
-        // Persist to Firestore (single writeBatch — fast)
-        await seasonRepository.setActive(id, user.id);
+        // Salva nel documento DELL'UTENTE, non su quello della stagione.
+        //
+        // Il motivo e' che la stagione e' condivisa: scrivere isActive sul suo
+        // documento cambierebbe anche la stagione attiva del proprietario, e
+        // le regole Firestore negano la scrittura a un ospite perche' puo'
+        // toccare solo sharedWith e updatedAt. Quel diniego faceva fallire
+        // l'intero fetchAll: la stagione appena unita non compariva in lista.
+        // La scelta della stagione attiva e' personale, quindi vive da parte.
+        await activeSeasonRepository.set(user.id, id);
         // Update local state immediately (no fetchAll — prefetch handles refresh)
-        const sortedSeasons = get().seasons.map(s => ({ ...s, isActive: s.id === id }));
-        const newActive = sortedSeasons.find(s => s.id === id) || null;
+        const sortedSeasons = get().seasons.map((s) => ({ ...s, isActive: s.id === id }));
+        const newActive = sortedSeasons.find((s) => s.id === id) || null;
         set({ seasons: sortedSeasons, activeSeason: newActive, loading: false });
     },
 
@@ -98,9 +106,12 @@ export const useSeasonsStore = create<SeasonsState>((set, get) => ({
 
         // 3. Try Firestore operations — if anything fails, rollback UI
         try {
-            // If deleted season was active, switch Firestore active flag first
+            // If deleted season was active, switch the flag to another one.
+            // Scrive nel documento dell'utente, non su quello della stagione:
+            // la stagione cancellata potrebbe essere condivisa con altri e la
+            // scrittura li riguarderebbe. Vedi activeSeasonRepository.
             if (wasActive && remainingBeforeDelete.length > 0) {
-                await seasonRepository.setActive(remainingBeforeDelete[0].id, user.id);
+                await activeSeasonRepository.set(user.id, remainingBeforeDelete[0].id);
             }
             // Delete all subcollections + season document
             await seasonRepository.delete(id);
