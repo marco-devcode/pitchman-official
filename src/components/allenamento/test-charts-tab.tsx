@@ -60,6 +60,34 @@ function statsOf(values: number[]): { avg: number; max: number; min: number; n: 
   };
 }
 
+/** Colore del pallino per tipo di test: blu = velocita', verde = resistenza. */
+const COLORE_TIPO: Record<string, string> = {
+  velocita: '#3b82f6',
+  resistenza: '#22c55e',
+};
+const coloreTipo = (t: string) => COLORE_TIPO[t] ?? '#a1a1aa';
+
+/**
+ * Nome test abbreviato a 10 caratteri.
+ *
+ * 10 e' il limite del chip stretto: i nomi reali sono lunghi ("100 METRI
+ * CAMPO", "SALITA ALBERO STORTO") e troncati oltre diventano indistinguibili,
+ * perche' "100 METRI..." e "1000 METRI..." hanno lo stesso inizio. Il taglio
+ * pero' cade su una parola intera quando possibile, altrimenti "SALITA ALB..."
+ * si legge come una parola troncata a caso invece che come un abbreviazione.
+ */
+function nomeBreve(nome: string): string {
+  const s = nome.trim();
+  if (s.length <= 10) return s;
+  // 9 caratteri piu' il puntini di sospensione = 10. Non 10 piu' il puntini:
+  // cosi' il chip resta entro il limite ANCHE quando il taglio cade su una
+  // parola intera. Con 10 ('AVANTI-IND') + puntini si arrivava a 11 e il chip
+  // sfondava, proprio per i nomi con trattini come AVANTI-IND-AVANTI.
+  const meta = s.slice(0, 9);
+  const spazio = meta.lastIndexOf(' ');
+  return (spazio > 3 ? meta.slice(0, spazio) : meta) + '…';
+}
+
 /**
  * Popup del grafico evoluzione: MAX, MEDIA e MIN uno sotto l'altro.
  *
@@ -297,13 +325,52 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
   const chartColors = useChartColors();
   const [subTab, setSubTab] = useState<SubTab>('evoluzione');
 
-  // Il tentativo selezionato parte dall'ultimo: e' quello su cui si sta
-  // lavorando, ed e' il default sensato per la distribuzione.
-  const sortedTests = useMemo(() => [...tests].sort((a, b) => b.date.localeCompare(a.date)), [tests]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * DISTRIBUZIONE: due livelli di selezione.
+   *
+   * Livello 1: il TEST, in chip brevi con il pallino del tipo.
+   * Livello 2: le DATE, e solo di quel test.
+   *
+   * Il livello 2 nasce perche' mettendo tutte le date insieme due tentativi
+   * diversi dello stesso test mostravano la stessa etichetta ("24 SET"), e non
+   * si capiva quale dei due fosse. Filtrando per test l'ambiguita' sparisce da
+   * sola: dentro un test due date diverse sono due giorni diversi.
+   */
+  const perTest = useMemo(() => {
+    const byName = new Map<string, { name: string; type: string; unit: string; date: string; tentativi: PhysicalTest[] }>();
+    for (const t of tests) {
+      const g = byName.get(t.name) ?? { name: t.name, type: t.type, unit: t.unit, date: t.date, tentativi: [] };
+      g.tentativi.push(t);
+      // Tipo e unita' li prendo dall'ultimo tentativo: l'utente puo' aver
+      // cambiato l'unita' in edit (per es. da secondi a secondi discendente),
+      // e il grafico deve mostrare quella corrente, non la prima.
+      g.type = t.type;
+      g.unit = t.unit;
+      if (t.date > g.date) g.date = t.date;
+      byName.set(t.name, g);
+    }
+    return Array.from(byName.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }, [tests]);
+
+  // Il test selezionato parte dall'ultimo eseguito: e' quello su cui si sta
+  // lavorando, ed e' il default sensato.
+  const [testSelezionato, setTestSelezionato] = useState<string | null>(null);
+  const gruppoAttivo = useMemo(
+    () => perTest.find((g) => g.name === testSelezionato) ?? perTest[0] ?? null,
+    [perTest, testSelezionato]
+  );
+
+  // Le date del test scelto, dalla piu' recente: di nuovo, l'ultima e' quella
+  // su cui si lavora.
+  const tentativiDelTest = useMemo(
+    () => (gruppoAttivo ? [...gruppoAttivo.tentativi].sort((a, b) => b.date.localeCompare(a.date)) : []),
+    [gruppoAttivo]
+  );
+
+  const [tentativoSelezionato, setTentativoSelezionato] = useState<string | null>(null);
   const attivo = useMemo(
-    () => sortedTests.find((t) => t.id === selectedId) ?? sortedTests[0] ?? null,
-    [sortedTests, selectedId]
+    () => tentativiDelTest.find((t) => t.id === tentativoSelezionato) ?? tentativiDelTest[0] ?? null,
+    [tentativiDelTest, tentativoSelezionato]
   );
   // NB: nessuno stato per il quantile selezionato. Il click su una barra non
   // serve piu': l'informazione sta nel tooltip Recharts, che compare passando
@@ -497,15 +564,46 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
             <BarChart3 className="h-3 w-3" /> Distribuzione risultati per tentativo
           </p>
 
-          {sortedTests.length > 1 && (
+          {/* LIVELLO 1 — il test, in chip brevi con il pallino del tipo.
+              Il nome intero sta nel title, perche' il chip e' troncato a 10
+              caratteri e da solo non basta a distinguere due test. */}
+          <div className="flex flex-wrap gap-1.5">
+            {perTest.map((g) => {
+              const sel = gruppoAttivo?.name === g.name;
+              return (
+                <button
+                  key={g.name}
+                  type="button"
+                  title={g.name}
+                  onClick={() => { setTestSelezionato(g.name); setTentativoSelezionato(null); }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all border ${
+                    sel
+                      ? 'bg-primary/15 text-foreground dark:bg-brand-green/15 dark:text-white border-primary/60 dark:border-brand-green/60'
+                      : 'bg-card dark:bg-black/40 text-muted-foreground border-border dark:border-white/10'
+                  }`}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: coloreTipo(g.type) }}
+                  />
+                  {nomeBreve(g.name)}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* LIVELLO 2 — le date, e SOLO di quel test. Con una sola data non
+              si mostra niente: il grafico non cambierebbe e il livello
+              sarebbe rumore. */}
+          {tentativiDelTest.length > 1 && (
             <div className="flex flex-wrap gap-1.5">
-              {sortedTests.map((t) => {
+              {tentativiDelTest.map((t) => {
                 const sel = attivo?.id === t.id;
                 return (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setSelectedId(t.id)}
+                    onClick={() => setTentativoSelezionato(t.id)}
                     className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border ${
                       sel
                         ? 'bg-primary text-white dark:bg-brand-green/20 dark:text-brand-green border-primary/60 dark:border-brand-green'
