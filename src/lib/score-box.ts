@@ -14,62 +14,82 @@
  *    miei gol a sinistra anche in trasferta: la riga sembrava una vittoria in
  *    casa quando era una sconfita in trasferta. Da qui il helper.
  *
- * 2. Il COLORE dice l'esito della partita dal punto di vista della mia squadra,
- *    non dal punteggio grezzo: verde per la vittoria, giallo per il pareggio,
- *    rosso per la sconfitta. Verde neon (brand-green), non emerald: e' il verde
- *    del brand.
+ * 2. Il COLORE del BORDO dice l'esito dal punto di vista della mia squadra:
+ *    verde brand per la vittoria, giallo per il pareggio, rosso per la sconfitta.
+ *    Verde neon (brand-green = #ace504), non emerald: è il verde del brand.
+ *
+ * 3. I NUMERI restano BIANCHI. Il colore lo porta il bordo, non il testo:
+ *    numeri colorati e bordo dello stesso colore si leggono male, soprattutto
+ *    il giallo su nero. Il bianco tiene su tutti e tre i fondi.
  */
 
 export interface ScoreBoxStyle {
     /** I due numeri, gia' nell'ordine giusto per la posizione in campo. */
     pair: [number, number];
-    /** Classi del bordo + glow. */
+    /** Bordo + glow per il box stretto intorno ai numeri. Vuoto in variant 'card'. */
     box: string;
-    /** Classe del testo dei numeri. */
+    /** Bordo + glow della CARD intera. Vuoto in variant 'tight'. */
+    card: string;
+    /** Numeri: bianchi in entrambi i temi. */
     text: string;
+}
+
+type Esito = 'V' | 'S' | 'N';
+
+function esitoDi(isHome: boolean, home: number, away: number): Esito {
+    const mio = isHome ? home : away;
+    const loro = isHome ? away : home;
+    return mio > loro ? 'V' : mio < loro ? 'S' : 'N';
 }
 
 export function scoreBoxStyle(opts: {
     isHome: boolean;
     home: number;
     away: number;
-    /** 'glow' per il box della lista, 'plain' per il riquadro 'Ultimi incontri'. */
-    variant?: 'glow' | 'plain';
+    /** 'tight' = box stretto; 'card' = il colore va sul bordo della scheda intera. */
+    variant?: 'tight' | 'card';
 }): ScoreBoxStyle {
-    const { isHome, home, away, variant = 'glow' } = opts;
+    const { isHome, home, away, variant = 'tight' } = opts;
 
     // home/away sono le posizioni fisiche; la mia squadra e' dalla parte di casa
     // solo se isHome. Da li' l'ordine di lettura.
     const pair: [number, number] = isHome ? [home, away] : [away, home];
 
-    const mio = isHome ? home : away;
-    const loro = isHome ? away : home;
-    const esito = mio > loro ? 'V' : mio < loro ? 'S' : 'N';
+    const c = (() => {
+        switch (esitoDi(isHome, home, away)) {
+            case 'V': return {
+                bordo: 'border-brand-green',
+                // Classi SCRITTE PER INTERO, non costruite a runtime.
+                // Tailwind scansiona i sorgenti per pattern letterali: una
+                // classe assemblata per interpolazione (`dark:shadow-${x}`)
+                // non esiste nel CSS generato, e il bagliore sparisce senza
+                // nessun errore. Per questo la stringa completa e' qui.
+                bagliore: 'dark:shadow-[0_0_12px_rgba(172,229,4,0.45)]',
+            };
+            case 'S': return {
+                bordo: 'border-rose-500',
+                bagliore: 'dark:shadow-[0_0_12px_rgba(244,63,94,0.45)]',
+            };
+            default: return {
+                bordo: 'border-amber-400',
+                bagliore: 'dark:shadow-[0_0_12px_rgba(251,191,36,0.45)]',
+            };
+        }
+    })();
 
-    const colore = esito === 'V'
-        ? {
-            bordo: 'border-brand-green',
-            glow: 'dark:shadow-[0_0_10px_rgba(172,229,4,0.35)]',
-            testo: 'text-brand-green',
-        }
-        : esito === 'S'
-        ? {
-            bordo: 'border-rose-500',
-            glow: 'dark:shadow-[0_0_10px_rgba(244,63,94,0.35)]',
-            testo: 'text-rose-500',
-        }
-        : {
-            bordo: 'border-amber-400',
-            glow: 'dark:shadow-[0_0_10px_rgba(251,191,36,0.35)]',
-            testo: 'text-amber-400',
+    if (variant === 'card') {
+        return {
+            pair,
+            card: `${c.bordo} ${c.bagliore}`,
+            box: '',
+            text: 'text-white dark:text-white',
         };
+    }
 
-    // Nel tema chiaro il glow di una box-border non si vede: si usa un'ombra
-    // morbida dello stesso colore, altrimenti in light mode il box sembra
-    // identico a quello neutro.
-    const box = variant === 'glow'
-        ? `border ${colore.bordo} ${colore.glow} shadow-[0_0_8px] shadow-current/20`
-        : `border ${colore.bordo} ${colore.glow}`;
-
-    return { pair, box, text: colore.testo };
+    return {
+        pair,
+        box: `${c.bordo} ${c.bagliore}`,
+        card: '',
+        text: 'text-white dark:text-white',
+    };
 }

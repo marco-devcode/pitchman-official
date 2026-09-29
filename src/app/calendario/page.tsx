@@ -344,7 +344,17 @@ export default function CalendarioPage() {
         {lastMatch ? (
           <Card
             onClick={() => router.push(`/calendario/${lastMatch.id}`)}
-            className="bg-card dark:bg-black border border-border dark:border-white/10 rounded-3xl overflow-hidden cursor-pointer hover:border-primary dark:hover:border-brand-green/40 transition-all group"
+            className={cn(
+              "bg-card dark:bg-black border-2 rounded-3xl cursor-pointer hover:border-primary dark:hover:border-brand-green/40 transition-all group",
+              // Qui non c'e' il box stretto intorno ai numeri: il colore
+              // dell'esito va sul bordo della scheda intera.
+              scoreBoxStyle({
+                isHome: lastMatch.isHome,
+                home: Number(lastMatch.result?.home ?? 0),
+                away: Number(lastMatch.result?.away ?? 0),
+                variant: 'card',
+              }).card
+            )}
           >
             <CardContent className="p-5">
               <div className="flex items-center justify-between gap-4">
@@ -364,7 +374,7 @@ export default function CalendarioPage() {
                         isHome: lastMatch.isHome,
                         home: Number(lastMatch.result?.home ?? 0),
                         away: Number(lastMatch.result?.away ?? 0),
-                        variant: 'plain',
+                        variant: 'card',
                       });
                       return (
                         <span className={cn("text-2xl font-black", s.text)}>
@@ -448,7 +458,10 @@ export default function CalendarioPage() {
               key={m.id}
               onClick={() => router.push(`/calendario/${m.id}`)}
               className={cn(
-                "bg-card dark:bg-black/40 border border-border dark:border-white/5 rounded-2xl cursor-pointer hover:bg-muted dark:hover:bg-white/5 transition-all group overflow-hidden",
+                // overflow-hidden TAGLIAVA il bagliore del box punteggio: il
+                // box-shadow di un figlio viene ritagliato ai bordi del
+                // contenitore. Rimosso di proposito, il contenuto non deborda.
+                "bg-card dark:bg-black/40 border border-border dark:border-white/5 rounded-2xl cursor-pointer hover:bg-muted dark:hover:bg-white/5 transition-all group",
                 m.status === 'scheduled' && "border-l-4 border-l-primary dark:border-l-brand-green"
               )}
             >
@@ -490,7 +503,7 @@ export default function CalendarioPage() {
                       });
                       return (
                         <div className={cn(
-                          "flex items-center gap-1.5 bg-muted/50 dark:bg-white/5 px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap",
+                          "flex items-center gap-1.5 bg-muted/50 dark:bg-white/5 border-2 px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap",
                           s.box
                         )}>
                           <span className={cn("text-xs font-black whitespace-nowrap", s.text)}>
