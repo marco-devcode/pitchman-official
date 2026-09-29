@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { usePlayersStore } from "@/store/usePlayersStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { trainingRepository } from "@/lib/repositories/training-repository";
 import { Loader2, ClipboardCheck, ChevronLeft, CalendarRange } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,21 +37,25 @@ export function TrainingStatsDialog({ open, onOpenChange, currentWeekStart }: Tr
   const { sessions } = useTrainingStore();
   const { players } = usePlayersStore();
   const user = useAuthStore(state => state.user);
-  
+  // Le presenze stanno sotto la stagione, non sotto l'utente: serve la stagione
+  // attiva. Vedi training-repository.
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+  const seasonId = activeSeason?.id;
+
   const [loading, setLoading] = useState(false);
   const [allAttendance, setAllAttendance] = useState<{ sessionId: string, attendance: any[] }[]>([]);
 
   useEffect(() => {
-    if (open && user && sessions.length > 0) {
+    if (open && user && seasonId && sessions.length > 0) {
       const load = async () => {
         setLoading(true);
-        const data = await trainingRepository.getAllAttendanceForSeason(user.id, sessions.map(s => s.id));
+        const data = await trainingRepository.getAllAttendanceForSeason(seasonId, sessions.map(s => s.id));
         setAllAttendance(data);
         setLoading(false);
       };
       load();
     }
-  }, [open, user, sessions]);
+  }, [open, user, seasonId, sessions]);
 
   const stats = useMemo(() => {
     const today = startOfDay(new Date());

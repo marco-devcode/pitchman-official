@@ -18,11 +18,13 @@ import type { TrainingSession, TrainingAttendance, TrainingStatus } from '@/lib/
 import { TrainingSessionSchema } from '@/lib/schemas';
 
 export const trainingRepository = {
-  async getAll(userId: string, seasonId: string) {
+  async getAll(seasonId: string) {
+    if (!seasonId) return [];
     const db = getFirestore();
-    const sessionsRef = collection(db, 'users', userId, 'trainingSessions');
-    const q = query(sessionsRef, where('seasonId', '==', seasonId));
-    const snapshot = await getDocs(q);
+    const sessionsRef = collection(db, 'teams', seasonId, 'sessions');
+    // Nessun where: il percorso teams/{seasonId}/sessions e' gia' la
+    // selezione, e isSeasonAuthorization autorizza chi e' nella stagione.
+    const snapshot = await getDocs(sessionsRef);
     return snapshot.docs.map(doc => {
       const data = { ...doc.data(), id: doc.id };
       const parsed = TrainingSessionSchema.safeParse(data);
@@ -34,9 +36,10 @@ export const trainingRepository = {
     });
   },
 
-  async getById(userId: string, sessionId: string) {
+  async getById(seasonId: string, sessionId: string) {
+    if (!seasonId) return undefined;
     const db = getFirestore();
-    const docRef = doc(db, 'users', userId, 'trainingSessions', sessionId);
+    const docRef = doc(db, 'teams', seasonId, 'sessions', sessionId);
     const snapshot = await getDoc(docRef);
     if (!snapshot.exists()) return undefined;
     const data = { ...snapshot.data(), id: snapshot.id };
@@ -48,19 +51,20 @@ export const trainingRepository = {
     return parsed.data as TrainingSession;
   },
 
-  async bulkAdd(sessions: Omit<TrainingSession, 'id'>[], userId: string) {
+  async bulkAdd(sessions: Omit<TrainingSession, 'id'>[], seasonId: string) {
+    if (!seasonId || sessions.length === 0) return;
     const db = getFirestore();
     const batch = writeBatch(db);
     
     sessions.forEach(s => {
       const id = `TR-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      const docRef = doc(db, 'users', userId, 'trainingSessions', id);
+      const docRef = doc(db, 'teams', seasonId, 'sessions', id);
       batch.set(docRef, { ...s, id });
       
       // Scrive le sub-collezioni attendance in blocco se presenti
       if (s.attendances && s.attendances.length > 0) {
         s.attendances.forEach(att => {
-          const attRef = doc(db, 'users', userId, 'trainingSessions', id, 'attendance', att.playerId);
+          const attRef = doc(db, 'teams', seasonId, 'sessions', id, 'attendance', att.playerId);
           batch.set(attRef, { playerId: att.playerId, status: att.status });
         });
       }
@@ -69,58 +73,64 @@ export const trainingRepository = {
     await batch.commit();
   },
 
-  async update(userId: string, sessionId: string, updates: Partial<TrainingSession>) {
+  async update(seasonId: string, sessionId: string, updates: Partial<TrainingSession>) {
+    if (!seasonId) return;
     const db = getFirestore();
-    const docRef = doc(db, 'users', userId, 'trainingSessions', sessionId);
+    const docRef = doc(db, 'teams', seasonId, 'sessions', sessionId);
     await updateDoc(docRef, updates);
   },
 
-  async delete(userId: string, sessionId: string) {
+  async delete(seasonId: string, sessionId: string) {
+    if (!seasonId) return undefined;
     const db = getFirestore();
-    const docRef = doc(db, 'users', userId, 'trainingSessions', sessionId);
+    const docRef = doc(db, 'teams', seasonId, 'sessions', sessionId);
     await deleteDoc(docRef);
   },
 
-  async deleteMany(userId: string, sessionIds: string[]) {
+  async deleteMany(seasonId: string, sessionIds: string[]) {
+    if (!seasonId) return undefined;
     const db = getFirestore();
     const batch = writeBatch(db);
     sessionIds.forEach(id => {
-      const docRef = doc(db, 'users', userId, 'trainingSessions', id);
+      const docRef = doc(db, 'teams', seasonId, 'sessions', id);
       batch.delete(docRef);
     });
     await batch.commit();
   },
 
-  async getAttendance(userId: string, sessionId: string) {
+  async getAttendance(seasonId: string, sessionId: string) {
+    if (!seasonId) return [];
     const db = getFirestore();
-    const attRef = collection(db, 'users', userId, 'trainingSessions', sessionId, 'attendance');
+    const attRef = collection(db, 'teams', seasonId, 'sessions', sessionId, 'attendance');
     const snapshot = await getDocs(attRef);
     return snapshot.docs.map(doc => ({ ...doc.data(), playerId: doc.id } as TrainingAttendance));
   },
 
-  async getAllAttendanceForSeason(userId: string, sessionIds: string[]) {
+  async getAllAttendanceForSeason(seasonId: string, sessionIds: string[]) {
+    if (!seasonId) return [];
     const db = getFirestore();
     const allAttendance: { sessionId: string, attendance: TrainingAttendance[] }[] = [];
     
     // Per un numero limitato di sessioni carichiamo in parallelo
     await Promise.all(sessionIds.map(async (sid) => {
-      const att = await this.getAttendance(userId, sid);
+      const att = await this.getAttendance(seasonId, sid);
       allAttendance.push({ sessionId: sid, attendance: att });
     }));
     
     return allAttendance;
   },
 
-  async setAttendance(userId: string, sessionId: string, playerId: string, status: TrainingStatus) {
+  async setAttendance(seasonId: string, sessionId: string, playerId: string, status: TrainingStatus) {
+    if (!seasonId) return;
     const db = getFirestore();
-    const docRef = doc(db, 'users', userId, 'trainingSessions', sessionId, 'attendance', playerId);
+    const docRef = doc(db, 'teams', seasonId, 'sessions', sessionId, 'attendance', playerId);
     await setDoc(docRef, { playerId, status });
 
     // Aggiorniamo anche il documento principale della sessione per avere i count rapidi (denormalizzazione)
-    const sessionRef = doc(db, 'users', userId, 'trainingSessions', sessionId);
+    const sessionRef = doc(db, 'teams', seasonId, 'sessions', sessionId);
     
     // Rileggiamo tutti gli 'attendance' aggiornati per questa sessione
-    const attRef = collection(db, 'users', userId, 'trainingSessions', sessionId, 'attendance');
+    const attRef = collection(db, 'teams', seasonId, 'sessions', sessionId, 'attendance');
     const snapshot = await getDocs(attRef);
     const allAtt = snapshot.docs.map(doc => ({ ...doc.data(), playerId: doc.id }));
     

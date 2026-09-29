@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { trainingRepository } from "@/lib/repositories/training-repository";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { usePlayersStore } from "@/store/usePlayersStore";
 import { ArrowLeft, Save, ClipboardList, Users, CheckCircle2, Clock, XCircle, Loader2, Target, Calendar, ExternalLink, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,8 @@ export default function TrainingDetailPage() {
   const sessionId = params.id as string;
   const user = useAuthStore(state => state.user);
   const { players, fetchAll: fetchPlayers } = usePlayersStore();
+  // Le sessioni stanno sotto la stagione, non sotto l'utente.
+  const seasonId = useSeasonsStore((s) => s.activeSeason?.id);
   
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [attendance, setAttendance] = useState<TrainingAttendance[]>([]);
@@ -88,17 +91,18 @@ export default function TrainingDetailPage() {
   const progressPercentage = Math.min(100, (totalDuration / targetDuration) * 100);
 
   useEffect(() => {
-    if (!user || !sessionId) return;
+    // seasonId serve: la sessione sta sotto la stagione, non sotto l'utente.
+    if (!user || !sessionId || !seasonId) return;
 
     const load = async () => {
       setLoading(true);
-      const s = await trainingRepository.getById(user.id, sessionId);
+      const s = await trainingRepository.getById(seasonId, sessionId);
       if (s) {
         setSession(s);
         setNotes(s.notes || "");
         setFocus(s.focus || "");
         setSessionExercises(s.exercises || (s.exerciseIds || []).map(id => ({ id })));
-        const att = await trainingRepository.getAttendance(user.id, sessionId);
+        const att = await trainingRepository.getAttendance(seasonId, sessionId);
         setAttendance(att);
         useTrainingStore.getState().updateSessionLocally(sessionId, { notes: s.notes, focus: s.focus, exerciseIds: s.exerciseIds, ...s });
       }
@@ -110,9 +114,9 @@ export default function TrainingDetailPage() {
   }, [user, sessionId, fetchPlayers]);
 
   const handleSaveNotes = async () => {
-    if (!user || !session) return;
+    if (!user || !session || !seasonId) return;
     setSaving(true);
-    await trainingRepository.update(user.id, sessionId, { notes, focus, exercises: sessionExercises });
+    await trainingRepository.update(seasonId, sessionId, { notes, focus, exercises: sessionExercises });
     useTrainingStore.getState().updateSessionLocally(sessionId, { notes, focus, exercises: sessionExercises });
     setSaving(false);
   };
@@ -133,16 +137,16 @@ export default function TrainingDetailPage() {
   };
 
   const updateAttendance = async (playerId: string, status: TrainingStatus) => {
-    if (!user || !session) return;
+    if (!user || !session || !seasonId) return;
     const nextAtt = attendance.filter(a => a.playerId !== playerId).concat({ playerId, status });
     setAttendance(nextAtt);
     // update store sync
     useTrainingStore.getState().updateSessionLocally(sessionId, { attendances: nextAtt } as any);
-    await trainingRepository.setAttendance(user.id, sessionId, playerId, status);
+    await trainingRepository.setAttendance(seasonId, sessionId, playerId, status);
   };
 
   const markAllAsPresent = async () => {
-    if (!user || !session) return;
+    if (!user || !session || !seasonId) return;
     setSaving(true);
     try {
       // Find players not yet marked exactly as present
@@ -169,7 +173,7 @@ export default function TrainingDetailPage() {
       // Eseguire le chiamate Firestore
       // N.b.: questo potrebbe essere un batch in futuro, ma per compatibilità con l'architettura attuale usiamo Promise.all
       await Promise.all(
-        playersToUpdate.map(p => trainingRepository.setAttendance(user.id, sessionId, p.id, 'presente'))
+        playersToUpdate.map(p => trainingRepository.setAttendance(seasonId, sessionId, p.id, 'presente'))
       );
       
     } catch(e) {

@@ -40,7 +40,7 @@ export const useTrainingStore = create<TrainingState>()(
 
         if (get().sessions.length === 0) set({ loading: true, error: null });
         try {
-          const sessions = await trainingRepository.getAll(user.id, activeSeason.id);
+          const sessions = await trainingRepository.getAll(activeSeason.id);
           set({ 
             sessions: sessions.sort((a, b) => a.date.localeCompare(b.date)), 
             loading: false,
@@ -105,7 +105,7 @@ export const useTrainingStore = create<TrainingState>()(
           }
 
           if (newSessions.length > 0) {
-            await trainingRepository.bulkAdd(newSessions, user.id);
+            await trainingRepository.bulkAdd(newSessions, activeSeason.id);
           }
           await get().fetchAll();
         } catch (e) {
@@ -121,10 +121,10 @@ export const useTrainingStore = create<TrainingState>()(
         if (!user || !activeSeason) return;
 
         try {
-          await trainingRepository.delete(user.id, id);
+          await trainingRepository.delete(activeSeason.id, id);
           
           // Re-indexing logic
-          const allSessions = await trainingRepository.getAll(user.id, activeSeason.id);
+          const allSessions = await trainingRepository.getAll(activeSeason.id);
           const sorted = [...allSessions].sort((a, b) => a.date.localeCompare(b.date));
           
           const { getFirestore, doc, writeBatch } = await import('firebase/firestore');
@@ -132,7 +132,7 @@ export const useTrainingStore = create<TrainingState>()(
           const batch = writeBatch(db);
           
           sorted.forEach((session, idx) => {
-            const docRef = doc(db, 'users', user.id, 'trainingSessions', session.id);
+            const docRef = doc(db, 'teams', activeSeason.id, 'sessions', session.id);
             batch.update(docRef, { index: idx + 1 });
           });
           
@@ -149,10 +149,10 @@ export const useTrainingStore = create<TrainingState>()(
         if (!user || !activeSeason || ids.length === 0) return;
 
         try {
-          await trainingRepository.deleteMany(user.id, ids);
+          await trainingRepository.deleteMany(activeSeason.id, ids);
           
           // Re-indexing logic
-          const allSessions = await trainingRepository.getAll(user.id, activeSeason.id);
+          const allSessions = await trainingRepository.getAll(activeSeason.id);
           const sorted = [...allSessions].sort((a, b) => a.date.localeCompare(b.date));
           
           const { getFirestore, doc, writeBatch } = await import('firebase/firestore');
@@ -160,7 +160,7 @@ export const useTrainingStore = create<TrainingState>()(
           const batch = writeBatch(db);
           
           sorted.forEach((session, idx) => {
-            const docRef = doc(db, 'users', user.id, 'trainingSessions', session.id);
+            const docRef = doc(db, 'teams', activeSeason.id, 'sessions', session.id);
             batch.update(docRef, { index: idx + 1 });
           });
           
@@ -180,7 +180,7 @@ export const useTrainingStore = create<TrainingState>()(
         try {
           const ids = get().sessions.map(s => s.id);
           if (ids.length > 0) {
-            await trainingRepository.deleteMany(user.id, ids);
+            await trainingRepository.deleteMany(activeSeason.id, ids);
           }
           set({ sessions: [], loading: false });
         } catch (e) {
@@ -197,7 +197,9 @@ export const useTrainingStore = create<TrainingState>()(
       subscribe: (userId: string, seasonId: string) => {
         const db = getFirestore();
         const sessionsRef = collection(db, 'teams', seasonId, 'sessions');
-        const q = query(sessionsRef, where('seasonId', '==', seasonId));
+        // Nessun where: il percorso seleziona gia' la stagione, e il filtro per
+        // seasonId aggiungeva niente. Stessa scelta di players e matches.
+        const q = query(sessionsRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const sessions = snapshot.docs.map(doc => {
             const data = { ...doc.data(), id: doc.id } as TrainingSession;

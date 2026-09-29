@@ -538,10 +538,10 @@ export default function PlayerDetailPage() {
         setPlayerContext(context);
 
         // Storico presenze allenamenti (indipendente dal tipo partita)
-        const sessions = await trainingRepository.getAll(user.id, activeSeason.id);
+        const sessions = await trainingRepository.getAll(activeSeason.id);
         const sortedSessions = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
         const sessionIds = sortedSessions.map((s) => s.id);
-        const allAtt = await trainingRepository.getAllAttendanceForSeason(user.id, sessionIds);
+        const allAtt = await trainingRepository.getAllAttendanceForSeason(activeSeason.id, sessionIds);
 
         const records: TrainingRecord[] = sortedSessions.map((session) => {
           const attRecord = allAtt.find((a) => a.sessionId === session.id);

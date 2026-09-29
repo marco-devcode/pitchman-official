@@ -223,6 +223,29 @@ service cloud.firestore {
         allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
       }
 
+      // ─── Allenamenti (2026-09: spostati da users/{uid}/trainingSessions) ──
+      //
+      // Erano gli UNICI dati sotto users/{uid}: privati per costruzione, quindi
+      // un ospite della stagione vedeva la stagione vuota. Convivono con
+      // players e matches sotto teams/{seasonId}, e la condivisione funziona
+      // perche' isSeasonAuthorized autorizza owner e membri di sharedWith.
+      match /sessions/{sessionId} {
+        allow get:    if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+
+        // Presenze della sessione: un documento per giocatore.
+        match /attendance/{playerId} {
+          allow get:    if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+        }
+      }
+
       match /aggregates/{aggregateId=**} {
         allow get, list: if isSignedIn() && isSeasonAuthorized(seasonId);
         allow write:    if isSignedIn() && isSeasonAuthorized(seasonId);
