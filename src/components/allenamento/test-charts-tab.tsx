@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useThemeStore } from '@/store/useThemeStore';
 import { formatValue, formatDate, isDescendingUnit } from '@/lib/test-utils';
-import type { PhysicalTest } from '@/lib/types';
+import { displayStarterName } from '@/lib/utils';
+import type { PhysicalTest, Player } from '@/lib/types';
 import { Activity, Users, BarChart3, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -135,7 +136,7 @@ const DistribuzioneChart = dynamic<any>(
 
 type SubTab = 'evoluzione' | 'distribuzione';
 
-export function TestChartsTab({ tests }: { tests: PhysicalTest[] }) {
+export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; players: Player[] }) {
   const chartColors = useChartColors();
   const [subTab, setSubTab] = useState<SubTab>('evoluzione');
 
@@ -176,6 +177,28 @@ export function TestChartsTab({ tests }: { tests: PhysicalTest[] }) {
       })
       .sort((a, b) => b.series[b.series.length - 1]?.date.localeCompare(a.series[a.series.length - 1]?.date ?? '') || 0);
   }, [tests]);
+
+  // playerId -> nome abbreviato ('ROSSI M.'). Una Map, non un find per
+  // barra: la ricerca dentro il bucket e' quella che va veloce.
+  //
+  // In rosa cognome e nome si inseriscono in DUE CAMPI SEPARATI, quindi sono
+  // la fonte affidabile: displayStarterName li usa gia' quando presenti.
+  // Il fallback sul nome unico serve solo per i giocatori vecchi, salvati
+  // prima che i campi esistessero: e' displayStarterName a deciderlo, non un
+  // guess fatto qui.
+  //
+  // Perche' NON conviene un formattatore nuovo che 'corregga' l'ordine dei
+  // nomi: 'Rossi Marco' e 'Marco Rossi' sono indistinguibili senza sapere quale
+  // dei due sia il cognome, e sbagliare significa mostrare il nome al posto
+  // del cognome. Meglio il campo esplicito.
+  const nomiPerId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of players) m.set(p.id, displayStarterName(p));
+    return m;
+  }, [players]);
+
+  /** Nome del giocatore, o l'id se non e' in rosa (non inventare nulla). */
+  const nomeDi = (pid: string) => nomiPerId.get(pid) ?? pid;
 
   const distribuzione = useMemo(() => {
     if (!attivo) return null;
@@ -362,7 +385,7 @@ export function TestChartsTab({ tests }: { tests: PhysicalTest[] }) {
                             key={`${pid}-${i}`}
                             className="px-2 py-1 rounded-lg bg-background/60 dark:bg-black/60 border border-border dark:border-white/10 text-[10px] font-black text-foreground dark:text-white"
                           >
-                            {pid}
+                            {nomeDi(pid)}
                           </span>
                         ))}
                       </div>

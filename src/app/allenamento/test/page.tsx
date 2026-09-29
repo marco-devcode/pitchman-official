@@ -326,7 +326,7 @@ export default function PhysicalTestsPage() {
       </AlertDialog>
       </>
       ) : (
-        <TestChartsTab tests={tests} />
+        <TestChartsTab tests={tests} players={players} />
       )}
     </div>
   );
