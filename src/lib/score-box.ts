@@ -51,9 +51,16 @@ export function scoreBoxStyle(opts: {
 }): ScoreBoxStyle {
     const { isHome, home, away, variant = 'tight' } = opts;
 
-    // home/away sono le posizioni fisiche; la mia squadra e' dalla parte di casa
-    // solo se isHome. Da li' l'ordine di lettura.
-    const pair: [number, number] = isHome ? [home, away] : [away, home];
+    // L’ordine è quello del campo: CASA a sinistra, TRASFERTA a destra,
+    // sempre. La riga dice già se la mia squadra gioca in casa o fuori, quindi
+    // non serve — e non deve — invertirlo in base a isHome.
+    //
+    // Applicata alla lettera, la regola richiesta dice esattamente questo: in
+    // casa la mia squadra sta a sinistra (home), in trasferta sta a destra
+    // (away), quindi il numero di sinistra è SEMPRE home. La versione
+    // precedente invertiva la riga in trasferta ([away, home]) ed è per questo
+    // che una vittoria in trasferta finiva col punteggio capovolto.
+    const pair: [number, number] = [home, away];
 
     const c = (() => {
         switch (esitoDi(isHome, home, away)) {

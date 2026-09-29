@@ -157,6 +157,36 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
           date: isoDate,
           results: testResults,
         });
+
+        // Gli altri TENTATIVI dello stesso test devono ricevere il cambiamento
+        // di tipo e unita'. Sono lo stesso esercizio misurato piu' volte: se
+        // "SALITA ALBERO STORTO" passa da secondi_ascendente a
+        // secondi_discendente, cambiare solo il tentativo aperto lascia gli
+        // altri con l'unita' vecchia e la classifica somma valori di due
+        // scale diverse senza che nulla lo segnali.
+        //
+        // Si aggiornano i fratelli per NOME e solo se tipo/unita' divergono
+        // davvero: un test senza cambi non genera scritture inutili. I risultati
+        // NON vengono toccati (sono la misura, non l'unita'), e cosi' neanche
+        // la data, perche' ogni tentativo ha la sua.
+        const nuovoNome = testName.trim();
+        const fratelli = tests.filter(
+          (t) => t.id !== test.id && t.name === nuovoNome && (t.type !== testType || t.unit !== unit)
+        );
+        for (const f of fratelli) {
+          try {
+            await testRepository.updateTest(f.id, activeSeason.id, {
+              type: testType,
+              unit,
+            });
+          } catch (e) {
+            console.error('Aggiornamento tentativo fratello fallito:', f.id, e);
+          }
+        }
+        if (fratelli.length > 0) {
+          console.info(`Aggiornati ${fratelli.length} tentativi dello stesso test a '${nuovoNome}'`);
+        }
+
         resetForm();
         onOpenChange(false);
       } else {
