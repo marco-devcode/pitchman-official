@@ -246,6 +246,19 @@ service cloud.firestore {
         }
       }
 
+      // ─── Test fisici (2026-09: spostati da users/{uid}/physicalTests) ────
+      //
+      // Come gli allenamenti, erano gli unici dati sotto users/{uid} e quindi
+      // privati. Stessa logica delle sessions: isSeasonAuthorized autorizza
+      // il proprietario e chi e' in sharedWith.
+      match /physicalTests/{testId} {
+        allow get:    if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+      }
+
       match /aggregates/{aggregateId=**} {
         allow get, list: if isSignedIn() && isSeasonAuthorized(seasonId);
         allow write:    if isSignedIn() && isSeasonAuthorized(seasonId);

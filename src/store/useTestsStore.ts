@@ -19,8 +19,13 @@ export const useTestsStore = create<TestsStore>()(
     setTests: (tests) => set({ tests }),
     subscribe: (userId: string, seasonId: string) => {
       const db = getFirestore();
-      const testsRef = collection(db, 'users', userId, 'physicalTests');
-      const q = query(testsRef, where('seasonId', '==', seasonId));
+      // I test stanno sotto la stagione, non sotto l'utente: leggendo
+      // users/{uid}/physicalTests un ospite vedeva zero test, perche' quella
+      // collezione contiene solo quelli che ha creati lui. Vedi
+      // test-repository.
+      const testsRef = collection(db, 'teams', seasonId, 'physicalTests');
+      // Nessun where: il percorso seleziona gia' la stagione.
+      const q = query(testsRef);
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {

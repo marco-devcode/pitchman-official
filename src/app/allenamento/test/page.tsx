@@ -113,13 +113,13 @@ export default function PhysicalTestsPage() {
   }, []);
 
   const handleDeleteTest = async () => {
-    if (!testToDelete || !user) return;
+    if (!testToDelete || !user || !activeSeason) return;
     const testId = testToDelete.id;
     setTestToDelete(null);
 
     setTimeout(async () => {
       try {
-        await testRepository.deleteTest(testId, user.id);
+        await testRepository.deleteTest(testId, activeSeason.id);
         // Forza pulizia pointer-events per bug Radix (come in rosa)
         document.body.style.pointerEvents = "";
       } catch (error) {

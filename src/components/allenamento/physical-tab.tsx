@@ -79,7 +79,7 @@ export function PhysicalTab() {
     if (!user) return;
     const seasonId = tests[0]?.seasonId;
     if (!seasonId) { setLoading(false); return; }
-    testRepository.getTestsByPlayer(user.id, seasonId, playerId as string)
+    testRepository.getTestsByPlayer(seasonId, playerId as string)
       .then(setFetchedTests)
       .finally(() => setLoading(false));
   }, [user, playerId, tests]);

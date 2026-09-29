@@ -128,7 +128,9 @@ function TestDetail({
   }, [draftResults, test.unit, getPlayerName]);
 
   const handleSave = async () => {
-    if (!userId) return;
+    // activeSeason vive nel padre: qui si legge dallo store, sempre valido.
+    const seasonId = useSeasonsStore.getState().activeSeason?.id;
+    if (!userId || !seasonId) return;
     setSaving(true);
     try {
       const results: TestResult[] = [];
@@ -136,7 +138,7 @@ function TestDetail({
         const num = parseDecimal(val);
         if (!isNaN(num) && val.trim() !== '') results.push({ playerId, value: num });
       }
-      await testRepository.updateResults(test.id, userId, results);
+      await testRepository.updateResults(test.id, seasonId, results);
       setEditing(false);
     } catch (err) {
       console.error("Update test error:", err);

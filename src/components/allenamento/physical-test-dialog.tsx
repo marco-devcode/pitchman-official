@@ -150,7 +150,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
 
       if (test) {
         // MODIFICA: aggiorna il test esistente (nome/tipo/unità/data/risultati)
-        await testRepository.updateTest(test.id, user.id, {
+        await testRepository.updateTest(test.id, activeSeason.id, {
           name: testName.trim(),
           type: testType,
           unit,
