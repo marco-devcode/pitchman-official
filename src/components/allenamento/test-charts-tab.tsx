@@ -22,6 +22,9 @@ function useChartColors() {
     tooltipBorder: isDark ? 'rgba(172,229,4,0.3)' : 'rgba(0,128,255,0.25)',
     tooltipColor: isDark ? '#fff' : '#000',
     cursorFill: isDark ? 'rgba(172,229,4,0.05)' : 'rgba(0,128,255,0.05)',
+    // Alone e bordi: verde acqua di marca (--brand-cyan), non il verde acido
+    // della media. Cosi media e alone non si confondono.
+    accent: isDark ? '#00d4c8' : 'hsl(192 85% 38%)',
   };
 }
 
@@ -56,6 +59,58 @@ function statsOf(values: number[]): { avg: number; max: number; min: number; n: 
 }
 
 /**
+ * Popup del grafico evoluzione: MAX, MEDIA e MIN uno sotto l'altro.
+ *
+ * Serve un componente dedicato invece di `formatter`, perche' Recharts chiama
+ * formatter una volta PER OGNI SERIE del grafico: la banda e' fatta di piu'
+ * serie (base, altezza, max, min, media) e il formatter veniva quindi chiamato
+ * cinque volte, stampando gli stessi valori cinque volte. Con `content` si
+ * controlla una volta sola cosa appare.
+ */
+function EvoluzioneTooltip({ active, payload, label, unit, colors }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload ?? {};
+  const righe = [
+    { k: 'MAX', v: d.max, colore: colors.accent },
+    { k: 'MEDIA', v: d.value, colore: colors.primary },
+    { k: 'MIN', v: d.min, colore: colors.accent },
+  ];
+  return (
+    <div
+      style={{
+        backgroundColor: colors.tooltipBg,
+        border: `1px solid ${colors.tooltipBorder}`,
+        borderRadius: 12,
+        fontSize: 11,
+        color: colors.tooltipColor,
+        padding: '8px 10px',
+        minWidth: 118,
+      }}
+    >
+      <p
+        style={{
+          fontSize: 9,
+          fontWeight: 900,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          opacity: 0.55,
+          marginBottom: 4,
+        }}
+      >
+        {formatDate(String(label))}
+      </p>
+      {righe.map((r) => (
+        <div key={r.k} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 900, letterSpacing: '0.04em', color: r.colore }}>{r.k}</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatValue(r.v, unit)}</span>
+        </div>
+      ))}
+      <p style={{ fontSize: 9, opacity: 0.45, marginTop: 4 }}>{d.n} rilevamenti</p>
+    </div>
+  );
+}
+
+/**
  * Evoluzione: media per test nel tempo, con alone +/- deviazione standard.
  *
  * L'alone e' un'Area che riempie fra media-sd e media+sd con gradiente verde
@@ -75,8 +130,8 @@ const EvoluzioneChart = dynamic<any>(
           <ComposedChart data={data} margin={{ top: 5, right: 12, bottom: 5, left: 10 }}>
             <defs>
               <linearGradient id="bandaSd" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={colors.primary} stopOpacity={0.38} />
-                <stop offset="100%" stopColor={colors.primary} stopOpacity={0.12} />
+                <stop offset="0%" stopColor={colors.accent} stopOpacity={0.30} />
+                <stop offset="100%" stopColor={colors.accent} stopOpacity={0.08} />
               </linearGradient>
             </defs>
             <CartesianGrid stroke={colors.grid} strokeDasharray="3 3" />
@@ -91,25 +146,20 @@ const EvoluzioneChart = dynamic<any>(
               tickFormatter={(v: number) => formatValue(v, unit)}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: colors.tooltipBg, border: `1px solid ${colors.tooltipBorder}`, borderRadius: 12, fontSize: 11, color: colors.tooltipColor }}
-              labelFormatter={(v: any) => formatDate(String(v))}
-              formatter={(_v: any, _n: any, item: any) => {
-                const d = item?.payload ?? {};
-                const righe = [
-                  { k: 'MAX', v: d.max },
-                  { k: 'MEDIA', v: d.value },
-                  { k: 'MIN', v: d.min },
-                ].filter((x) => typeof x.v === 'number');
-                return righe.map((x) => `${x.k}: ${formatValue(x.v, unit)}`).join('  •  ');
-              }}
+              content={<EvoluzioneTooltip unit={unit} colors={colors} />}
+              cursor={{ stroke: colors.primary, strokeOpacity: 0.35, strokeDasharray: '3 3' }}
             />
             {/* Alone MIN -> MAX, aree IMPILATE: Recharts somma i valori delle
                 aree con lo stesso stackId, quindi base(min) + altezza(max-min)
-                copre esattamente da min a max. Senza stackId la somma non
-                avviene e la banda sarebbe sbagliata. La base e' trasparente
-                perché deve solo far partire l'altezza dal min. */}
+                copre esattamente da min a max. La base e' trasparente perche'
+                deve solo far partire l'altezza dal min.
+                Le due AreeLine tracciano i bordi delalone: senza di loro la
+                banda si perde nello sfondo e non si capisce dove comincia e
+                finisce. Sono opache per non gareggiare con la media. */}
             <Area dataKey="base" stackId="alone" stroke="none" fill="transparent" isAnimationActive={false} />
             <Area dataKey="altezza" stackId="alone" stroke="none" fill="url(#bandaSd)" isAnimationActive={false} />
+            <Area dataKey="max" stroke={colors.accent} strokeWidth={1.5} strokeOpacity={0.7} fill="none" isAnimationActive={false} />
+            <Area dataKey="min" stroke={colors.accent} strokeWidth={1.5} strokeOpacity={0.7} fill="none" isAnimationActive={false} />
             <Line type="monotone" dataKey="value" stroke={colors.primary} strokeWidth={2} dot={{ r: 3, fill: colors.primary }} connectNulls={false} />
           </ComposedChart>
         </ResponsiveContainer>

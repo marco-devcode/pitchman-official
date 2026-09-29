@@ -154,12 +154,20 @@ export default function PhysicalTestsPage() {
             >
               <Edit3 className="h-4 w-4" />
             </Button>
+            {/* Stile copiato dal bottone "Esercizi"/"Test" della pagina
+                Allenamento: ghost, sfondo tenue, bordo, testo grigio che
+                diventa verde all'hover e icona che scala. Prima usava lo stile
+                pieno di default, che in questa schermata non esiste da
+                nessun'altra parte e risultava un tasto diverso dal resto. */}
             <Button
+              variant="ghost"
               onClick={() => { setSelectedTest(null); setDialogOpen(true); }}
-              className="h-9 text-[10px] font-black uppercase rounded-xl"
+              className="h-10 px-3 rounded-xl bg-muted/30 dark:bg-white/5 border border-border/50 dark:border-brand-green/10 hover:bg-muted dark:hover:bg-brand-green/10 flex items-center justify-center gap-2 group transition-all active:scale-95"
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Nuovo Test
+              <Plus className="h-4 w-4 text-primary dark:text-brand-green group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground group-hover:text-primary dark:group-hover:text-brand-green transition-colors">
+                Nuovo Test
+              </span>
             </Button>
           </div>
         )}
