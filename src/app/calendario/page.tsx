@@ -32,6 +32,7 @@ import { PiTrafficCone } from "react-icons/pi";
 import { format, isAfter, parseISO, startOfDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from '@/lib/utils';
+import { scoreBoxStyle } from '@/lib/score-box';
 import { MATCH_TYPES, type MatchType } from '@/lib/types';
 import { MatchFormDialog } from '@/components/partite/match-form-dialog';
 import { ImportTuttocampoDialog } from "@/components/partite/import-tuttocampo-dialog";
@@ -358,12 +359,19 @@ export default function CalendarioPage() {
 
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-2xl font-black",
-                      lastMatch.resultType === 'W' ? "text-brand-green" : lastMatch.resultType === 'L' ? "text-rose-500" : "text-foreground dark:text-white"
-                    )}>
-                      {Number(lastMatch.isHome ? lastMatch.result?.home : lastMatch.result?.away ?? 0)} - {Number(lastMatch.isHome ? lastMatch.result?.away : lastMatch.result?.home ?? 0)}
-                    </span>
+                    {(() => {
+                      const s = scoreBoxStyle({
+                        isHome: lastMatch.isHome,
+                        home: Number(lastMatch.result?.home ?? 0),
+                        away: Number(lastMatch.result?.away ?? 0),
+                        variant: 'plain',
+                      });
+                      return (
+                        <span className={cn("text-2xl font-black", s.text)}>
+                          {s.pair[0]} - {s.pair[1]}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -474,14 +482,23 @@ export default function CalendarioPage() {
 
                 <div className="flex items-center gap-3 shrink-0 min-w-[85px] justify-end">
                   {m.status === 'completed' || !!m.result ? (
-                    <div className="flex items-center gap-1.5 bg-muted/50 dark:bg-white/5 px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap">
-                      <span className={cn(
-                        "text-xs font-black whitespace-nowrap",
-                        m.resultType === 'W' ? "text-brand-green" : m.resultType === 'L' ? "text-rose-500" : "text-foreground dark:text-white"
-                      )}>
-                        {Number(m.isHome ? m.result?.home ?? 0 : m.result?.away ?? 0)} - {Number(m.isHome ? m.result?.away ?? 0 : m.result?.home ?? 0)}
-                      </span>
-                    </div>
+                    (() => {
+                      const s = scoreBoxStyle({
+                        isHome: m.isHome,
+                        home: Number(m.result?.home ?? 0),
+                        away: Number(m.result?.away ?? 0),
+                      });
+                      return (
+                        <div className={cn(
+                          "flex items-center gap-1.5 bg-muted/50 dark:bg-white/5 px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap",
+                          s.box
+                        )}>
+                          <span className={cn("text-xs font-black whitespace-nowrap", s.text)}>
+                            {s.pair[0]} - {s.pair[1]}
+                          </span>
+                        </div>
+                      );
+                    })()
                   ) : m.status === 'canceled' ? (
                     <Badge variant="outline" className="text-[9px] uppercase font-black border-rose-500/50 text-rose-500">Annullata</Badge>
                   ) : (
