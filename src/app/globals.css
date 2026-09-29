@@ -34,6 +34,13 @@
     --win: 74 96% 46%;
     --loss: 350 89% 60%;
     --draw: 210 10% 60%;
+    /* Verde piu' scuro per i bordi dei box punteggio: il verde neon del brand
+       (--brand-green) su un bordo sottile e' illeggibile, e sul nero sparisce
+       il contrasto che distingue il box dal pannello. --win resta il verde
+       neon per i testi e le icone. */
+    --win-deep: 138 45% 28%;
+    --loss-deep: 350 70% 42%;
+    --draw-deep: 42 85% 48%;
     
     --card-yellow: 48 96% 53%;
     --card-red: 0 84% 60%;
@@ -81,6 +88,12 @@
     --win: 74 96% 46%;
     --loss: 350 89% 60%;
     --draw: 210 10% 40%;
+    /* Stessi ruoli dei *-deep del tema chiaro, ma piu' accesi: su fondo nero
+       un verde al 28% di luminosita' non si stacca dal pannello, quindi qui
+       si alza al 38% mantenendo la stessa tonalita'. */
+    --win-deep: 138 48% 38%;
+    --loss-deep: 350 72% 50%;
+    --draw-deep: 42 88% 55%;
 
     --card-yellow: 48 96% 53%;
     --card-red: 0 84% 60%;

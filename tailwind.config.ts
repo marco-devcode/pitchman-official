@@ -7,6 +7,12 @@ export default {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    // src/lib contiene classi Tailwind costruite in sorgente (es.
+    // src/lib/score-box.ts, che genera bordo e bagliore del box punteggio).
+    // Senza questa riga Tailwind non scandisce quei file e le classi non
+    // finiscono nel CSS: il bagliore semplicemente non compare, senza
+    // nessun errore in build ne' in type-check.
+    './src/lib/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -23,8 +29,11 @@ export default {
           cyan: 'hsl(var(--brand-cyan))',
           pink: 'hsl(var(--brand-pink))',
           win: 'hsl(var(--win))',
+          'win-deep': 'hsl(var(--win-deep))',
           loss: 'hsl(var(--loss))',
+          'loss-deep': 'hsl(var(--loss-deep))',
           draw: 'hsl(var(--draw))',
+          'draw-deep': 'hsl(var(--draw-deep))',
           'card-yellow': 'hsl(var(--card-yellow))',
           'card-red': 'hsl(var(--card-red))',
         },

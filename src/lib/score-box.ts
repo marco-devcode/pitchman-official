@@ -58,21 +58,27 @@ export function scoreBoxStyle(opts: {
     const c = (() => {
         switch (esitoDi(isHome, home, away)) {
             case 'V': return {
-                bordo: 'border-brand-green',
-                // Classi SCRITTE PER INTERO, non costruite a runtime.
-                // Tailwind scansiona i sorgenti per pattern letterali: una
-                // classe assemblata per interpolazione (`dark:shadow-${x}`)
-                // non esiste nel CSS generato, e il bagliore sparisce senza
-                // nessun errore. Per questo la stringa completa e' qui.
-                bagliore: 'dark:shadow-[0_0_12px_rgba(172,229,4,0.45)]',
+                // Verde SCURO, non il neon del brand: su un bordo sottile il
+                // neon e' illeggibile e sul nero non stacca dal pannello.
+                bordo: 'border-brand-win-deep',
+                // Le tre stringhe sono SCRITTE PER INTERO: Tailwind scansiona
+                // i sorgenti per pattern letterali, quindi una classe
+                // assemblata a runtime (`dark:shadow-${x}`) non entra nel CSS
+                // generato e il bagliore sparisce senza alcun errore.
+                //
+                // hsl(var(--win-deep)/0.55) e non rgba(172,229,4,...): il tema
+                // e' in variabili CSS, un rgba fisso non segue il tema e -
+                // peggio - il mio verde rgba non coincideva con il verde
+                // dichiarato, quindi bordo e bagliore erano due verdi diversi.
+                bagliore: 'dark:shadow-[0_0_14px_hsl(var(--win-deep)/0.6)]',
             };
             case 'S': return {
-                bordo: 'border-rose-500',
-                bagliore: 'dark:shadow-[0_0_12px_rgba(244,63,94,0.45)]',
+                bordo: 'border-brand-loss-deep',
+                bagliore: 'dark:shadow-[0_0_14px_hsl(var(--loss-deep)/0.6)]',
             };
             default: return {
-                bordo: 'border-amber-400',
-                bagliore: 'dark:shadow-[0_0_12px_rgba(251,191,36,0.45)]',
+                bordo: 'border-brand-draw-deep',
+                bagliore: 'dark:shadow-[0_0_14px_hsl(var(--draw-deep)/0.6)]',
             };
         }
     })();
