@@ -34,13 +34,25 @@ function useChartColors() {
  * restituire 0 la farebbe sembrare "nessuna dispersione" invece di
  * "non misurabile".
  */
-function statsOf(values: number[]): { avg: number; sd: number; n: number } {
+
+/**
+ * Media, massimo e minimo dei valori di un tentativo.
+ *
+ * L'alone e' MAX/MIN, non la deviazione standard: la deviazione e' un numero
+ * astratto che non dice niente del distacco reale fra i giocatori, mentre il
+ * massimo e il minimo dicono quanto vanno dal peggiore al migliore. MAX e MIN
+ * sono anche i due estremi che l'utente chiede di leggere nel popup.
+ */
+function statsOf(values: number[]): { avg: number; max: number; min: number; n: number } {
   const vals = values.filter((v) => !isNaN(v));
-  if (vals.length === 0) return { avg: 0, sd: 0, n: 0 };
+  if (vals.length === 0) return { avg: 0, max: 0, min: 0, n: 0 };
   const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
-  if (vals.length < 2) return { avg, sd: 0, n: vals.length };
-  const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / (vals.length - 1);
-  return { avg, sd: Math.sqrt(variance), n: vals.length };
+  return {
+    avg,
+    max: Math.max(...vals),
+    min: Math.min(...vals),
+    n: vals.length,
+  };
 }
 
 /**
@@ -63,8 +75,8 @@ const EvoluzioneChart = dynamic<any>(
           <ComposedChart data={data} margin={{ top: 5, right: 12, bottom: 5, left: 10 }}>
             <defs>
               <linearGradient id="bandaSd" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={colors.primary} stopOpacity={0.30} />
-                <stop offset="100%" stopColor={colors.primary} stopOpacity={0.05} />
+                <stop offset="0%" stopColor={colors.primary} stopOpacity={0.38} />
+                <stop offset="100%" stopColor={colors.primary} stopOpacity={0.12} />
               </linearGradient>
             </defs>
             <CartesianGrid stroke={colors.grid} strokeDasharray="3 3" />
@@ -80,15 +92,24 @@ const EvoluzioneChart = dynamic<any>(
             />
             <Tooltip
               contentStyle={{ backgroundColor: colors.tooltipBg, border: `1px solid ${colors.tooltipBorder}`, borderRadius: 12, fontSize: 11, color: colors.tooltipColor }}
-              formatter={(val: any, name: string) => [
-                formatValue(Number(val), unit),
-                name === 'value' ? 'Media' : name === 'sd' ? 'Dev. std' : name,
-              ]}
+              labelFormatter={(v: any) => formatDate(String(v))}
+              formatter={(_v: any, _n: any, item: any) => {
+                const d = item?.payload ?? {};
+                const righe = [
+                  { k: 'MAX', v: d.max },
+                  { k: 'MEDIA', v: d.value },
+                  { k: 'MIN', v: d.min },
+                ].filter((x) => typeof x.v === 'number');
+                return righe.map((x) => `${x.k}: ${formatValue(x.v, unit)}`).join('  •  ');
+              }}
             />
-            {/* Le aree vanno PRIMA della linea:se disegnate dopo, il riempimento la
-                coprirebbe. */}
-            <Area dataKey="bandaAlta" stroke="none" fill="url(#bandaSd)" connectNulls={false} isAnimationActive={false} />
-            <Area dataKey="bandaBassa" stroke="none" fill="#000" fillOpacity={0.01} connectNulls={false} isAnimationActive={false} />
+            {/* Alone MIN -> MAX, aree IMPILATE: Recharts somma i valori delle
+                aree con lo stesso stackId, quindi base(min) + altezza(max-min)
+                copre esattamente da min a max. Senza stackId la somma non
+                avviene e la banda sarebbe sbagliata. La base e' trasparente
+                perché deve solo far partire l'altezza dal min. */}
+            <Area dataKey="base" stackId="alone" stroke="none" fill="transparent" isAnimationActive={false} />
+            <Area dataKey="altezza" stackId="alone" stroke="none" fill="url(#bandaSd)" isAnimationActive={false} />
             <Line type="monotone" dataKey="value" stroke={colors.primary} strokeWidth={2} dot={{ r: 3, fill: colors.primary }} connectNulls={false} />
           </ComposedChart>
         </ResponsiveContainer>
@@ -162,14 +183,19 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
         const ord = [...list].sort((a, b) => a.date.localeCompare(b.date));
         const series = ord.map(t => {
           const vals = t.results.map(r => r.value).filter(v => !isNaN(v));
-          const { avg, sd, n } = statsOf(vals);
-          const haBanda = n >= 2;
+          const { avg, max, min, n } = statsOf(vals);
+          // Per l'area impilata Recharts somma i valori: la base trasparente
+          // parte da min e la banda visibile e' alta (max - min), cosi' la
+          // superficie copre ESATTAMENTE da min a max. Con un solo valore
+          // l'altezza e' zero e la banda non si vede, che e' il comportamento
+          // giusto: non c'e' distacco da mostrare.
           return {
             date: t.date,
             value: Number(avg.toFixed(2)),
-            sd: Number(sd.toFixed(2)),
-            bandaAlta: haBanda ? Number((avg + sd).toFixed(2)) : null,
-            bandaBassa: haBanda ? Number((avg - sd).toFixed(2)) : null,
+            max: Number(max.toFixed(2)),
+            min: Number(min.toFixed(2)),
+            base: Number(min.toFixed(2)),
+            altezza: Number((max - min).toFixed(2)),
             n,
           };
         });
@@ -290,7 +316,7 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
                   </span>
                 </CardTitle>
                 <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40">
-                  Media con alone +/- deviazione standard
+                  Alone: minimo e massimo squadra attorno alla media
                 </p>
               </CardHeader>
               <CardContent className="px-2 pb-3 pt-1">
