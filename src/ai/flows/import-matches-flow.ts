@@ -7,6 +7,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { risolviFilePerAI } from '@/lib/ai/file-extractor';
 
 const cleanKey = (key?: string) => key?.replace(/['"]/g, '').trim();
 
@@ -120,11 +121,36 @@ const importMatchesFlow = ai.defineFlow(
 
     const contentToAnalyze = input.rawContent ? cleanContent(input.rawContent) : undefined;
 
+    // Il file non viene piu' passato come data URL nel prompt.
+    //
+    // PRIMA: fileDataUrl finiva in `file_uri`, e Gemini su `file_uri` accetta
+    // solo File API, YouTube o HTTPS. Un data URL veniva rifiutato con
+    // "Unsupported file URI type" e l'errore emergeva come pagina di errore
+    // del server. Riprodotto con una chiamata diretta; lo stesso PDF passato
+    // come `inline_data` viene letto.
+    //
+    // ADESSO: PDF e DOCX vengono aperti qui e il loro testo entra nel prompt
+    // come testo normale; le immagini restano inline, perche' l'AI le legge.
+    let contenutoFile: string | undefined;
+    let immagineInline: string | undefined;
+
     try {
+      // L'estrazione sta DENTRO il try di proposito: un errore qui deve
+      // diventare un messaggio per l'utente. Lanciandolo fuori finiva fuori
+      // dalla gestione e si vedeva la pagina d'errore del server, cioe'
+      // esattamente il difetto che si sta correggendo.
+      if (input.fileDataUrl) {
+        const r = risolviFilePerAI(input.fileDataUrl);
+        if (r.nota) throw new Error(r.nota);
+        contenutoFile = r.testo ? cleanContent(r.testo) : undefined;
+        immagineInline = r.inlineDataUrl;
+      }
+
       const { output } = await prompt({ 
-        content: contentToAnalyze,
+        content: contenutoFile ?? contentToAnalyze,
         teamName: input.teamName,
-        fileDataUrl: input.fileDataUrl 
+        // Solo per le immagini: mai il data URL di un PDF o DOCX.
+        fileDataUrl: immagineInline,
       });
       if (!output || !output.matches || output.matches.length === 0) {
         throw new Error('L\'AI non è riuscita a trovare partite nel testo fornito per la squadra specificata. Assicurati di aver fornito dati corretti.');
