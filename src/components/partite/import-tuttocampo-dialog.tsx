@@ -33,6 +33,10 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
   const [teamName, setTeamName] = useState('');
   const [fileDataUrl, setFileDataUrl] = useState<string | undefined>();
   const [fileName, setFileName] = useState<string>('');
+  // Errore restituito dalla server action: non viene lanciato, quindi
+  // Next.js non lo sostituisce col suo messaggio generico e arriva qui
+  // leggibile.
+  const [erroreAzione, setErroreAzione] = useState<string | null>(null);
   
   const { toast } = useToast();
   const { bulkAdd } = useMatchesStore();
@@ -52,6 +56,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
       setRawText('');
       setFileDataUrl(undefined);
       setFileName('');
+      setErroreAzione(null);
     }
   }, [open, savedTeamName]);
 
@@ -68,6 +73,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
   };
 
   const handleImport = async () => {
+    setErroreAzione(null);
     if (activeTab === 'file' && !teamName.trim()) {
       toast({
         variant: "destructive",
@@ -95,12 +101,17 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
       return;
     }
 
-    const result = await runImport({
+    const esito = await runImport({
       teamName: teamName.trim() || undefined,
       rawContent: activeTab === 'text' ? rawText.trim() : undefined,
       fileDataUrl: activeTab === 'file' ? fileDataUrl : undefined,
     });
-    if (!result) return; // error captured in `error` state
+    if (!esito) return; // nessun esito: l'errore di rete e' gia' in `error`
+    if (!esito.ok) {
+      setErroreAzione(esito.error);
+      return;
+    }
+    const result = esito.data;
 
     const matchesToSave = result.matches.map(match => ({
       opponent: match.opponent,
@@ -225,8 +236,9 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
 
               <AsyncFeedback
                 loading={isLoading}
-                error={error}
+                error={erroreAzione ?? error}
                 loadingText={`L'AI sta analizzando i dati… filtraggio partite per ${teamName || 'la tua squadra'}`}
+                className="whitespace-pre-line"
               />
             </div>
           </div>

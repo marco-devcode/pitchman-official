@@ -27,14 +27,32 @@ export async function chatbot(input: ChatInput): Promise<ChatOutput> {
 }
 
 /**
+ * Esito dell'import: un disco, non un'eccezione.
+ *
+ * PERCHE'. In Next.js 15 un errore lanciato da una server action in
+ * produzione viene sostituito dal messaggio generico "An error occurred in the
+ * Server Components render": l'utente vede quello e non la causa vera, quindi
+ * preme di nuovo lo stesso pulsante e ottiene lo stesso errore. Restituendo
+ * `{ ok: false, error }` il messaggio reale attraversa il confine come dato
+ * normale e arriva al `AsyncFeedback`, che lo mostra.
+ */
+export type ImportEsito =
+  | { ok: true; data: ImportMatchesOutput }
+  | { ok: false; error: string };
+
+/**
  * Importa il calendario delle partite da testo grezzo (Copia-Incolla).
  */
-export async function importMatches(input: ImportMatchesInput): Promise<ImportMatchesOutput> {
+export async function importMatches(input: ImportMatchesInput): Promise<ImportEsito> {
   try {
-    return await importMatchesFromText(input);
+    const data = await importMatchesFromText(input);
+    return { ok: true, data };
   } catch (error) {
-    console.error("[AIService] Error in importMatches:", error);
-    throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[AIService] Error in importMatches:', message);
+    // Le server action non possono rilanciare: il messaggio verrebbe
+    // sostituito da quello generico di Next.
+    return { ok: false, error: message || 'Errore durante l\'analisi del calendario tramite AI.' };
   }
 }
 

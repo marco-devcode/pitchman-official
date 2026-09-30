@@ -116,6 +116,28 @@ const CATENA_MODELLI = [
   'googleai/gemini-flash-latest',
 ] as const;
 
+/**
+ * Rende leggibile l'errore di genkit.
+ *
+ * Il messaggio che arriva è un moncone di URL ripetuti:
+ *   "Failed to fetch from https://.../gemini-3.6-flash:generateContent: Error
+ *    fetching from https://.../gemini-3.6-flash:generateContent: [503 ] This
+ *    model is currently experiencing high demand."
+ * Tagliandolo a 120 caratteri si vedeva solo "Failed to fetch from https://...",
+ * cioè niente. Qui si toglie la parte di URL e si tiene lo status e la
+ * spiegazione, che sono l'unica informazione utile.
+ */
+function causaLeggibile(testo: string): string {
+  const gemma = testo.match(/\[(\d{3})\]\s*([^\n]+)/);
+  if (gemma) return `${gemma[1]} — ${gemma[2].trim().slice(0, 160)}`;
+
+  const senzaUrl = testo
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (senzaUrl || testo).slice(0, 160);
+}
+
 const cleanContent = (text: string) => {
   return text
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
@@ -134,8 +156,23 @@ const importMatchesFlow = ai.defineFlow(
     outputSchema: ImportMatchesOutputSchema,
   },
   async (input) => {
-    const apiKey = cleanKey(process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY);
-    
+    // BUG REALE, trovato il 2026-09-30. Questo controllo guardava solo
+    // GOOGLE_GENAI_API_KEY e GOOGLE_API_KEY, ma il progetto configura la chiave
+    // come GEMINI_API_KEY (vedi genkit.ts e .env.local). Risultato: la chiave
+    // c'era ed era valida - genkit.ts la trovava e il modello rispondeva - ma
+    // questo controllo gettava "Configurazione AI Mancante" e l'import non
+    // partiva MAI, con testo, immagine o PDF. La schermata mostrava pero'
+    // "An error occurred in the Server Components render", perche' l'errore
+    // veniva lanciato da una server action e Next.js lo sostituisce.
+    //
+    // La lista dei nomi deve restare ALLINEATA a quella di genkit.ts: se
+    // aggiungi un nome li', aggiungilo anche qui, o il controllo mente.
+    const apiKey = cleanKey(
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_GENAI_API_KEY ||
+      process.env.GOOGLE_API_KEY,
+    );
+
     if (!apiKey || apiKey === 'missing-key') {
       throw new Error('Configurazione AI Mancante: La chiave API non è stata configurata correttamente nel file .env (assicurati che non ci siano virgolette o spazi).');
     }
@@ -182,41 +219,47 @@ const importMatchesFlow = ai.defineFlow(
         fileDataUrl: immagineInline,
       };
 
-      // Catena: 3 tentativi per modello (i 503 durano pochi secondi), poi si
-      // passa al successivo. Un 400 non si risolve cambiando modello: e' lo
-      // schema, quindi si esce subito.
-      let ultimoErrore: any = null;
+      // Catena: i 503 "high demand" sono spike di pochi secondi e colpiscono un
+      // modello alla volta. UN solo tentativo per modello, subito: la catena
+      // avanza invece di aspettare. Con 3 tentativi e attese da 3s/8s per
+      // modello l'utente aspettava fino a ~66 secondi prima di vedere un
+      // errore: peggio di un errore rapido e comprensibile.
+      //
+      // Un 400 invece non si risolve cambiando modello (e' lo schema o la
+      // chiave): in quel caso si esce subito invece di mascherare il bug dietro
+      // tentativi inutili.
+      const errori: string[] = [];
       for (let i = 0; i < CATENA_MODELLI.length; i++) {
         const modello = CATENA_MODELLI[i];
-        for (let tentativo = 0; tentativo < 3; tentativo++) {
-          if (tentativo > 0) {
-            const attesa = tentativo === 1 ? 3000 : 8000;
-            console.warn(`[import] ${modello} tentativo ${tentativo} fallito, riprovo fra ${attesa}ms`);
-            await new Promise((r) => setTimeout(r, attesa));
+        try {
+          const { output } = await prompt(datiPrompt, { model: modello });
+          if (output && output.matches && output.matches.length > 0) {
+            if (i > 0) {
+              console.warn(`[import] modello primario indisponibile, riuscito con ${modello}`);
+            }
+            return output;
           }
-          try {
-            const { output } = await prompt(datiPrompt, { model: modello });
-            if (output && output.matches && output.matches.length > 0) {
-              if (i > 0 || tentativo > 0) {
-                console.warn(`[import] riuscito con ${modello}`);
-              }
-              return output;
-            }
-            ultimoErrore = new Error(
-              'L\'AI non è riuscita a trovare partite nel testo fornito per la squadra specificata. Assicurati di aver fornito dati corretti.',
-            );
-            // Output vuoto: un altro modello puo' leggere meglio il file, si
-            // continua la catena invece di fermarsi.
-          } catch (error: any) {
-            ultimoErrore = error;
-            const testo = String(error?.message || error);
-            if (/400|INVALID_ARGUMENT|Unrecognized key|schema/i.test(testo)) {
-              throw error; // errore di schema: insistere e' inutile
-            }
+          errori.push(
+            'L\'AI ha risposto senza trovare partite: nessun modello ha riconosciuto i dati.',
+          );
+        } catch (error: any) {
+          const testo = String(error?.message || error);
+          console.error(`[import] ${modello} fallito:`, testo);
+          errori.push(`${modello.replace('googleai/', '')} — ${causaLeggibile(testo)}`);
+          // 400 = schema o chiave non accettati. Cambiare modello non
+          // aiuterebbe: si esce subito per non nascondere la causa vera.
+          if (/400|INVALID_ARGUMENT|Unrecognized key/i.test(testo)) {
+            throw error;
           }
         }
       }
-      throw ultimoErrore || new Error('Errore durante l\'analisi del testo tramite AI.');
+      // Tutti i modelli hanno fallito. Si restituisce un messaggio che dice
+      // cosa e' successo per OGNI modello: con un errore generico l'utente non
+      // può distinguere "Google è saturo" da "manca la chiave" da "schema
+      // sbagliato", e finisce per riprovare premendo lo stesso pulsante.
+      throw new Error(
+        `Tutti i modelli AI hanno risposto con errore.\n${errori.map((e) => `• ${e}`).join('\n')}`,
+      );
     } catch (error: any) {
       console.error("AI Analysis error:", error);
       throw new Error(error.message || 'Errore durante l\'analisi del testo tramite AI.');
