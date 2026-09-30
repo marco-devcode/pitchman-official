@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Edit, Trash2, ChevronUp, ChevronDown, Sparkles, Search, Plus, ChevronRight, Globe, Hospital, Save, Users } from "lucide-react";
+import { PlusCircle, Edit, Trash2, ChevronUp, ChevronDown, Sparkles, Search, Plus, ChevronRight, Globe, Hospital, Save, Users, Goal, Shield, Network, TrendingUp } from "lucide-react";
 import type { Player, Role, PlayerRole, RoleCategory } from "@/lib/types";
 import type { PlayerCreateData } from "@/lib/repositories/player-repository";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -44,11 +44,18 @@ import { parseError, missingSeasonError } from "@/lib/error-utils";
  * quelle del modello dati (DC, TD, CDC, AS...), quindi qui compaiono solo i
  * ruoli generali: la sigla precisa sta nella lista, a destra.
  */
-const RIEPILOGO: { sigla: string; cat: RoleCategory; colore: string }[] = [
-  { sigla: 'POR', cat: 'POR', colore: 'amber' },
-  { sigla: 'DIF', cat: 'DIF', colore: 'emerald' },
-  { sigla: 'CEN', cat: 'CEN', colore: 'blue' },
-  { sigla: 'ATT', cat: 'ATT', colore: 'rose' },
+const RIEPILOGO: { sigla: string; cat: RoleCategory; colore: string; Icone: typeof Goal; lettera: string }[] = [
+  // Goal: la porta, il ruolo del portiere. Shield: la difesa. Network: il
+  // giocatore centrale con i passaggi che escono, che e' il centrocampo.
+  // TrendingUp: la corsa in avanti, che e' l'attacco.
+  // lettera: la sigla del badge nella lista. Scritta per esteso invece di
+  // sigla[0], perche' la prima lettera funziona solo per caso: se un giorno
+  // una sigla cominciasse con un'altra lettera, il badge mostrerebbe la sigla
+  // sbagliata senza che nessuno se ne accorga.
+  { sigla: 'POR', cat: 'POR', colore: 'amber', Icone: Goal, lettera: 'P' },
+  { sigla: 'DIF', cat: 'DIF', colore: 'emerald', Icone: Shield, lettera: 'D' },
+  { sigla: 'CEN', cat: 'CEN', colore: 'blue', Icone: Network, lettera: 'C' },
+  { sigla: 'ATT', cat: 'ATT', colore: 'rose', Icone: TrendingUp, lettera: 'A' },
 ];
 
 const STILE_BOX: Record<string, { box: string; testo: string; badge: string }> = {
@@ -302,13 +309,14 @@ export default function RosaPage() {
             {/* Quattro box di conteggio, solo informative: dicono com'e' fatta
                 la squadra, non filtrano la lista. */}
             <div className="grid grid-cols-4 gap-2">
-              {RIEPILOGO.map(({ sigla, cat, colore }) => {
+              {RIEPILOGO.map(({ sigla, cat, colore, Icone }) => {
                 const st = STILE_BOX[colore];
                 return (
                   <div
                     key={sigla}
-                    className={`rounded-2xl border px-1 py-4 flex flex-col items-center justify-center gap-1 ${st.box}`}
+                    className={`rounded-2xl border px-1 py-3 flex flex-col items-center justify-center gap-1 ${st.box}`}
                   >
+                    <Icone className={`h-4 w-4 ${st.testo}`} aria-hidden />
                     <span className={`text-[11px] font-black uppercase tracking-wider ${st.testo}`}>{sigla}</span>
                     <span className={`text-xl font-black leading-none ${st.testo}`}>{conteggi[cat] ?? 0}</span>
                   </div>
@@ -351,7 +359,7 @@ export default function RosaPage() {
                       onClick={() => router.push(`/membri/${p.id}`)}
                     >
                       <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-[10px] font-black ${st.badge}`}>
-                        {RIEPILOGO.find(x => x.cat === cat)?.sigla[0]}
+                        {RIEPILOGO.find(x => x.cat === cat)?.lettera}
                       </span>
                       <div className="flex-1 min-w-0 flex items-center gap-2">
                         <span className="text-foreground dark:text-white font-medium text-[15px] truncate">{displayPlayerName(p)}</span>
