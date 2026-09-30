@@ -154,7 +154,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 bg-background dark:bg-black transition-colors">
+        <ScrollArea className="flex-1 min-h-0 bg-background dark:bg-black transition-colors">
           <div className="p-6 space-y-6">
             <div className="space-y-4">
               <div className="p-4 bg-muted dark:bg-card/50 border border-border dark:border-brand-green/20 rounded-2xl border-dashed space-y-3 shadow-inner">

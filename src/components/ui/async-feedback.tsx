@@ -34,7 +34,9 @@ export function AsyncFeedback({
         role="alert"
         className={`rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive ${className}`}
       >
-        {error}
+        {/* max-h con scroll: un errore lungo non deve spingere fuori dal
+            dialog i pulsanti in basso, o l'utente non puo' piu' annullare. */}
+        <div className="max-h-24 overflow-y-auto">{error}</div>
       </div>
     );
   }

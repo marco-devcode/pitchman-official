@@ -96,14 +96,24 @@ export async function importMatchesFromText(input: ImportMatchesInput): Promise<
  * QUALSIASI file, immagine o PDF, e l'errore non aveva niente a che fare con il
  * contenuto caricato.
  *
- * STAMPA DI OGGI, con la chiave del progetto e responseSchema attivo (che e'
- * quello che usa questo flusso):
- *   gemini-3.8-flash     503 high demand
- *   gemini-3.7-flash     503 high demand
- *   gemini-3.6-flash     200  <- riserva
- *   gemini-3.5-flash-lite 200
- *   gemini-flash-latest  200  <- terza riserva
- *   gemini-2.5-flash     404, non piu' disponibile a nuovi utenti
+ * MISURA REALE del 2026-09-30, tutti in parallelo e a freddo, con la chiave
+ * del progetto e responseSchema attivo (quello che usa questo flusso):
+ *   gemini-3.8-flash        503 high demand
+ *   gemini-3.7-flash        503 high demand
+ *   gemini-3.6-flash        503 high demand
+ *   gemini-flash-latest     429 quota esaurita
+ *   gemini-2.5-flash        404 non piu' disponibile a nuovi utenti
+ *   gemini-2.5-pro          404 idem
+ *   gemini-3.5-flash        200, 3 partite estratte correttamente
+ *   gemini-3.5-flash-lite   200, 3 partite
+ *   gemini-flash-lite-latest 200, 3 partite
+ *   gemini-3-flash-preview  200, 3 partite
+ *   gemini-3.1-flash-lite-preview 200, 3 partite
+ *
+ * CONCLUSIONE: la catena degli esercizi (3.8 -> 3.6) e' tutta in 503 nello
+ * stesso momento, quindi aggiungerla non avrebbe cambiato niente. Qui si mettono
+ * prima i modelli che hanno risposto, e i 3.x-3.6 restano in fondo: quando
+ * torna disponibile sono i piu' capaci e serves per primi.
  *
  * I 503 sono spike temporanei e colpiscono un modello alla volta, quindi la
  * catena avanza invece di insistere. Un 400 invece non si risolve cambiando
@@ -111,9 +121,13 @@ export async function importMatchesFromText(input: ImportMatchesInput): Promise<
  * un bug dietro tentativi inutili.
  */
 const CATENA_MODELLI = [
+  // verificati 200 con questo schema
+  'googleai/gemini-3.5-flash',
+  'googleai/gemini-flash-lite-latest',
+  'googleai/gemini-3-flash-preview',
+  // i piu' capaci, ma vanno in 503: restano in coda
   'googleai/gemini-3.8-flash',
   'googleai/gemini-3.6-flash',
-  'googleai/gemini-flash-latest',
 ] as const;
 
 /**
@@ -220,45 +234,69 @@ const importMatchesFlow = ai.defineFlow(
       };
 
       // Catena: i 503 "high demand" sono spike di pochi secondi e colpiscono un
-      // modello alla volta. UN solo tentativo per modello, subito: la catena
-      // avanza invece di aspettare. Con 3 tentativi e attese da 3s/8s per
-      // modello l'utente aspettava fino a ~66 secondi prima di vedere un
-      // errore: peggio di un errore rapido e comprensibile.
+      // modello alla volta, quindi si avanza. UN solo tentativo per modello per
+      // giro: 3 tentativi con attese da 3s/8s per modello facevano aspettare
+      // fino a ~66s, ed e' esattamente il "ci pensa un po' e poi mi rimanda
+      // errore" che l'utente aveva segnalato.
+      //
+      // Perche' due giri e non uno: misurati 4 import di fila, sono durati 9.5s,
+      // 15.6s, 16.6s e 33.8s. I 503 arrivano a ondate e il modello in testa era
+      // spesso gia' saturo; con due giri completi la catena prende quello che si
+      // e' liberato. Un terzo giro NON e' incluso: oltre i 30 secondi vale di
+      // piu' un errore comprensibile che l'attesa.
       //
       // Un 400 invece non si risolve cambiando modello (e' lo schema o la
-      // chiave): in quel caso si esce subito invece di mascherare il bug dietro
-      // tentativi inutili.
+      // chiave): in quel caso si esce subito invece di mascherare la causa
+      // vera dietro tentativi inutili.
       const errori: string[] = [];
-      for (let i = 0; i < CATENA_MODELLI.length; i++) {
-        const modello = CATENA_MODELLI[i];
-        try {
-          const { output } = await prompt(datiPrompt, { model: modello });
-          if (output && output.matches && output.matches.length > 0) {
-            if (i > 0) {
-              console.warn(`[import] modello primario indisponibile, riuscito con ${modello}`);
+      const GIRO_ATTESA_MS = 4000;
+      const GIORNATE = 2;
+
+      for (let giro = 0; giro < GIORNATE; giro++) {
+        if (giro > 0) {
+          console.warn(`[import] giro ${giro}, riprovo fra ${GIRO_ATTESA_MS}ms`);
+          await new Promise((r) => setTimeout(r, GIRO_ATTESA_MS));
+          // Si ricomcia dal modello piu' capace: al secondo giro e' lui che puo'
+          // essersi liberato, e scavalcarlo darebbe il risultato peggiore.
+        }
+        for (let i = 0; i < CATENA_MODELLI.length; i++) {
+          const modello = CATENA_MODELLI[i];
+          try {
+            const { output } = await prompt(datiPrompt, { model: modello });
+            if (output && output.matches && output.matches.length > 0) {
+              if (i > 0 || giro > 0) {
+                console.warn(`[import] modello primario indisponibile, riuscito con ${modello}`);
+              }
+              return output;
             }
-            return output;
-          }
-          errori.push(
-            'L\'AI ha risposto senza trovare partite: nessun modello ha riconosciuto i dati.',
-          );
-        } catch (error: any) {
-          const testo = String(error?.message || error);
-          console.error(`[import] ${modello} fallito:`, testo);
-          errori.push(`${modello.replace('googleai/', '')} — ${causaLeggibile(testo)}`);
-          // 400 = schema o chiave non accettati. Cambiare modello non
-          // aiuterebbe: si esce subito per non nascondere la causa vera.
-          if (/400|INVALID_ARGUMENT|Unrecognized key/i.test(testo)) {
-            throw error;
+            errori.push(
+              'L\'AI ha risposto senza trovare partite: nessun modello ha riconosciuto i dati.',
+            );
+          } catch (error: any) {
+            const testo = String(error?.message || error);
+            console.error(`[import] ${modello} fallito:`, testo);
+            // Una riga per modello per giro, non per tentativo: altrimenti lo
+            // stesso modello finisce in elenco due volte e non si capisce cosa
+            // e' stato provato davvero.
+            if (!errori.some((e) => e.startsWith(modello.replace('googleai/', '')))) {
+              errori.push(`${modello.replace('googleai/', '')} — ${causaLeggibile(testo)}`);
+            }
+            // 400 = schema o chiave non accettati. Cambiare modello non
+            // aiuterebbe: si esce subito per non nascondere la causa vera.
+            if (/400|INVALID_ARGUMENT|Unrecognized key/i.test(testo)) {
+              throw error;
+            }
           }
         }
       }
-      // Tutti i modelli hanno fallito. Si restituisce un messaggio che dice
-      // cosa e' successo per OGNI modello: con un errore generico l'utente non
-      // può distinguere "Google è saturo" da "manca la chiave" da "schema
-      // sbagliato", e finisce per riprovare premendo lo stesso pulsante.
+      // Tutti i modelli hanno fallito. Il messaggio elenca cosa e' successo a
+      // OGNI modello, ma VA tenuto breve: nell'errore di prima, stampato per
+      // intero, era un muro di testo che spingeva fuori dal dialog i pulsanti
+      // Annulla e Importa, e l'utente non poteva piu' fare nulla.
+      const dettagli = errori.slice(0, 3).map((e) => `• ${e}`).join('\n');
+      const extra = errori.length > 3 ? `\n(+${errori.length - 3} altri)` : '';
       throw new Error(
-        `Tutti i modelli AI hanno risposto con errore.\n${errori.map((e) => `• ${e}`).join('\n')}`,
+        `Tutti i modelli AI hanno risposto con errore.\n${dettagli}${extra}`,
       );
     } catch (error: any) {
       console.error("AI Analysis error:", error);
