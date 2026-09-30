@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Edit, Trash2, ChevronUp, ChevronDown, Sparkles, Search, Plus, ChevronRight, Globe, Hospital, Save, Users, Goal, Shield, Network, TrendingUp } from "lucide-react";
+import { PlusCircle, Edit, Trash2, ChevronUp, ChevronDown, Sparkles, Search, Plus, ChevronRight, Globe, Hospital, Save, Users, Frame, Shield, Network, TrendingUp } from "lucide-react";
 import type { Player, Role, PlayerRole, RoleCategory } from "@/lib/types";
 import type { PlayerCreateData } from "@/lib/repositories/player-repository";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -44,15 +44,16 @@ import { parseError, missingSeasonError } from "@/lib/error-utils";
  * quelle del modello dati (DC, TD, CDC, AS...), quindi qui compaiono solo i
  * ruoli generali: la sigla precisa sta nella lista, a destra.
  */
-const RIEPILOGO: { sigla: string; cat: RoleCategory; colore: string; Icone: typeof Goal; lettera: string }[] = [
-  // Goal: la porta, il ruolo del portiere. Shield: la difesa. Network: il
-  // giocatore centrale con i passaggi che escono, che e' il centrocampo.
-  // TrendingUp: la corsa in avanti, che e' l'attacco.
+const RIEPILOGO: { sigla: string; cat: RoleCategory; colore: string; Icone: typeof Frame; lettera: string }[] = [
+  // Frame e' un rettangolo semplice, e serve per la porta vista frontalmente.
+  // NON usare Goal: in lucide e' un bersaglio con una freccia, cioe' un
+  // bersaglio, non una porta. Shield per la difesa, Network per il centrocampo
+  // (il nodo da cui escono i passaggi), TrendingUp per l'attacco.
   // lettera: la sigla del badge nella lista. Scritta per esteso invece di
   // sigla[0], perche' la prima lettera funziona solo per caso: se un giorno
   // una sigla cominciasse con un'altra lettera, il badge mostrerebbe la sigla
   // sbagliata senza che nessuno se ne accorga.
-  { sigla: 'POR', cat: 'POR', colore: 'amber', Icone: Goal, lettera: 'P' },
+  { sigla: 'POR', cat: 'POR', colore: 'amber', Icone: Frame, lettera: 'P' },
   { sigla: 'DIF', cat: 'DIF', colore: 'emerald', Icone: Shield, lettera: 'D' },
   { sigla: 'CEN', cat: 'CEN', colore: 'blue', Icone: Network, lettera: 'C' },
   { sigla: 'ATT', cat: 'ATT', colore: 'rose', Icone: TrendingUp, lettera: 'A' },
