@@ -47,7 +47,7 @@ import { parseError, missingSeasonError } from "@/lib/error-utils";
 const RIEPILOGO: { sigla: string; cat: RoleCategory; colore: string }[] = [
   { sigla: 'POR', cat: 'POR', colore: 'amber' },
   { sigla: 'DIF', cat: 'DIF', colore: 'emerald' },
-  { sigla: 'CS',  cat: 'CEN', colore: 'blue' },
+  { sigla: 'CEN', cat: 'CEN', colore: 'blue' },
   { sigla: 'ATT', cat: 'ATT', colore: 'rose' },
 ];
 
@@ -196,7 +196,7 @@ export default function RosaPage() {
   const hasPageError = seasonsError || playersError;
 
   return (
-    <div className="pb-24 pt-4 space-y-6">
+    <div className="pb-24 pt-4 space-y-3">
       {hasPageError ? (
         <ErrorState
           error={parseError(seasonsError || playersError)}
@@ -298,7 +298,7 @@ export default function RosaPage() {
             </button>
           </div>
 
-          <div className="space-y-3 px-3">
+          <div className="space-y-2 px-3">
             {/* Quattro box di conteggio, solo informative: dicono com'e' fatta
                 la squadra, non filtrano la lista. */}
             <div className="grid grid-cols-4 gap-2">
@@ -307,7 +307,7 @@ export default function RosaPage() {
                 return (
                   <div
                     key={sigla}
-                    className={`rounded-2xl border px-1 py-3 flex flex-col items-center justify-center gap-0.5 ${st.box}`}
+                    className={`rounded-2xl border px-1 py-4 flex flex-col items-center justify-center gap-1 ${st.box}`}
                   >
                     <span className={`text-[11px] font-black uppercase tracking-wider ${st.testo}`}>{sigla}</span>
                     <span className={`text-xl font-black leading-none ${st.testo}`}>{conteggi[cat] ?? 0}</span>
