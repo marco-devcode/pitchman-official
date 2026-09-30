@@ -87,6 +87,35 @@ export async function importMatchesFromText(input: ImportMatchesInput): Promise<
   return importMatchesFlow(input);
 }
 
+/**
+ * Catena di modelli per l'importazione del calendario.
+ *
+ * PERCHE' ESISTE. Questo flusso chiamava `prompt()` senza indicare un modello,
+ * quindi usava il default di genkit.ts (gemini-3.8-flash) e NON aveva alcun
+ * fallback: quando il 3.8 andava in 503 "high demand" l'import falliva per
+ * QUALSIASI file, immagine o PDF, e l'errore non aveva niente a che fare con il
+ * contenuto caricato.
+ *
+ * STAMPA DI OGGI, con la chiave del progetto e responseSchema attivo (che e'
+ * quello che usa questo flusso):
+ *   gemini-3.8-flash     503 high demand
+ *   gemini-3.7-flash     503 high demand
+ *   gemini-3.6-flash     200  <- riserva
+ *   gemini-3.5-flash-lite 200
+ *   gemini-flash-latest  200  <- terza riserva
+ *   gemini-2.5-flash     404, non piu' disponibile a nuovi utenti
+ *
+ * I 503 sono spike temporanei e colpiscono un modello alla volta, quindi la
+ * catena avanza invece di insistere. Un 400 invece non si risolve cambiando
+ * modello (sarebbe lo schema): in quel caso si esce subito per non mascherare
+ * un bug dietro tentativi inutili.
+ */
+const CATENA_MODELLI = [
+  'googleai/gemini-3.8-flash',
+  'googleai/gemini-3.6-flash',
+  'googleai/gemini-flash-latest',
+] as const;
+
 const cleanContent = (text: string) => {
   return text
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
@@ -146,16 +175,48 @@ const importMatchesFlow = ai.defineFlow(
         immagineInline = r.inlineDataUrl;
       }
 
-      const { output } = await prompt({ 
+      const datiPrompt = {
         content: contenutoFile ?? contentToAnalyze,
         teamName: input.teamName,
         // Solo per le immagini: mai il data URL di un PDF o DOCX.
         fileDataUrl: immagineInline,
-      });
-      if (!output || !output.matches || output.matches.length === 0) {
-        throw new Error('L\'AI non è riuscita a trovare partite nel testo fornito per la squadra specificata. Assicurati di aver fornito dati corretti.');
+      };
+
+      // Catena: 3 tentativi per modello (i 503 durano pochi secondi), poi si
+      // passa al successivo. Un 400 non si risolve cambiando modello: e' lo
+      // schema, quindi si esce subito.
+      let ultimoErrore: any = null;
+      for (let i = 0; i < CATENA_MODELLI.length; i++) {
+        const modello = CATENA_MODELLI[i];
+        for (let tentativo = 0; tentativo < 3; tentativo++) {
+          if (tentativo > 0) {
+            const attesa = tentativo === 1 ? 3000 : 8000;
+            console.warn(`[import] ${modello} tentativo ${tentativo} fallito, riprovo fra ${attesa}ms`);
+            await new Promise((r) => setTimeout(r, attesa));
+          }
+          try {
+            const { output } = await prompt(datiPrompt, { model: modello });
+            if (output && output.matches && output.matches.length > 0) {
+              if (i > 0 || tentativo > 0) {
+                console.warn(`[import] riuscito con ${modello}`);
+              }
+              return output;
+            }
+            ultimoErrore = new Error(
+              'L\'AI non è riuscita a trovare partite nel testo fornito per la squadra specificata. Assicurati di aver fornito dati corretti.',
+            );
+            // Output vuoto: un altro modello puo' leggere meglio il file, si
+            // continua la catena invece di fermarsi.
+          } catch (error: any) {
+            ultimoErrore = error;
+            const testo = String(error?.message || error);
+            if (/400|INVALID_ARGUMENT|Unrecognized key|schema/i.test(testo)) {
+              throw error; // errore di schema: insistere e' inutile
+            }
+          }
+        }
       }
-      return output;
+      throw ultimoErrore || new Error('Errore durante l\'analisi del testo tramite AI.');
     } catch (error: any) {
       console.error("AI Analysis error:", error);
       throw new Error(error.message || 'Errore durante l\'analisi del testo tramite AI.');
