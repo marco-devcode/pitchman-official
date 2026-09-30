@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMatchesStore } from '@/store/useMatchesStore';
@@ -39,6 +39,7 @@ import { ImportTuttocampoDialog } from "@/components/partite/import-tuttocampo-d
 import { ImportCalendarioScraperDialog } from "@/components/partite/import-calendario-scraper-dialog";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useStatsStore } from "@/store/useStatsStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,6 +76,7 @@ export default function CalendarioPage() {
   const { activeSeason, fetchAll: fetchSeasons } = useSeasonsStore();
   const { matches, fetchAll: fetchMatches, add: addMatch, remove: removeMatch, removeAll: removeAllMatches, loading } = useMatchesStore();
   const { loadSummaryStats } = useStatsStore();
+  const { statsDefaultFilter, fetchSettings } = useSettingsStore();
 
   useEffect(() => {
     setMounted(true);
@@ -185,6 +187,45 @@ export default function CalendarioPage() {
     if (activeTab === 'all') return UI_Matches;
     return UI_Matches.filter(m => m.type === activeTab);
   }, [UI_Matches, activeTab]);
+
+  /**
+   * La tab iniziale segue la stessa preferenza che governa le statistiche:
+   * se in Gestione squadra hai scelto 'Campionato', il calendario si apre sul
+   * campionato invece che su tutte.
+   *
+   * Correzione richiesta esplicitamente: se il tipo scelto non ha partite,
+   * la sua tab non viene nemmeno mostrata (la regola dei tipi presenti
+   * resta quella di prima), quindi la tab si ripiega su 'Tutte'. Senza questo
+   * ripiego l'app partirebbe con activeTab su un tipo che non ha una tab
+   * attiva: tutte le partite risulterebbero nascoste e la lista sembrerebbe
+   * vuota anche se ci sono partite.
+   *
+   * Si applica SOLO all'apertura e quando la preferenza cambia: dopo, la tab
+   * e' dell'utente. Per questo c'è `preferenzaGia applicata`: senza, il primo
+   * arrivo delle partite riporterebbe la tab al tipo preferito, cancellando
+   * la scelta fatta a mano mentre i dati stavano caricando.
+   */
+  const tabSettataDaPreferenza = useRef(false);
+  useEffect(() => {
+    if (tabSettataDaPreferenza.current) return;
+    // statsDefaultFilter e' opzionale: se non e' ancora arrivato, o vale
+    // 'all', la tab resta quella di default e non dipende dai dati caricati.
+    if (!statsDefaultFilter || statsDefaultFilter === 'all') {
+      tabSettataDaPreferenza.current = true;
+      return;
+    }
+    // Aspetta i dati: senza partite non si puo' sapere se il tipo esiste.
+    if (loading) return;
+    const esiste = matches.some((m) => m.type === statsDefaultFilter);
+    setActiveTab(esiste ? statsDefaultFilter : 'all');
+    tabSettataDaPreferenza.current = true;
+  }, [statsDefaultFilter, matches, loading]);
+
+  // fetchSettings vuole l'userId: senza, la preferenza resterebbe al
+  // default 'all' e il calendario si aprirebbe sempre su Tutte.
+  useEffect(() => {
+    if (user) fetchSettings(user.id);
+  }, [user, fetchSettings]);
 
   const handleDeleteAllMatches = async () => {
     const seasonId = activeSeason?.id;
