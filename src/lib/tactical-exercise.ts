@@ -14,8 +14,8 @@
 export interface TacticalEntity {
   id: string;
   type: 'player' | 'ball' | 'cone' | 'zone';
-  /** Solo per i giocatori. 'gk' e' il portiere. */
-  team?: 'blue' | 'red' | 'yellow' | 'gk';
+  /** Solo per i giocatori. 'gk' e' il portiere, 'neutral' un senza squadra. */
+  team?: 'blue' | 'red' | 'yellow' | 'gk' | 'neutral';
   /** Etichetta corta mostrata dentro il pallino. */
   label?: string;
   x: number;

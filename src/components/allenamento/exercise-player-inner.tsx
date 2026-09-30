@@ -15,7 +15,9 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Stage, Layer, Rect, Circle, Line, Text as KonvaText, Group } from 'react-konva';
-import { Play, Pause, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import {
+  Play, Pause, ChevronLeft, ChevronRight, RotateCcw, Plus, Trash2, Undo2,
+} from 'lucide-react';
 
 import type { TacticalExercise, TacticalEntity } from '@/lib/tactical-exercise';
 import { clampCoord } from '@/lib/tactical-exercise';
@@ -33,6 +35,9 @@ const TEAM_FILL: Record<string, string> = {
   red: '#ef4444',
   yellow: '#eab308',
   gk: '#10b981',
+  // Squadra "senza squadra": grigio. Non e' una tifoseria avversaria, quindi
+  // non si prende un colore di squadra: si prende il colore dell'assenza.
+  neutral: '#9ca3af',
 };
 
 // 0.5 / 1 / 1.5 / 2 come nella guida di riferimento. La velocità moltiplica il
@@ -52,9 +57,24 @@ function toPx(e: { x: number; y: number }) {
 interface Props {
   data: TacticalExercise;
   className?: string;
+  /**
+   * Modalita' modifica: selezione, trascinamento, aggiunta e rimozione di
+   * pedine e palla.
+   *
+   * Di proposito e' una prop separata e non un comportamento sempre attivo.
+   * Nella libreria l'esercizio si vede e si riguarda, non si riedita: mettere
+   * il cursore di drag su una lavagna che si sta solo guardando fa solo
+   * impigliarsi. E Konva mette il touch-action:none sul canvas: utile per
+   * trascinare, scomodo per scorrere la pagina con il dito sopra la lavagna.
+   *
+   * In modifica, per scorrere la pagina serve un'area fuori dal campo.
+   */
+  editable?: boolean;
+  /** Chiamata a ogni modifica della scena: la UI la usa per il pulsante Salva. */
+  onChange?: (data: TacticalExercise) => void;
 }
 
-export default function ExercisePlayerInner({ data, className }: Props) {
+export default function ExercisePlayerInner({ data, className, editable = false, onChange }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -234,7 +254,133 @@ export default function ExercisePlayerInner({ data, className }: Props) {
     setIsPlaying(false);
   };
 
-  const entities = data?.initialEntities ?? [];
+  // --- modifica della scena -------------------------------------------------
+  //
+  // Lo stato locale tiene la scena modificata invece di scrivere su `data`:
+  // `data` arriva come prop e riscriverlo significa mutare l'oggetto del
+  // genitore, che React non prevede e che romperebbe il salvataggio. La
+  // modifica parte da una copia e vive qui finche' il genitore non la conferma.
+
+  const [scena, setScena] = useState<TacticalEntity[]>(data?.initialEntities ?? []);
+  const [selezionato, setSelezionato] = useState<string | null>(null);
+
+  // La scena segue `data` solo quando cambia l'esercizio, non a ogni
+  // render: senza questo controllo, la modifica di una pedina verrebbe
+  // cancellata dal prop al primo re-render del genitore.
+  const idEsercizio = data?.title ?? '';
+  React.useEffect(() => {
+    setScena(data?.initialEntities ?? []);
+    setSelezionato(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idEsercizio]);
+
+  /** Scrive una nuova scena e la propaga al genitore. */
+  const aggiornaScena = useCallback(
+    (nuova: TacticalEntity[]) => {
+      setScena(nuova);
+      onChange?.({ ...data, initialEntities: nuova });
+    },
+    [data, onChange],
+  );
+
+  /**
+   * Traduce la posizione del canvas in coordinate normalizzate.
+   *
+   * Inverse di toPx, e va rifatta qui e non riesportata: toPx e' legato alle
+   * dimensioni fisse di questo canvas, mentre questa funzione serve solo al
+   * drag e va tenuta vicina al codice che la usa.
+   */
+  const daPx = useCallback((x: number, y: number) => ({
+    x: clampCoord(((x - PAD) / INNER_W) * 100),
+    y: clampCoord(((y - PAD) / INNER_H) * 100),
+  }), []);
+
+  const spostaEntita = useCallback(
+    (id: string, x: number, y: number) => {
+      // Ferma il playback: mentre la sequenza gira, positionOf riscrive la
+      // posizione di ogni entita' a ogni frame, quindi la pedina appena
+      // spostata tornerebbe indietro al primo frame. Fermare qui e' il modo
+      // che non richiede all'utente di premere pausa prima di corregere una
+      // posizione, cosa che nessuno si aspetta di dover fare.
+      setIsPlaying(false);
+      const punto = daPx(x, y);
+      aggiornaScena(
+        scena.map((e) => (e.id === id ? { ...e, ...punto } : e)),
+      );
+    },
+    [scena, daPx, aggiornaScena],
+  );
+
+  /**
+   * Aggiunge un oggetto in un posto libero.
+   *
+   * La ricerca del posto libero e' deterministica: parte dal centro e va in
+   * spirale, e si ferma al primo punto che non e' troppo vicino a un oggetto
+   * esistente. Mettere il nuovo oggetto sempre al centro coprirebbe un
+   * giocatore, che e' esattamente il difetto che il repair corregge a valle.
+   */
+  const aggiungiEntita = useCallback(
+    (tipo: 'player' | 'ball' | 'cone') => {
+      // Una sola palla: se c'e' gia', si seleziona quella esistente invece di
+      // aggiungerne una seconda. Due palle su un campo animato non hanno
+      // nessuna lettura possibile.
+      if (tipo === 'ball') {
+        const palla = scena.find((e) => e.type === 'ball');
+        if (palla) {
+          setSelezionato(palla.id);
+          return;
+        }
+      }
+
+      const occupati = scena;
+      let punto = { x: 50, y: 50 };
+      for (let r = 0; r < 40; r++) {
+        const candidati = [
+          { x: 50 + r * 3, y: 50 },
+          { x: 50, y: 50 + r * 3 },
+          { x: 50 - r * 3, y: 50 },
+          { x: 50, y: 50 - r * 3 },
+        ];
+        const libero = candidati.find(
+          (c) =>
+            c.x >= 3 && c.x <= 97 && c.y >= 3 && c.y <= 97 &&
+            occupati.every((o) => Math.hypot(o.x - c.x, o.y - c.y) > 8),
+        );
+        if (libero) {
+          punto = libero;
+          break;
+        }
+      }
+
+      const indice = scena.filter((e) => e.type === tipo).length + 1;
+      const nuova: TacticalEntity = {
+        id: `${tipo}-${Date.now().toString(36)}`,
+        type: tipo,
+        x: punto.x,
+        y: punto.y,
+      };
+      if (tipo === 'player') {
+        nuova.team = 'blue';
+        nuova.label = String(indice);
+      }
+      aggiornaScena([...scena, nuova]);
+      setSelezionato(nuova.id);
+    },
+    [scena, aggiornaScena],
+  );
+
+  const rimuoviSelezionato = useCallback(() => {
+    if (!selezionato) return;
+    // Non si cancella l'ultimo pezzo: una lavagna vuota non e' modificabile,
+    // e l'allenatore non ha piu' niente da cui ripartire.
+    if (scena.length <= 1) return;
+    aggiornaScena(scena.filter((e) => e.id !== selezionato));
+    setSelezionato(null);
+  }, [selezionato, scena, aggiornaScena]);
+
+  const entities = editable ? scena : (data?.initialEntities ?? []);
+
+  const selezionata = entities.find((e) => e.id === selezionato);
 
   return (
     <div className={cn('flex flex-col items-center text-white p-4 rounded-xl', className)}>
@@ -243,7 +389,20 @@ export default function ExercisePlayerInner({ data, className }: Props) {
       </h2>
 
       <div className="border-2 border-brand-green/50 rounded-lg overflow-hidden">
-        <Stage width={FIELD_W} height={FIELD_H}>
+        {/* touch-action: none solo in modifica. In sola lettura il campo deve
+            poter scorrere via swipe insieme alla pagina: senza, il dito ferma
+            lo scroll e sull'iPhone la lavagna blocca il resto della schermata. */}
+        <Stage
+          width={FIELD_W}
+          height={FIELD_H}
+          style={editable ? { touchAction: 'none' } : undefined}
+          onMouseDown={editable ? (e) => {
+            // Il click sul vuoto deseleziona: altrimenti non c'e' modo di
+            // togliere la selezione senza selezionarne un'altra.
+            if (e.target === e.target.getStage()) setSelezionato(null);
+          } : undefined}
+          onTouchStart={editable ? () => setSelezionato(null) : undefined}
+        >
           <Layer>
             <Rect x={0} y={0} width={FIELD_W} height={FIELD_H} fill="#052e16" />
             <Rect
@@ -309,7 +468,22 @@ export default function ExercisePlayerInner({ data, className }: Props) {
               .filter((e) => e.type === 'cone')
               .map((cone) => {
                 const p = toPx(cone);
-                return <Circle key={cone.id} x={p.x} y={p.y} radius={4} fill="#f97316" />;
+                return (
+                  <Circle
+                    key={cone.id}
+                    x={p.x}
+                    y={p.y}
+                    radius={4}
+                    fill="#f97316"
+                    stroke={selezionato === cone.id ? '#ffffff' : undefined}
+                    strokeWidth={selezionato === cone.id ? 1.5 : 0}
+                    draggable={editable}
+                    onDragStart={() => setSelezionato(cone.id)}
+                    onDragEnd={(e) => spostaEntita(cone.id, e.target.x(), e.target.y())}
+                    onClick={() => editable && setSelezionato(cone.id)}
+                    onTap={() => editable && setSelezionato(cone.id)}
+                  />
+                );
               })}
 
             {/* Pallone */}
@@ -324,8 +498,14 @@ export default function ExercisePlayerInner({ data, className }: Props) {
                     y={p.y}
                     radius={5}
                     fill="#ffffff"
-                    stroke="#000000"
-                    strokeWidth={1}
+                    stroke={selezionato === ball.id ? '#ffffff' : '#000000'}
+                    strokeWidth={selezionato === ball.id ? 3 : 1}
+                    opacity={editable ? 1 : undefined}
+                    draggable={editable}
+                    onDragStart={() => setSelezionato(ball.id)}
+                    onDragEnd={(e) => spostaEntita(ball.id, e.target.x(), e.target.y())}
+                    onClick={() => editable && setSelezionato(ball.id)}
+                    onTap={() => editable && setSelezionato(ball.id)}
                   />
                 );
               })}
@@ -336,7 +516,21 @@ export default function ExercisePlayerInner({ data, className }: Props) {
               .map((player) => {
                 const p = positionOf(player);
                 return (
-                  <Group key={player.id} x={p.x} y={p.y}>
+                  <Group
+                    key={player.id}
+                    x={p.x}
+                    y={p.y}
+                    draggable={editable}
+                    onDragStart={() => setSelezionato(player.id)}
+                    onDragEnd={(e) => spostaEntita(player.id, e.target.x(), e.target.y())}
+                    onClick={() => editable && setSelezionato(player.id)}
+                    onTap={() => editable && setSelezionato(player.id)}
+                  >
+                    {/* alone di selezione: disegnato sotto, quindi non copre
+                        numero ed etichetta */}
+                    {selezionato === player.id && (
+                      <Circle radius={15} stroke="#ffffff" strokeWidth={1.5} dash={[3, 3]} />
+                    )}
                     <Circle
                       radius={12}
                       fill={TEAM_FILL[player.team ?? 'blue'] ?? '#3b82f6'}
@@ -361,6 +555,62 @@ export default function ExercisePlayerInner({ data, className }: Props) {
           </Layer>
         </Stage>
       </div>
+
+      {/* Barra di modifica: aggiunta pedina/palla/cono, coordinate e rimozione.
+          Visibile solo in modalita' modifica, e sopra i controlli di playback
+          perche' e' l'azione piu' frequente mentre si corregge la scena. */}
+      {editable && (
+        <div className="w-full flex flex-wrap items-center gap-1.5 mt-3">
+          <button
+            type="button"
+            onClick={() => aggiungiEntita('player')}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Pedina
+          </button>
+          <button
+            type="button"
+            onClick={() => aggiungiEntita('ball')}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Palla
+          </button>
+          <button
+            type="button"
+            onClick={() => aggiungiEntita('cone')}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Cono
+          </button>
+          <button
+            type="button"
+            onClick={rimuoviSelezionato}
+            disabled={!selezionato || scena.length <= 1}
+            aria-label="Rimuovi selezionato"
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <Trash2 className="h-3 w-3" /> Togli
+          </button>
+
+          <span className="flex-1" />
+
+          {/* Coordinate della pedina selezionata: senza, spostare di due unità
+              è un gioco a indovinare. */}
+          <span className="text-[10px] font-black tabular-nums text-brand-green">
+            {selezionata
+              ? `${selezionata.id}: ${selezionata.x.toFixed(0)}, ${selezionata.y.toFixed(0)}`
+              : 'Tocca una pedina'}
+          </span>
+          <button
+            type="button"
+            onClick={() => aggiornaScena(data?.initialEntities ?? [])}
+            aria-label="Annulla le modifiche"
+            className="p-2 bg-black/60 rounded-lg hover:bg-black/80"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Descrizione dello step corrente */}
       {currentStep ? (

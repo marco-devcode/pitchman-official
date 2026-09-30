@@ -38,6 +38,10 @@ const ExercisePlayerInner = dynamic(
 interface Props {
   data: TacticalExercise;
   className?: string;
+  /** Vedi exercise-player-inner: selezione, drag, aggiunta e rimozione. */
+  editable?: boolean;
+  /** Notifica ogni modifica della scena. */
+  onChange?: (data: TacticalExercise) => void;
 }
 
 export default function ExercisePlayer(props: Props) {
