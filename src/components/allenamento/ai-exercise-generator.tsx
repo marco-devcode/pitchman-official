@@ -127,10 +127,31 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
         body: JSON.stringify({ prompt: testo }),
       });
 
-      const dati = await risposta.json();
-
+      // `json()` va DOPO il controllo di ok, non prima. Se Vercel taglia la
+      // richiesta perche' ha superato i 60 secondi risponde con una pagina
+      // HTML: chiamando json() prima si ottiene un errore di parsing che
+      // parla di rete, e l'allenatore crede di essere offline mentre il
+      // problema e' che la generazione ci mette troppo. Qui si distingue.
       if (!risposta.ok) {
-        setError(dati?.error || 'Generazione non riuscita. Riprova.');
+        let messaggio = `Il generatore ha risposto con errore ${risposta.status}.`;
+        try {
+          const corpo = await risposta.json();
+          if (corpo?.error) messaggio = corpo.error;
+        } catch {
+          if (risposta.status === 504 || risposta.status === 408) {
+            messaggio =
+              'La generazione ci ha messo troppo e il server l\'ha interrotta. Riprova: il servizio è congestionato.';
+          }
+        }
+        setError(messaggio);
+        return;
+      }
+
+      let dati: any;
+      try {
+        dati = await risposta.json();
+      } catch {
+        setError('Il generatore ha risposto in un formato imprevisto. Riprova.');
         return;
       }
       if (!dati?.drills?.length) {

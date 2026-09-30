@@ -72,6 +72,26 @@ const TENTATIVI_PER_MODELLO = 3;
 const ATTESA_TENTATIVI_MS = [0, 3000, 8000];
 
 /**
+ * Tetto di tempo per TUTTA la generazione, non per una variante.
+ *
+ * Senza, la catena puo' arrivare a 3 varianti x 2 modelli x 3 tentativi, con
+ * attese e timeout: ben oltre i 60 secondi che Vercel concede a una funzione
+ * (maxDuration nell'endpoint). Superato quel limite Vercel taglia la richiesta e
+ * risponde con una pagina HTML: l'allenatore vede un errore su una generazione
+ * che in realta' stava funzionando.
+ *
+ * 45 secondi: sotto il tetto di Vercel con margine per la rete, e sopra
+ * abbastanza per completare una variante vera (misurata in 14.6s). Scaduto il
+ * budget, le varianti rimaste prendono il demo: e' comunque meglio di un
+ * errore, e la UI lo dichiara.
+ *
+ * Da solo non basta: i tentativi non possono iniziare se non c'e' piu' tempo
+ * utile. Per questo il budget si controlla ANCHE prima di ogni tentativo, e
+ * non solo alla fine.
+ */
+const BUDGET_TOTALE_MS = 45_000;
+
+/**
  * Un 429 NON si ritenta.
  *
  * Il messaggio di Gemini lo dice esplicitamente ("Please retry in 40.5s"):
@@ -245,7 +265,7 @@ export async function generateDrillVariants(
   // Promise.all e non allSettled perche' ogni variante promette gia' di
   // risolvere: una che fallisce va sul demo, non deve far fallire le altre.
   const esiti = await Promise.all(
-    RUOLI.map((ruolo) => generaUnaVariante(testo, ruolo)),
+    RUOLI.map((ruolo) => generaUnaVariante(testo, ruolo, avvio)),
   );
 
   const drills = esiti.map((e) => e.drill).filter(Boolean) as Drill[];
@@ -304,6 +324,7 @@ interface EsitoVariante {
 async function generaUnaVariante(
   brief: string,
   ruolo: { id: string; richiesta: (b: string) => string; progressione: boolean },
+  inizio: number,
 ): Promise<EsitoVariante> {
   const catena = catenaModelli();
 
@@ -312,6 +333,14 @@ async function generaUnaVariante(
 
     for (let tentativo = 0; tentativo < TENTATIVI_PER_MODELLO; tentativo++) {
       const attesa = ATTESA_TENTATIVI_MS[tentativo] ?? 0;
+
+      // Non si comincia un tentativo che non puo' finire entro il budget: un
+      // timeout che scatta qui lascia un esercizio a meta' e fa perdere piu'
+      // tempo di quanto si sarebbe recuperato.
+      if (Date.now() - inizio + attesa >= BUDGET_TOTALE_MS) {
+        console.warn(`[drill] ${ruolo.id}: budget di ${BUDGET_TOTALE_MS}ms esaurito, uso il demo`);
+        break;
+      }
       if (attesa > 0) await new Promise((r) => setTimeout(r, attesa));
 
       try {
@@ -323,7 +352,10 @@ async function generaUnaVariante(
             output: { schema: DrillSchema },
             config: { temperature: 0.35 },
           }),
-          TIMEOUT_PER_MODELLO_MS,
+          // Il timeout per singolo modello non puo' superare il budget
+          // residuo: altrimenti l'ultima variante in coda aspetterebbe 18
+          // secondi e uscirebbe comunque oltre il tetto di Vercel.
+          Math.max(3000, Math.min(TIMEOUT_PER_MODELLO_MS, BUDGET_TOTALE_MS - (Date.now() - inizio))),
           `${modello}/${ruolo.id}`,
         );
 
