@@ -445,7 +445,12 @@ export default function CalendarioPage() {
           </div>
           {!isEditMode ? (
             <div className="flex items-center gap-2">
-              <p className="text-[10px] font-black uppercase text-muted-foreground">{sortedMatches.length} Gare</p>
+              {/* Conta filteredMatches, non sortedMatches: sortedMatches e'
+                  la lista NON filtrata, quindi il contatore restava sul totale
+                  delle partite mentre sotto c'era solo la tab scelta. Verificato
+                  nel browser: su Campionato si vedevano 4 partite e il titolo
+                  diceva 9. filteredMatches e' la lista che viene resa sotto. */}
+              <p className="text-[10px] font-black uppercase text-muted-foreground">{filteredMatches.length} Gare</p>
               {sortedMatches.length > 0 && (
                 <Button
                   variant="ghost"
