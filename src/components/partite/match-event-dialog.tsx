@@ -630,7 +630,12 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
             </div>
           )}
 
-          {/* TIME SECTION */}
+          {/* TIME SECTION
+              Per il recupero NON si mostra: il blocco dedicato qui sopra
+              (periodo 1TS/2TS + numero di minuti) e' l'unica sorgente dei dati
+              salvati, e la select periodo/minuto qui sotto verrebbe ignorata
+              al submit. Mostrarla insieme era pura ridondanza. */}
+          {uiType !== 'stoppage' && (
           <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Tempo</span>
             <div className="flex items-center gap-2">
@@ -670,6 +675,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
               </Select>
             </div>
           </div>
+          )}
 
           <div className="flex items-center gap-3 mt-6 pt-2">
             <Button
