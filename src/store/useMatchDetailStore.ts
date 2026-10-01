@@ -13,6 +13,8 @@ import { enqueueMutation, isOffline } from '@/lib/sync-queue';
 import { useStatsStore } from './useStatsStore';
 import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
+import { useMatchesStore } from './useMatchesStore';
+import { usePlayersStore } from './usePlayersStore';
 import type { Match, Player, MatchLineup, MatchEvent, PlayerMatchStats } from '@/lib/types';
 import { countGoals } from '@/lib/goal-utils';
 import {
@@ -98,10 +100,6 @@ export const useMatchDetailStore = create<MatchDetailState>()(
 
     load: async (matchId, seasonId) => {
         // MISURA TEMPORANEA
-        const _T: any = ((globalThis as any).__loadT ||= { fasi: [] });
-        _T.inizio = performance.now();
-        const fase = (n: string) => _T.fasi.push({ n, ms: Math.round(performance.now() - _T.inizio) });
-        fase('avvio');
         set(state => ({ 
             loading: !state.match || state.matchId !== matchId, 
             error: null, 
@@ -118,32 +116,62 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             
             const currentUser = authState.user;
             let targetSeasonId = seasonId || useSeasonsStore.getState().activeSeason?.id;
-            fase('auth+season-cache');
             if (!targetSeasonId) {
                 await useSeasonsStore.getState().fetchAll();
                 targetSeasonId = useSeasonsStore.getState().activeSeason?.id;
             }
-            fase('fetchAll-stagioni');
 
             if (!targetSeasonId) {
                 set({ error: "Identificativo stagione mancante.", loading: false });
                 return;
             }
 
-            const match = await matchRepository.getById(matchId, targetSeasonId);
-            fase('getById-partita');
-            
+            // La partita e' gia' in memoria: il calendario l'ha appena letta e
+            // mostrata a schermo, quindi rileggerla da Firestore costa un giro
+            // di rete (misurati 270-570ms su questo progetto) per restituire lo
+            // stesso oggetto. Si rilegge solo se non c'e' — link diretto,
+            // ricaricamento della pagina, deep link da una notifica.
+            const inMemoria = useMatchesStore.getState().matches.find((m) => m.id === matchId);
+            const match = inMemoria ?? (await matchRepository.getById(matchId, targetSeasonId));
+
             if (!match) {
                 set({ error: "Partita non trovata o permessi insufficienti.", loading: false });
                 return;
             }
 
-            const [allPlayers, matchEvents, matchLineup, matchStats] = await Promise.all([
-                playerRepository.getAll(currentUser.id, targetSeasonId),
+            // La ROSA non blocca l'apertura.
+            //
+            // Serve alla scheda Formazione e ai dialog che scelgono un
+            // giocatore, non al risultato e non alla cronaca, che sono le prime
+            // cose che l'allenatore guarda. Tenerla in attesa significa tenere
+            // uno scheletro davanti a dati che sono gia' arrivati: e' la
+            // differenza fra aprire una partita in mezzo secondo e aprirla in
+            // tre.
+            //
+            // Se la rosa e' gia' in memoria (l'allenatore e' passato da Rosa, o
+            // ha gia' aperto una partita) si usa subito e non si legge niente.
+            // Altrimenti si parte con quel che c'e' e si aggiorna quando
+            // arriva, senza bloccare.
+            const rosaInMemoria = usePlayersStore.getState().players;
+            const allPlayers = rosaInMemoria.length ? rosaInMemoria : [];
+
+            const [matchEvents, matchLineup, matchStats] = await Promise.all([
                 eventRepository.getForMatch(matchId, targetSeasonId, currentUser.id),
                 lineupRepository.getForMatch(matchId, targetSeasonId, currentUser.id),
                 statsRepository.getForMatch(matchId, targetSeasonId, currentUser.id)
             ]);
+
+            if (!rosaInMemoria.length) {
+                // Fuori dal percorso di caricamento e senza blocco: una rosa non
+                // caricata e' un problema della scheda Formazione, non
+                // dell'apertura della partita. Il controllo su matchId evita che
+                // una risposta in arrivo sovrascriva la scena di un'altra
+                // partita nel frattempo aperta.
+                playerRepository.getAll(currentUser.id, targetSeasonId).then((fresh) => {
+                    if (get().matchId !== matchId) return;
+                    set({ allPlayers: fresh });
+                }).catch(() => {});
+            }
 
             // Ricalcola il risultato dagli eventi appena riletti, invece di
             // fidarsi di match.result salvato su Firestore.
@@ -160,7 +188,6 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             // conta da loro. Se NON esistono eventi, si lascia il risultato
             // salvato: una partita con il risultato impostato a mano e senza
             // eventi registrati deve restare com'e'.
-            fase('4-letture-parallele (rosa+eventi+formazione+stats)');
             const eventi = matchEvents || [];
             // `haEventi` da solo NON basta per decidere di riscrivere il
             // risultato: un'ammonizione, una sostituzione o un gol di recupero
@@ -185,7 +212,6 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                 error: null
             });
 
-            fase('render-dati');
             // Ripara su Firestore il risultato stantio, cosi' anche la lista
             // calendario (che legge il campo salvato) torna corretta. Senza
             // questo il reload riparerebbe solo lo schermo della partita.
@@ -203,12 +229,18 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             // e' diverso sia quando non esiste. Se non ci sono gol registrati si
             // lascia tutto com'e': una partita col risultato inserito a mano
             // non deve essere azzerata da un'ammonizione o una sostituzione.
+            // La riparazione su Firestore NON blocca load(): qui `set()` ha
+            // gia' fatto comparire i dati a schermo, ma due `await` di scrittura
+            // tenevano la funzione appesa, e con lei l'indicatore di
+            // caricamento della pagina.
+            //
+            // Non e' una differenza accademica: la pagina passa a mostrare il
+            // contenuto solo quando `loading` diventa false, quindi ogni await
+            // qui dentro e' tempo che l'allenatore guarda uno scheletro con la
+            // partita gia' pronta.
             if (eventiConGol) {
                 const salvato = match.result;
                 const diversoDaSalvato = !salvato || salvato.home !== resultFinale!.home || salvato.away !== resultFinale!.away;
-                if (diversoDaSalvato) {
-                    await matchRepository.update(matchId, targetSeasonId, { result: resultFinale });
-                }
 
                 // Una partita con eventi registrati ma ancora 'scheduled' resta
                 // fuori dai "ultimi incontri" e non entra nelle statistiche
@@ -217,11 +249,15 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                 // come giocata solo se la data e' gia' passata: una partita in
                 // corso non va completata da sola.
                 const partitaGiaPassata = parseISO(match.date) < startOfDay(new Date());
-                if (match.status === 'scheduled' && partitaGiaPassata) {
-                    await matchRepository.update(matchId, targetSeasonId, { status: 'completed' });
+                const daCompletare = match.status === 'scheduled' && partitaGiaPassata;
+
+                if (diversoDaSalvato || daCompletare) {
+                    matchRepository.update(matchId, targetSeasonId, {
+                        ...(diversoDaSalvato ? { result: resultFinale } : {}),
+                        ...(daCompletare ? { status: 'completed' as const } : {}),
+                    }).catch((e) => console.error("Match repair error:", e));
                 }
             }
-            fase('riparazione-firestore');
         } catch (e: any) {
             console.error("Match load error:", e);
             set({ 
