@@ -38,7 +38,11 @@ export const metadata: Metadata = {
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
       { url: '/favicon-32x32_light.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
     ],
-    apple: '/icons/icon-192x192.png',
+    // Icona della home screen su iOS. Va dichiarata per esteso perche' iOS
+    // ignora il manifest e legge questo link: punta a un file a 180px con
+    // sfondo pieno, non a una versione trasparente (che su iOS verrebbe
+    // composta male e apparirebbe con un bordo strano).
+    apple: '/apple-touch-icon.png',
   },
   appleWebApp: {
     capable: true,
@@ -61,7 +65,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it" suppressHydrationWarning>
-      <head />
+      <head>
+        {/*
+          Icona della home screen su iOS, per tema scuro.
+
+          Il campo `icons.apple` del metadata serve gia' il caso generale, ma
+          iOS non lo distingue per tema: con la sola dichiarazione in metadata
+          un iPhone in modalita' scura può prendere la versione pensata per lo
+          schema chiaro, che è una versione trasparente e su uno sfondo scuro
+          risulta illeggibile.
+
+          Qui si dichiarano entrambe, con la media query, in modo che quella
+          scura valga quando il tema e' scuro. Il file e' gia' a sfondo pieno,
+          quindi non serve composing: e' lo stesso logo su nero.
+        */}
+        <link
+          rel="apple-touch-icon"
+          href="/apple-touch-icon.png"
+          media="(prefers-color-scheme: dark)"
+        />
+        <link
+          rel="apple-touch-icon"
+          href="/apple-touch-icon-light.png"
+          media="(prefers-color-scheme: light)"
+        />
+      </head>
       <body className={`font-body antialiased ${ptSans.variable}`}>
         <FirebaseClientProvider>
           <ThemeProvider>
