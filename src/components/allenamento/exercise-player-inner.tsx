@@ -13,7 +13,7 @@
  * non contengono mai valori legati a una dimensione di schermo.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Stage, Layer, Rect, Circle, Line, Text as KonvaText, Group } from 'react-konva';
 import {
   Play, Pause, ChevronLeft, ChevronRight, RotateCcw, Plus, Trash2, Undo2,
@@ -21,6 +21,7 @@ import {
 
 import type { TacticalExercise, TacticalEntity } from '@/lib/tactical-exercise';
 import { clampCoord } from '@/lib/tactical-exercise';
+import { posizioniInizialiStep } from '@/lib/step-continuity';
 import { cn } from '@/lib/utils';
 
 const FIELD_W = 320;
@@ -102,158 +103,6 @@ export default function ExercisePlayerInner({ data, className, editable = false,
 
   // Il modello può non avere step (o averne di strani): senza questo i
   // controlli crasherebbero su steps[0] undefined.
-  const steps = data?.steps ?? [];
-  const safeIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
-  const currentStep = steps[safeIndex];
-
-  /** Applica l'andamento richiesto al parametro 0..1. */
-  const ease = (t: number, kind?: string): number => {
-    switch (kind) {
-      case 'easeIn':
-        return t * t;
-      case 'easeOut':
-        return t * (2 - t);
-      case 'easeInOut':
-        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-      default:
-        return t;
-    }
-  };
-
-  /**
-   * Posizione corrente di un'entita', interpolata sul progresso dello step.
-   *
-   * `progress` e' il tempo trascorso nello step in secondi, non una frazione:
-   * e' cosi' che startAt (ritardo) e duration (durata propria) si sommano
-   * nello stesso dominio.
-   */
-  const positionOf = useCallback(
-    (entity: TacticalEntity) => {
-      const action = currentStep?.actions?.find((a) => a.entityId === entity.id);
-      if (!action) return toPx(entity);
-
-      // Se l'azione parte da un punto diverso dalla posizione iniziale,
-      // si parte da quello: altrimenti l'entita' salta all'inizio dello step.
-      // from e to sono {x, y} normalizzati 0-100, quindi si interpola nel
-      // dominio normalizzato e si converte solo alla fine: interpolare sui
-      // pixel darebbe risultati diversi a seconda della dimensione del campo.
-      const fx = action.from?.x ?? entity.x;
-      const fy = action.from?.y ?? entity.y;
-      const tx = action.to?.x ?? fx;
-      const ty = action.to?.y ?? fy;
-
-      const dur = Math.max(0.1, action.duration ?? 1);
-      const attesa = Math.max(0, action.startAt ?? 0);
-      // Prima di startAt l'entita' e' ferma sul punto di partenza; dopo la
-      // durata e' ferma su quello d'arrivo.
-      const locale = (progress - attesa) / dur;
-      const t = ease(Math.max(0, Math.min(1, locale)), action.easing);
-
-      return toPx({
-        x: fx + (tx - fx) * t,
-        y: fy + (ty - fy) * t,
-      });
-    },
-    [currentStep, progress],
-  );
-
-  /**
-   * Durata TOTALE dello step, in secondi.
-   *
-   * E' il massimo di (startAt + duration) su tutte le azioni, non il massimo
-   * delle duration: un'azione che inizia dopo 2 secondi e dura 1 finisce a 3,
-   * e se lo step durasse 1 secondo non si vedrebbe mai arrivare. Le azioni piu'
-   * brevi finiscono prima e restano ferme sull'arrivo, che e' quello che si
-   * vuole vedere.
-   */
-  const stepDuration = useCallback(() => {
-    const azioni = currentStep?.actions ?? [];
-    if (!azioni.length) return 2;
-    const fine = azioni.map((a) => Math.max(0, a.startAt ?? 0) + Math.max(0.1, a.duration ?? 1));
-    const max = Math.max(...fine);
-    // Clamp: un duration assurdo dal modello bloccherebbe l'animazione per
-    // minuti, e uno zero renderebbe lo step invisibile. 8 secondi e' il tetto:
-    // oltre, l'allenatore aspetta troppo prima di vedere il passo seguente.
-    return Math.max(0.5, Math.min(8, max));
-  }, [currentStep]);
-
-  useEffect(() => {
-    if (!isPlaying || inPausa) return;
-
-    // `progress` e' il tempo trascorso NELLO STEP, in secondi di simulazione
-    // (gia' divisi per la velocita'), non una frazione 0..1. Serve perche'
-    // ogni azione abbia il proprio startAt e la propria duration: con una
-    // frazione unica tutte le azioni finirebbero insieme a fine step.
-    const totale = stepDuration();
-    let start: number | null = null;
-
-    const animate = (timestamp: number) => {
-      if (start === null) start = timestamp;
-      const trascorso = ((timestamp - start) / 1000) * speed;
-      const next = Math.min(trascorso, totale);
-      setProgress(next);
-
-      if (trascorso < totale) {
-        frameRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      // Fine dello step.
-      //
-      // Prima si fermava qui, e il play mostrava un solo step: era un bug, non
-      // una scelta. Ora si passa al successivo, ma con una pausa: senza, la
-      // descrizione dello step appena finito scorrerebbe via prima di essere
-      // letta, che e' proprio la parte che l'allenatore deve guardare.
-      if (safeIndex >= steps.length - 1) {
-        // Fine dell'esercizio: si torna all'inizio, cosi' ripremere play
-        // riproduce tutto da capo.
-        setProgress(0);
-        setIsPlaying(false);
-        return;
-      }
-
-      setProgress(0);
-      // Pausa reale: si sospende l'animazione e si riparte dopo 900ms. Il
-      // timer e' tenuto in un ref cosi' puo' essere cancellato se l'utente
-      // cambia step nel frattempo.
-      setInPausa(true);
-      if (pausaRef.current !== null) clearTimeout(pausaRef.current);
-      pausaRef.current = setTimeout(() => {
-        pausaRef.current = null;
-        setInPausa(false);
-        setStepIndex((i) => i + 1);
-      }, PAUSA_TRA_STEP);
-    };
-
-    frameRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-    };
-  }, [isPlaying, safeIndex, speed, stepDuration, steps.length, inPausa]);
-
-  const goTo = (next: number) => {
-    // Cancella la pausa in corso: altrimenti il suo timer avanzerebbe
-    // l'indice DOPO che l'utente ha gia' scelto un altro step.
-    if (pausaRef.current !== null) {
-      clearTimeout(pausaRef.current);
-      pausaRef.current = null;
-    }
-    setInPausa(false);
-    setStepIndex(Math.max(0, Math.min(steps.length - 1, next)));
-    setProgress(0);
-    setIsPlaying(false);
-  };
-
-  const reset = () => {
-    if (pausaRef.current !== null) {
-      clearTimeout(pausaRef.current);
-      pausaRef.current = null;
-    }
-    setInPausa(false);
-    setProgress(0);
-    setIsPlaying(false);
-  };
-
   // --- modifica della scena -------------------------------------------------
   //
   // Lo stato locale tiene la scena modificata invece di scrivere su `data`:
@@ -378,7 +227,193 @@ export default function ExercisePlayerInner({ data, className, editable = false,
     setSelezionato(null);
   }, [selezionato, scena, aggiornaScena]);
 
-  const entities = editable ? scena : (data?.initialEntities ?? []);
+  const steps = useMemo(() => data?.steps ?? [], [data?.steps]);
+  const safeIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
+  const currentStep = steps[safeIndex];
+
+  // Le entita' che il player disegna: in modifica la copia locale su cui si
+  // trascina, altrimenti quelle del prop. Va dichiarata qui e non piu' in
+  // fondo perche' `positionOf` la usa, e una variabile usata prima della sua
+  // dichiarazione e' un errore di compilazione, non una questione di stile.
+  // In sola lettura si puo' passare direttamente il prop senza memoizzare:
+  // non cambia mai dentro un render.
+  const entities = useMemo(
+    () => (editable ? scena : (data?.initialEntities ?? [])),
+    [editable, scena, data?.initialEntities],
+  );
+
+  /** Applica l'andamento richiesto al parametro 0..1. */
+  const ease = (t: number, kind?: string): number => {
+    switch (kind) {
+      case 'easeIn':
+        return t * t;
+      case 'easeOut':
+        return t * (2 - t);
+      case 'easeInOut':
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      default:
+        return t;
+    }
+  };
+
+  /**
+   * Posizione di partenza di uno step: dove si trova ogni entita' quando lo
+   * step comincia, cioe' dove e' FINITA quella dello step precedente.
+   *
+   * Senza questo le pedine tornano tutte alla posizione iniziale a ogni step:
+   * il campo si teletrasporta indietro tre volte in un esercizio di tre passi, e
+   * l'animazione diventa illeggibile perche' non si capisce mai chi e' dove.
+   * Con questo, ogni entita' prosegue da dove si era fermata, che e' l'unica
+   * cosa che rende sensato guardare una sequenza.
+   *
+   * Si simula dall'inizio dell'esercizio, non si legge un indice "posizioni
+   * finali": cosi' resta corretto anche andando a uno step a caso con le frecce,
+   * e resta gratis in termini di costo (sono una decina di entita' e pochi
+   * step, e il risultato si memoizza per indice di step).
+   */
+  const posizioniInizio = useMemo(
+    () => posizioniInizialiStep(entities, steps, safeIndex),
+    [entities, steps, safeIndex],
+  );
+
+  /**
+   * Posizione corrente di un'entita', interpolata sul progresso dello step.
+   *
+   * `progress` e' il tempo trascorso nello step in secondi, non una frazione:
+   * e' cosi' che startAt (ritardo) e duration (durata propria) si sommano
+   * nello stesso dominio.
+   */
+  const positionOf = useCallback(
+    (entity: TacticalEntity) => {
+      // Punto di partenza: fine dello step precedente, non l'origine.
+      const partenza = posizioniInizio.get(entity.id) ?? { x: entity.x, y: entity.y };
+      const action = currentStep?.actions?.find((a) => a.entityId === entity.id);
+      if (!action) return toPx(partenza);
+
+      // Se l'azione parte da un punto diverso dalla posizione iniziale,
+      // si parte da quello: altrimenti l'entita' salta all'inizio dello step.
+      // from e to sono {x, y} normalizzati 0-100, quindi si interpola nel
+      // dominio normalizzato e si converte solo alla fine: interpolare sui
+      // pixel darebbe risultati diversi a seconda della dimensione del campo.
+      // `from` ha la precedenza quando c'e': e' il punto da cui l'allenatore
+      // si aspetta di vedere partire il movimento, e se il modello l'ha
+      // dichiarato esplicitamente va rispettato.
+      const fx = action.from?.x ?? partenza.x;
+      const fy = action.from?.y ?? partenza.y;
+      const tx = action.to?.x ?? fx;
+      const ty = action.to?.y ?? fy;
+
+      const dur = Math.max(0.1, action.duration ?? 1);
+      const attesa = Math.max(0, action.startAt ?? 0);
+      // Prima di startAt l'entita' e' ferma sul punto di partenza; dopo la
+      // durata e' ferma su quello d'arrivo.
+      const locale = (progress - attesa) / dur;
+      const t = ease(Math.max(0, Math.min(1, locale)), action.easing);
+
+      return toPx({
+        x: fx + (tx - fx) * t,
+        y: fy + (ty - fy) * t,
+      });
+    },
+    [currentStep, progress, posizioniInizio],
+  );
+
+  /**
+   * Durata TOTALE dello step, in secondi.
+   *
+   * E' il massimo di (startAt + duration) su tutte le azioni, non il massimo
+   * delle duration: un'azione che inizia dopo 2 secondi e dura 1 finisce a 3,
+   * e se lo step durasse 1 secondo non si vedrebbe mai arrivare. Le azioni piu'
+   * brevi finiscono prima e restano ferme sull'arrivo, che e' quello che si
+   * vuole vedere.
+   */
+  const stepDuration = useCallback(() => {
+    const azioni = currentStep?.actions ?? [];
+    if (!azioni.length) return 2;
+    const fine = azioni.map((a) => Math.max(0, a.startAt ?? 0) + Math.max(0.1, a.duration ?? 1));
+    const max = Math.max(...fine);
+    // Clamp: un duration assurdo dal modello bloccherebbe l'animazione per
+    // minuti, e uno zero renderebbe lo step invisibile. 8 secondi e' il tetto:
+    // oltre, l'allenatore aspetta troppo prima di vedere il passo seguente.
+    return Math.max(0.5, Math.min(8, max));
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (!isPlaying || inPausa) return;
+
+    // `progress` e' il tempo trascorso NELLO STEP, in secondi di simulazione
+    // (gia' divisi per la velocita'), non una frazione 0..1. Serve perche'
+    // ogni azione abbia il proprio startAt e la propria duration: con una
+    // frazione unica tutte le azioni finirebbero insieme a fine step.
+    const totale = stepDuration();
+    let start: number | null = null;
+
+    const animate = (timestamp: number) => {
+      if (start === null) start = timestamp;
+      const trascorso = ((timestamp - start) / 1000) * speed;
+      const next = Math.min(trascorso, totale);
+      setProgress(next);
+
+      if (trascorso < totale) {
+        frameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      // Fine dello step.
+      //
+      // Prima si fermava qui, e il play mostrava un solo step: era un bug, non
+      // una scelta. Ora si passa al successivo, ma con una pausa: senza, la
+      // descrizione dello step appena finito scorrerebbe via prima di essere
+      // letta, che e' proprio la parte che l'allenatore deve guardare.
+      if (safeIndex >= steps.length - 1) {
+        // Fine dell'esercizio: si torna all'inizio, cosi' ripremere play
+        // riproduce tutto da capo.
+        setProgress(0);
+        setIsPlaying(false);
+        return;
+      }
+
+      setProgress(0);
+      // Pausa reale: si sospende l'animazione e si riparte dopo 900ms. Il
+      // timer e' tenuto in un ref cosi' puo' essere cancellato se l'utente
+      // cambia step nel frattempo.
+      setInPausa(true);
+      if (pausaRef.current !== null) clearTimeout(pausaRef.current);
+      pausaRef.current = setTimeout(() => {
+        pausaRef.current = null;
+        setInPausa(false);
+        setStepIndex((i) => i + 1);
+      }, PAUSA_TRA_STEP);
+    };
+
+    frameRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    };
+  }, [isPlaying, safeIndex, speed, stepDuration, steps.length, inPausa]);
+
+  const goTo = (next: number) => {
+    // Cancella la pausa in corso: altrimenti il suo timer avanzerebbe
+    // l'indice DOPO che l'utente ha gia' scelto un altro step.
+    if (pausaRef.current !== null) {
+      clearTimeout(pausaRef.current);
+      pausaRef.current = null;
+    }
+    setInPausa(false);
+    setStepIndex(Math.max(0, Math.min(steps.length - 1, next)));
+    setProgress(0);
+    setIsPlaying(false);
+  };
+
+  const reset = () => {
+    if (pausaRef.current !== null) {
+      clearTimeout(pausaRef.current);
+      pausaRef.current = null;
+    }
+    setInPausa(false);
+    setProgress(0);
+    setIsPlaying(false);
+  };
 
   const selezionata = entities.find((e) => e.id === selezionato);
 

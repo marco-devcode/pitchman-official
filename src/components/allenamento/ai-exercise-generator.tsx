@@ -46,6 +46,8 @@ interface GenerateResponse {
   drill: Drill;
   fixes: string[];
   source: 'gemini' | 'demo';
+  /** Provenienza per variante, allineata a `drills`. */
+  sources: ('gemini' | 'demo')[];
   engine: string;
   model: string;
   fallbackUsed: boolean;
@@ -76,7 +78,7 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
   const [varianti, setVarianti] = useState<Drill[] | null>(null);
   const [attiva, setAttiva] = useState(0);
   const [meta, setMeta] = useState<
-    Pick<GenerateResponse, 'source' | 'model' | 'fallbackUsed' | 'fixes'> | null
+    Pick<GenerateResponse, 'source' | 'model' | 'fallbackUsed' | 'fixes' | 'sources'> | null
   >(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -165,6 +167,7 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
         model: dati.model,
         fallbackUsed: dati.fallbackUsed,
         fixes: dati.fixes ?? [],
+        sources: dati.sources ?? [],
       });
       setScenaModificata(null);
     } catch (e: any) {
@@ -181,6 +184,11 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
   }
 
   const scelta = varianti?.[attiva] ?? null;
+  // La provenienza si legge per variante, non dall'aggregato: l'etichetta
+  // riguarda la scheda che si sta guardando, e quella puo' essere l'esempio
+  // anche quando le altre sono state generate davvero.
+  const provenienzaAttiva: 'gemini' | 'demo' =
+    meta?.sources?.[attiva] ?? meta?.source ?? 'demo';
   // Si mostra cio' che e' stato modificato, se c'e' una modifica: e' il modo
   // perche' il salvataggio e la visualizzazione non possano divergere.
   const tattico = scelta ? (scenaModificata ?? drillToTactical(scelta)) : null;
@@ -303,6 +311,10 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
                     }}
                     className={cn(
                       'flex-1 px-2 py-2 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-colors',
+                      // Il bordo ambra distingue a colpo d'occhio una scheda che
+                      // e' l'esempio di riserva: senza, si rischia di salvare in
+                      // libreria un esercizio scritto a mano credendolo generato.
+                      (meta?.sources?.[i] ?? 'demo') === 'demo' && 'border-amber-500/60',
                       attiva === i
                         ? 'bg-brand-green text-black border-brand-green'
                         : 'bg-transparent border-border dark:border-brand-green/30 text-muted-foreground hover:text-foreground',
@@ -337,19 +349,30 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
                   <ChevronDown
                     className={cn('h-3 w-3 transition-transform', mostraDebug && 'rotate-180')}
                   />
-                  {meta.source === 'demo'
-                    ? 'Esempio, non generato'
+                  {provenienzaAttiva === 'demo'
+                    ? 'Esempio, non il tuo esercizio'
                     : `Generato da ${meta.model.replace('googleai/', '')}${meta.fallbackUsed ? ' (riserva)' : ''}`}
                 </button>
 
                 {mostraDebug && (
                   <div className="text-[10px] text-muted-foreground/80 bg-black/30 rounded-lg p-2 space-y-1">
-                    {meta.source === 'demo' && (
+                    {provenienzaAttiva === 'demo' && (
                       <p className="text-amber-500">
-                        Questo non è il tuo esercizio: è un esempio mostrato perché
-                        il servizio AI non ha risposto. Riprova fra poco.
+                        Questa scheda non è il tuo esercizio: è l'esempio di
+                        riserva, mostrato perché il servizio AI non ha risposto
+                        per questa variante. Riprova fra poco.
                       </p>
                     )}
+                    {provenienzaAttiva === 'gemini' &&
+                      varianti &&
+                      varianti.length > 1 &&
+                      meta.sources.filter((s) => s === 'demo').length > 0 && (
+                        <p className="text-amber-500">
+                          {meta.sources.filter((s) => s === 'demo').length} delle{' '}
+                          {varianti.length} schede sono l'esempio di riserva, non
+                          il tuo esercizio. Le trovi marcate in giallo.
+                        </p>
+                      )}
                     <p>Correzioni applicate: {meta.fixes.length}</p>
                     {meta.fixes.map((f, i) => (
                       <p key={i} className="flex gap-1">

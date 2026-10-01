@@ -122,6 +122,17 @@ export interface GenerateResult {
   fallbackUsed: boolean;
   /** 'gemini' quando ha risposto il modello, 'demo' senza chiave. */
   source: 'gemini' | 'demo';
+  /**
+   * Provenienza di ogni variante, allineata a `drills`.
+   *
+   * Senza questo la UI puo' sbagliare: `source` dice "gemini" se ALMENO UNA
+   * variante e' stata generata, ma la scheda attiva potrebbe essere una di
+   * quelle cadute sul demo. Il risultato era un esercizio scritto a mano
+   * etichettato "Generato con Gemini": non solo inutile, ma falso, e su una
+   * lavagna didattica una Provenienza sbagliata e' la cosa peggiore che si
+   * possa sbagliare.
+   */
+  sources: ('gemini' | 'demo')[];
 }
 
 /**
@@ -257,7 +268,13 @@ export async function generateDrillVariants(
 
   if (!haChiave) {
     console.warn('[drill] nessuna GEMINI_API_KEY: rispondo con l\'esempio demo.');
-    return { drills: [DEMO_DRILL], model: 'demo', fallbackUsed: false, source: 'demo' };
+    return {
+      drills: [DEMO_DRILL],
+      model: 'demo',
+      fallbackUsed: false,
+      source: 'demo',
+      sources: ['demo'],
+    };
   }
 
   const avvio = Date.now();
@@ -297,6 +314,7 @@ export async function generateDrillVariants(
       ? risposteGemini.some((e) => e.fallbackUsed)
       : true,
     source: quanteGemini ? 'gemini' : 'demo',
+    sources: esiti.map((e) => e.source),
   };
 }
 

@@ -92,6 +92,10 @@ export async function POST(request: Request) {
       drill: drills[0],
       fixes,
       source: result.source,
+      // Provenienza per variante: senza, la UI non puo' dire se la scheda che
+      // sta mostrando e' stata generata o e' l'esempio di riserva. Vedi la
+      // nota su `sources` in generate-drill-variants-flow.
+      sources: result.sources,
       engine: 'genkit',
       model: result.model,
       fallbackUsed: result.fallbackUsed,
