@@ -31,6 +31,13 @@ export const metadata: Metadata = {
   description: 'La tua app per la gestione della tua squadra',
   manifest: '/manifest.json',
   icons: {
+    // Dichiarate per esteso perche' il browser, non trovando nulla, indovina
+    // e va a prendere /favicon.ico. Con le dichiarazioni usa i file giusti:
+    // il 32px per la scheda e il 192 per i dispositivi che lo chiedono.
+    icon: [
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-32x32_light.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
+    ],
     apple: '/icons/icon-192x192.png',
   },
   appleWebApp: {
