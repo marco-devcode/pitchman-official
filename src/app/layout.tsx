@@ -38,11 +38,12 @@ export const metadata: Metadata = {
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
       { url: '/favicon-32x32_light.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
     ],
-    // Icona della home screen su iOS. Va dichiarata per esteso perche' iOS
-    // ignora il manifest e legge questo link: punta a un file a 180px con
-    // sfondo pieno, non a una versione trasparente (che su iOS verrebbe
-    // composta male e apparirebbe con un bordo strano).
-    apple: '/apple-touch-icon.png',
+    // `icons.apple` e' omesso apposta. Next genera da questo campo un
+    // <link rel="apple-touch-icon"> SENza media query, che competesca con i
+    // due dichiarati a mano qui sotto in <head>: su un iPhone in tema scuro
+    // quello senza condizioni puo' vincere e far prendere l'icona sbagliata,
+    // che e' esattamente il difetto da correggere. I due link espliciti sono
+    // l'unico modo per distinguere il tema su iOS.
   },
   appleWebApp: {
     capable: true,
