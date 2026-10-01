@@ -97,6 +97,11 @@ export const useMatchDetailStore = create<MatchDetailState>()(
     error: null,
 
     load: async (matchId, seasonId) => {
+        // MISURA TEMPORANEA
+        const _T: any = ((globalThis as any).__loadT ||= { fasi: [] });
+        _T.inizio = performance.now();
+        const fase = (n: string) => _T.fasi.push({ n, ms: Math.round(performance.now() - _T.inizio) });
+        fase('avvio');
         set(state => ({ 
             loading: !state.match || state.matchId !== matchId, 
             error: null, 
@@ -113,11 +118,12 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             
             const currentUser = authState.user;
             let targetSeasonId = seasonId || useSeasonsStore.getState().activeSeason?.id;
-            
+            fase('auth+season-cache');
             if (!targetSeasonId) {
                 await useSeasonsStore.getState().fetchAll();
                 targetSeasonId = useSeasonsStore.getState().activeSeason?.id;
             }
+            fase('fetchAll-stagioni');
 
             if (!targetSeasonId) {
                 set({ error: "Identificativo stagione mancante.", loading: false });
@@ -125,6 +131,7 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             }
 
             const match = await matchRepository.getById(matchId, targetSeasonId);
+            fase('getById-partita');
             
             if (!match) {
                 set({ error: "Partita non trovata o permessi insufficienti.", loading: false });
@@ -153,6 +160,7 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             // conta da loro. Se NON esistono eventi, si lascia il risultato
             // salvato: una partita con il risultato impostato a mano e senza
             // eventi registrati deve restare com'e'.
+            fase('4-letture-parallele (rosa+eventi+formazione+stats)');
             const eventi = matchEvents || [];
             // `haEventi` da solo NON basta per decidere di riscrivere il
             // risultato: un'ammonizione, una sostituzione o un gol di recupero
@@ -177,6 +185,7 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                 error: null
             });
 
+            fase('render-dati');
             // Ripara su Firestore il risultato stantio, cosi' anche la lista
             // calendario (che legge il campo salvato) torna corretta. Senza
             // questo il reload riparerebbe solo lo schermo della partita.
@@ -212,6 +221,7 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                     await matchRepository.update(matchId, targetSeasonId, { status: 'completed' });
                 }
             }
+            fase('riparazione-firestore');
         } catch (e: any) {
             console.error("Match load error:", e);
             set({ 
