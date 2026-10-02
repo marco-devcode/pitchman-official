@@ -362,16 +362,16 @@ function isInjuredAtDate(dateStr: string, injuries?: { startDate: string; endDat
 }
 
 /**
- * Durata media REALE delle partite considerate. Il denominatore delle metriche
- * per 90' non e' un 90 fisso: se in Gestione Squadra la partita e' da 40 o 60
- * minuti, il "90'" deve seguire. Ogni partita ha la propria `duration`, quindi
- * la media rispecitta l'impostazione quando le partite hanno la stessa durata
- * e la rispetta anche quando non ce l'hanno.
+ * Durata della partita per le metriche per "90'", letta dalle IMPOSTAZIONI
+ * (Gestione Squadra), non dalle partite ne da una costante.
+ *
+ * Prima era la media delle `match.duration`: con partite da 60 produceva 60,
+ * ma se ogni partita ha la propria durata (una da 40, una da 90) dava un
+ * numero che non corrispondeva a nessuna impostazione. Il denominatore deve
+ * essere quello che l'utente ha scelto, e cambiare quando lo cambia.
  */
-function averageMatchDuration(matches: Match[]): number {
-  const durate = matches.map((m) => m.duration).filter((d): d is number => typeof d === 'number' && d > 0);
-  if (!durate.length) return 90;
-  return Math.round(durate.reduce((a, b) => a + b, 0) / durate.length);
+function resolveMatchDuration(setting: number | undefined | null): number {
+  return typeof setting === 'number' && setting > 0 ? Math.round(setting) : 90;
 }
 
 // ─── Calcolo statistiche di un giocatore su un contesto GIÀ filtrato per tipo partita ──
@@ -381,8 +381,11 @@ function computePlayerStats(
   context: SeasonDataContext,
   playerId: string,
   player: Player | null,
-  isInjuredAtDate: (dateStr: string, injuries?: { startDate: string; endDate: string }[]) => boolean
+  isInjuredAtDate: (dateStr: string, injuries?: { startDate: string; endDate: string }[]) => boolean,
+  /** Durata partita dalle Impostazioni: denominatore delle metriche per 90' */
+  matchDurationSetting?: number | null,
 ): { playerStats: PlayerDetailStats; matchRecords: MatchRecord[] } {
+  const avgMatchDuration = resolveMatchDuration(matchDurationSetting);
   const allStats = aggregationRepository.getPlayersAggregatedStatsFromContext(context);
   const pStats = allStats.find((s) => s.playerId === playerId);
 
@@ -464,10 +467,8 @@ function computePlayerStats(
     }
   }
 
-  // Il denominatore non e' un 90 fisso: e' la durata MEDIA REALE delle
-  // partite di questo contesto, che coincide con i minuti impostati in
-  // Gestione Squadra quando tutte le partite hanno la stessa durata.
-  const avgMatchDuration = averageMatchDuration(completedMatches);
+  // Il denominatore e' la durata impostata in Gestione Squadra, non un 90
+  // fisso e non la media delle partite: cambiando l'impostazione cambia qui.
   const totalNinety = totalMinutes > 0 ? totalMinutes / avgMatchDuration : 0;
   // "Minuti per partita piena" = media minuti per presenza, rapportata alla
   // durata REALE (1.0 = ha giocato tutta la partita). Non usa `appearances`
@@ -502,7 +503,7 @@ function computePlayerStats(
       matchDuration: avgMatchDuration,
       trainingAttendanceRate: null,
     }
-    : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, bench: 0, notConvoked: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, minutesPer90: 0, matchDuration: averageMatchDuration(completedMatches), trainingAttendanceRate: null };
+    : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, bench: 0, notConvoked: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, minutesPer90: 0, matchDuration: avgMatchDuration, trainingAttendanceRate: null };
 
   // Storico presenze partite
   const allMatches = [...context.matches].sort((a, b) => a.date.localeCompare(b.date));
@@ -546,6 +547,10 @@ export default function PlayerDetailPage() {
   const [statsFilter, setStatsFilter] = useState<FilterType>('all');
   const [filterTouched, setFilterTouched] = useState(false);
   const statsDefaultFilter = useSettingsStore((s) => s.statsDefaultFilter);
+  // Denominatore delle metriche per 90'. Subscribe esplicito: senza questa
+  // riga, cambiare la durata in Gestione Squadra NON ricalcolerebbe nulla e
+  // la scheda continuerebbe a mostrare il vecchio "90'".
+  const defaultDuration = useSettingsStore((s) => s.defaultDuration);
 
   const handleFilterChange = useCallback((f: FilterType) => {
     setStatsFilter(f);
@@ -618,8 +623,8 @@ export default function PlayerDetailPage() {
   const { playerStats, matchRecords } = useMemo(() => {
     if (!playerContext) return { playerStats: null, matchRecords: [] as MatchRecord[] };
     const filtered = filterContextByType(playerContext, statsFilter);
-    return computePlayerStats(filtered, playerId, player, isInjuredAtDate);
-  }, [playerContext, statsFilter, playerId, player]);
+    return computePlayerStats(filtered, playerId, player, isInjuredAtDate, defaultDuration);
+  }, [playerContext, statsFilter, playerId, player, defaultDuration]);
 
   const radarData = useMemo(() => {
     if (!playerStats) return [];
