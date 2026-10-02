@@ -62,8 +62,11 @@ export function getRegularDuration(matchDuration: number, period: string): numbe
 /**
  * Minuto assoluto di fine partita, recupero compreso.
  *
- * Serve al calcolo dei minuti giocati: un titolare che non esce fino alla
- * fine ha giocato i 90 regolari + il recupero, non 90.
+ * ⚠️ NON usarlo per il minutaggio dei giocatori. Il recupero non conta nei
+ * minuti: su una partita da 80' con 5' di recupero, chi sta in campo fino
+ * alla fine ha giocato 80'. Questa funzione esiste per l'orologio e per
+ * l'indicazione del recupero, non per i minuti. Il minutaggio e' in
+ * src/lib/player-minutes.ts.
  */
 export function getMatchEndAbsolute(matchDuration: number, addedTime?: StoppageByPeriod): number {
   return matchDuration + getTotalStoppage(addedTime);
@@ -78,6 +81,11 @@ export function getMatchEndAbsolute(matchDuration: number, addedTime?: StoppageB
  * recupero. Qui si assume la convenzione gia' in uso in match-events.tsx: se il
  * minuto supera i 15, si aggiunge anche il blocco di 15 come "recupero grande"
  * (90+15+3); altrimenti il minuto e' gia' il minuto di recupero.
+ */
+/**
+ * ⚠️ NON usarlo per il minutaggio: proietta il recupero DOPO la fine
+ * regolare, quindi un minuto assoluto qui non e' un minuto giocabile.
+ * Per i minuti usare `getEffectiveMinute` in src/lib/player-minutes.ts.
  */
 export function getAbsoluteMinute(
   event: { minute: number | null; period: string },

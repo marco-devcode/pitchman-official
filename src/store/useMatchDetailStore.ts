@@ -17,10 +17,7 @@ import { useMatchesStore } from './useMatchesStore';
 import { usePlayersStore } from './usePlayersStore';
 import type { Match, Player, MatchLineup, MatchEvent, PlayerMatchStats } from '@/lib/types';
 import { countGoals } from '@/lib/goal-utils';
-import {
-  getAbsoluteMinute as absoluteMinute,
-  getMatchEndAbsolute as matchEndAbsolute,
-} from '@/lib/stoppage-time';
+import { computeMinutesPlayed } from '@/lib/player-minutes';
 import { getStoppageFromEvent } from '@/lib/match-events';
 import { parseISO, startOfDay } from 'date-fns';
 
@@ -277,17 +274,9 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const pitchManTeam = match.isHome ? 'home' : 'away';
         const addedTime = match.addedTime;
 
-        // getAbsoluteMinute gestisce i periodi 1TS/2TS: senza questo, un
-        // giocatore uscito nel recupero avrebbe minuti negativi (dato che
-        // il minuto assoluto del 2TS era calcolato come min + duration, ben
-        // oltre la fine partita).
-        const getAbsoluteMinute = (event: MatchEvent) =>
-            absoluteMinute(event, duration, addedTime);
-
-        // Fine partita REALE: 90 regolari + recupero. Senza questo un
-        // titolare in campo fino alla fine risulterebbe aver giocato 90 anche
-        // con 5 minuti di recupero dichiarati.
-        const endOfMatch = matchEndAbsolute(duration, addedTime);
+        // NB: qui NON c'e' piu' nessun "minuto assoluto con recupero". Il
+        // minutaggio e' delegato a computeMinutesPlayed, dove il recupero non
+        // sposta il clock: la fine partita per i minuti e' `duration`, punto.
 
         const chronologicalEvents = [...events].sort((a, b) => {
             const pA = periodOrder[a.period] || 0;
@@ -295,18 +284,6 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             if (pA !== pB) return pA - pB;
             return (a.minute ?? 0) - (b.minute ?? 0);
         });
-
-        // Chi e' entrato davvero in campo, anche se per pochi secondi: senza
-        // questo, un subentrato all'ULTIMO minuto di recupero avrebbe 0 minuti
-        // e verrebbe scartato dal filtro, perdendo la presenza. Il regolamento
-        // conta la presenza dal momento dell'ingresso.
-        const playedInStoppageOnly = new Set<string>();
-        for (const e of chronologicalEvents) {
-            if (e.type !== 'substitution' || e.team !== pitchManTeam) continue;
-            if (e.period === '1TS' || e.period === '2TS') {
-                if (e.playerId) playedInStoppageOnly.add(e.playerId);
-            }
-        }
 
         const newStats: PlayerMatchStats[] = allPlayers.map(player => {
             const playerId = player.id;
@@ -318,39 +295,23 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             const assists = teamEvents.filter(e => e.type === 'goal' && e.assistPlayerId === playerId).length;
             // Nota: own_goal NON viene conteggiato come gol del giocatore
 
-            let minutesPlayed = 0;
             const isStarter = lineup?.starters.some(p => (typeof p === 'string' ? p : p.playerId) === playerId);
             const isSubstitute = lineup?.substitutes.some(p => (typeof p === 'string' ? p : p.playerId) === playerId);
 
-            if (lineup && (isStarter || isSubstitute)) {
-                if (isStarter) {
-                    const subOutEvent = chronologicalEvents.find(e =>
-                        e.type === 'substitution' && e.subOutPlayerId === playerId && e.team === pitchManTeam
-                    );
-                    minutesPlayed = subOutEvent ? getAbsoluteMinute(subOutEvent) : endOfMatch;
-                } else {
-                    const subInEvent = chronologicalEvents.find(e =>
-                        e.type === 'substitution' && e.playerId === playerId && e.team === pitchManTeam
-                    );
-                    if (subInEvent) {
-                        const subInMin = getAbsoluteMinute(subInEvent);
-                        const subOutEventLater = chronologicalEvents.find(e =>
-                            e.type === 'substitution' && e.subOutPlayerId === playerId && e.team === pitchManTeam && getAbsoluteMinute(e) > subInMin
-                        );
-                        // Se il subentrato non esce, gioca fino alla fine reale
-                        // (regolari + recupero). Se entra proprio nel recupero,
-                        // endOfMatch - subInMin e' gia' la differenza corretta:
-                        // es. entra al 2' di un 2TS da 5 -> 95 - 92 = 3 minuti,
-                        // cioe' quelli che gli restavano. Nessun caso speciale
-                        // serve, perche' entrambe le quantita' sono assolute.
-                        const endMin = subOutEventLater ? getAbsoluteMinute(subOutEventLater) : endOfMatch;
-                        minutesPlayed = Math.max(0, endMin - subInMin);
-                    }
-                }
-            }
+            // Modello dei minuti in src/lib/player-minutes.ts: il recupero NON
+            // conta, e un ingresso nel recupero vale 1 minuto preso all'uscente.
+            // Qui il calcolo e' delegato, non reimplementato.
+            const minutesPlayed = lineup && (isStarter || isSubstitute)
+                ? computeMinutesPlayed({
+                    duration,
+                    isStarter: !!isStarter,
+                    events: teamEvents,
+                    playerId,
+                })
+                : 0;
 
             return { matchId, playerId, minutesPlayed, goals, assists, yellowCards, redCards, teamOwnerId: user.id };
-        }).filter(s => s.minutesPlayed > 0 || s.goals > 0 || s.assists > 0 || s.yellowCards > 0 || s.redCards > 0 || playedInStoppageOnly.has(s.playerId));
+        }).filter(s => s.minutesPlayed > 0 || s.goals > 0 || s.assists > 0 || s.yellowCards > 0 || s.redCards > 0);
 
         set({ stats: newStats });
 
