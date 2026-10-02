@@ -17,7 +17,7 @@ import { useMatchesStore } from './useMatchesStore';
 import { usePlayersStore } from './usePlayersStore';
 import type { Match, Player, MatchLineup, MatchEvent, PlayerMatchStats } from '@/lib/types';
 import { countGoals } from '@/lib/goal-utils';
-import { computeMinutesPlayed } from '@/lib/player-minutes';
+import { computeMinutesPlayed, stoppagePeriodsActive } from '@/lib/player-minutes';
 import { getStoppageFromEvent } from '@/lib/match-events';
 import { parseISO, startOfDay } from 'date-fns';
 
@@ -304,6 +304,9 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             const minutesPlayed = lineup && (isStarter || isSubstitute)
                 ? computeMinutesPlayed({
                     duration,
+                    // I tempi supplementari esistono solo se attivati e solo
+                    // nelle partite di torneo: unico punto che lo decide.
+                    stoppageActive: stoppagePeriodsActive(match),
                     isStarter: !!isStarter,
                     events: teamEvents,
                     playerId,

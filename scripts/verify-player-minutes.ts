@@ -1,15 +1,18 @@
 /**
- * Verifica del minutaggio effettivo: il recupero NON conta.
+ * Verifica del minutaggio: i tempi supplementari durano 15 minuti, si SOMMANO
+ * in coda ai tempi regolamentari, e NON sono sempre presenti.
  *
- * I tre casi descritti nella richiesta, con una partita da 80' con 5' di
- * recupero dichiarati:
- *   1. chi sta in campo fino alla fine ha giocato 80', non 85'
- *   2. sub nel 2TS: entrante 1', uscente 79'
- *   3. sub nel 1TS: entrante 1' + i 40 minuti che resta = 41', uscente 39'
+ * Timeline con supplementari attivi, partita da 80' (meta' = 40):
+ *   1T 0-40 | 2T 40-80 | 1TS 80-95 | 2TS 95-110 | fine 110'
+ * Timeline senza: 1T 0-40 | 2T 40-80 | fine 80'
  */
-import { computeMinutesPlayed, getEffectiveMinute, halfTimeOf } from '../src/lib/player-minutes';
+import {
+    computeMinutesPlayed, getAbsoluteMinute, halfTimeOf, matchEndAbsolute,
+    periodEnd, periodStart, stoppagePeriodsActive,
+} from '../src/lib/player-minutes';
 
-const DURATION = 80;
+const D = 80;
+const END = 110;
 const ev = (o: any) => ({ type: 'substitution', period: '2T', minute: 0, ...o });
 
 let fail = 0;
@@ -19,160 +22,123 @@ function check(nome: string, got: any, want: any) {
     else { console.error(`FAIL ${nome}: atteso ${JSON.stringify(want)}, ottenuto ${JSON.stringify(got)}`); fail++; }
 }
 
-// ─── casi 1: niente recupero nel minutaggio ───
-check('titolare in campo fino alla fine: 80 (NON 85)',
-    computeMinutesPlayed({ duration: DURATION, isStarter: true, events: [], playerId: 'A' }), 80);
-check('titolare uscito al 60 (2T, minuto 20): 60',
-    computeMinutesPlayed({
-        duration: DURATION, isStarter: true, playerId: 'A',
-        events: [ev({ period: '2T', minute: 20, subOutPlayerId: 'A' })],
-    }), 60);
-// Uscita esattamente al fischio del 1T: e' il minuto di confine, quindi
-// l'ultimo minuto va a chi entra (vedi sotto). Prima valeva 40.
-check('titolare uscito al fischio del 1T: 39 (cede il minuto)',
-    computeMinutesPlayed({
-        duration: DURATION, isStarter: true, playerId: 'A',
-        events: [ev({ period: '1T', minute: 40, subOutPlayerId: 'A' })],
-    }), 39);
+// ─── attivazione: quando esistono i tempi supplementari? ───
+check('torneo con 1TS dichiarato: attivi',
+    stoppagePeriodsActive({ type: 'Torneo', addedTime: { '1TS': 5 } }), true);
+check('torneo con 2TS dichiarato: attivi',
+    stoppagePeriodsActive({ type: 'Torneo', addedTime: { '2TS': 3 } }), true);
+check('torneo senza dichiarazione: NON attivi',
+    stoppagePeriodsActive({ type: 'Torneo', addedTime: undefined }), false);
+check('torneo con addedTime vuoto: NON attivi',
+    stoppagePeriodsActive({ type: 'Torneo', addedTime: {} }), false);
+check('torneo con valore 0: NON attivi',
+    stoppagePeriodsActive({ type: 'Torneo', addedTime: { '1TS': 0 } }), false);
+check('campionato con 1TS dichiarato: NON attivi',
+    stoppagePeriodsActive({ type: 'Campionato', addedTime: { '1TS': 5 } }), false);
+check('amichevole con 1TS dichiarato: NON attivi',
+    stoppagePeriodsActive({ type: 'Amichevole', addedTime: { '1TS': 5 } }), false);
+check('match nullo: NON attivi', stoppagePeriodsActive(null), false);
+check('match indefinito: NON attivi', stoppagePeriodsActive(undefined), false);
+// Quanto dichiarato non cambia la durata del blocco: e' fissa a 15.
+check('dichiarare 3 minuti non accorcia il blocco',
+    matchEndAbsolute(D, stoppagePeriodsActive({ type: 'Torneo', addedTime: { '1TS': 3 } })), END);
+check('dichiarare 30 minuti non allunga il blocco',
+    matchEndAbsolute(D, stoppagePeriodsActive({ type: 'Torneo', addedTime: { '1TS': 30 } })), END);
 
-// ─── caso 2: sub nel recupero del SECONDO tempo ───
-const sub2TS = computeMinutesPlayed({
-    duration: DURATION, isStarter: false, playerId: 'B',
-    events: [ev({ period: '2TS', minute: 2, playerId: 'B', subOutPlayerId: 'A' })],
-});
-const uscente2TS = computeMinutesPlayed({
-    duration: DURATION, isStarter: true, playerId: 'A',
-    events: [ev({ period: '2TS', minute: 2, playerId: 'B', subOutPlayerId: 'A' })],
-});
-check('sub nel 2TS: entrante 1', sub2TS, 1);
-check('sub nel 2TS: uscente 79', uscente2TS, 79);
+// ─── fine partita nei due casi ───
+check('senza supplementari: fine = durata regolamentare', matchEndAbsolute(D, false), D);
+check('con supplementari: fine = durata + 15 + 15', matchEndAbsolute(D, true), END);
+check('meta di 80 = 40', halfTimeOf(80), 40);
+check('meta di 90 = 45', halfTimeOf(90), 45);
 
-// ─── caso 3: sub nel recupero del PRIMO tempo ───
-const sub1TS = computeMinutesPlayed({
-    duration: DURATION, isStarter: false, playerId: 'B',
-    events: [ev({ period: '1TS', minute: 3, playerId: 'B', subOutPlayerId: 'A' })],
-});
-const uscente1TS = computeMinutesPlayed({
-    duration: DURATION, isStarter: true, playerId: 'A',
-    events: [ev({ period: '1TS', minute: 3, playerId: 'B', subOutPlayerId: 'A' })],
-});
-check('sub nel 1TS: entrante 41 (1 + i 40 che resta)', sub1TS, 41);
-check('sub nel 1TS: uscente 39', uscente1TS, 39);
+// ─── la timeline con supplementari ───
+check('1TS parte a 80 (dopo i tempi regolamentari)', periodStart('1TS', D, true), 80);
+check('2TS parte a 95', periodStart('2TS', D, true), 95);
+check('2T parte dalla meta, non meta+15', periodStart('2T', D, true), 40);
+check('1TS finisce a 95', periodEnd('1TS', D, true), 95);
+check('2TS finisce a 110', periodEnd('2TS', D, true), END);
 
-// ─── la somma dei minuti non supera la partita ───
-// Il punto che i numeri "1'" e "79'" fanno paura: se i due calcoli non
-// condividessero lo stesso confine, la somma sarebbe 80+1 = 81 minuti,
-// cioe' piu' di quanti ce ne sono in una partita da 80'.
-check('2TS: 1 + 79 = 80 (nessun minuto creato dal nulla)', sub2TS + uscente2TS, DURATION);
-check('1TS: 41 + 39 = 80 (nessun minuto creato dal nulla)', sub1TS + uscente1TS, DURATION);
+// ─── la timeline SENZA supplementari: i blocchi collassano ───
+check('senza supplementari 1TS finisce a 80', periodEnd('1TS', D, false), 80);
+check('senza supplementari 2TS finisce a 80', periodEnd('2TS', D, false), 80);
+check('evento in 1TS senza supplementari non vale piu\' della partita',
+    getAbsoluteMinute({ period: '1TS', minute: 10 }, D, false), 80);
 
-// ─── il confine dei periodi REGOLARI (1T/2T) ───
-// Il caso che ha smascherato la specifica: una sostituzione registrata al
-// minuto di confine ("40" di un tempo da 40) e' registrarci al fischio.
-// Prima dava 0 minuti all'entrante, che spariva dalle presenze: il difetto
-// stesso che il moduloelimina.
-const alConfine1T = [ev({ period: '1T', minute: 40, playerId: 'B', subOutPlayerId: 'A' })];
-const alConfine2T = [ev({ period: '2T', minute: 40, playerId: 'B', subOutPlayerId: 'A' })];
-check('1T al confine (min 40): entrante 41 come nel 1TS',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B', events: alConfine1T }), 41);
-check('1T al confine (min 40): uscente 39 come nel 1TS',
-    computeMinutesPlayed({ duration: DURATION, isStarter: true, playerId: 'A', events: alConfine1T }), 39);
-check('2T al confine (min 40): entrante 1 come nel 2TS',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B', events: alConfine2T }), 1);
-check('2T al confine (min 40): uscente 79 come nel 2TS',
-    computeMinutesPlayed({ duration: DURATION, isStarter: true, playerId: 'A', events: alConfine2T }), 79);
-check('2T al confine: nessuno sparisce, la somma torna',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B', events: alConfine2T })
-  + computeMinutesPlayed({ duration: DURATION, isStarter: true, playerId: 'A', events: alConfine2T }),
-    DURATION);
-// Un minuto PRIMA del confine il comportamento normale deve restare intatto:
-// e' una sostituzione normale, non un ingresso all'ultimo istante.
-check('2T minuto 39 (non al confine): entrante 1',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B',
-        events: [ev({ period: '2T', minute: 39, playerId: 'B', subOutPlayerId: 'A' })] }), 1);
-check('2T minuto 38: entrante 2',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B',
-        events: [ev({ period: '2T', minute: 38, playerId: 'B', subOutPlayerId: 'A' })] }), 2);
-check('1T minuto 39 (non al confine): entrante 41',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B',
-        events: [ev({ period: '1T', minute: 39, playerId: 'B', subOutPlayerId: 'A' })] }), 41);
+// ─── i blocchi non si sovrappongono ───
+check("3' del 1TS = assoluto 83", getAbsoluteMinute({ period: '1TS', minute: 3 }, D, true), 83);
+check("3' del 2T = assoluto 43", getAbsoluteMinute({ period: '2T', minute: 3 }, D, true), 43);
 
-// 1T/2T e 1TS/2TS al confine danno gli STESSI numeri: e' la stessa
-// situazione descritta due volte, non due regole diverse.
-check('1T e 1TS al confine coincidono',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B', events: alConfine1T })
-  === computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B',
-        events: [ev({ period: '1TS', minute: 1, playerId: 'B', subOutPlayerId: 'A' })] }), true);
-check('2T e 2TS al confine coincidono',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B', events: alConfine2T })
-  === computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B',
-        events: [ev({ period: '2TS', minute: 1, playerId: 'B', subOutPlayerId: 'A' })] }), true);
+// ─── minutaggio con supplementari attivi ───
+const base = { duration: D, stoppageActive: true };
+check('titolare in campo dal primo all\'ultimo fischio: 110',
+    computeMinutesPlayed({ ...base, isStarter: true, events: [], playerId: 'A' }), END);
+check('titolare uscito al 60 (2T minuto 20): 60',
+    computeMinutesPlayed({ ...base, isStarter: true, playerId: 'A',
+        events: [ev({ period: '2T', minute: 20, subOutPlayerId: 'A' })] }), 60);
+check('titolare uscito al fischio del 2T: 80',
+    computeMinutesPlayed({ ...base, isStarter: true, playerId: 'A',
+        events: [ev({ period: '2T', minute: 40, subOutPlayerId: 'A' })] }), 80);
 
-// ─── meta' partita ───
-check('meta\' di 80 = 40', halfTimeOf(80), 40);
-check('meta\' di 90 = 45', halfTimeOf(90), 45);
-check('meta\' dispari arrotonda per difetto', halfTimeOf(81), 40);
+const sub1TS = computeMinutesPlayed({ ...base, isStarter: false, playerId: 'B',
+    events: [ev({ period: '1TS', minute: 3, playerId: 'B', subOutPlayerId: 'A' })] });
+const usc1TS = computeMinutesPlayed({ ...base, isStarter: true, playerId: 'A',
+    events: [ev({ period: '1TS', minute: 3, playerId: 'B', subOutPlayerId: 'A' })] });
+check("sub al 3' del 1TS prende 110 - 83 = 27", sub1TS, 27);
+check('uscente per quel sub: 83', usc1TS, 83);
+check('la somma torna alla fine partita', sub1TS + usc1TS, END);
+check("sub al 3' del 2TS prende 110 - 98 = 12",
+    computeMinutesPlayed({ ...base, isStarter: false, playerId: 'B',
+        events: [ev({ period: '2TS', minute: 3, playerId: 'B', subOutPlayerId: 'A' })] }), 12);
+// Il blocco 2TS dura 15 minuti (95-110): il suo 15' minuto coincide con la
+// fine partita, quindi un ingresso li' vale 0. L'ultimo minuto GIOCABILE e'
+// il 14, e li' vale 1: e' il caso sotto. Non e' piu' il "minuto forzato a
+// 1" del modello vecchio, e' semplicemente la fine dell'orologio.
+check("sub al 15' del 2TS (ultimo minuto, = fine partita): 0",
+    computeMinutesPlayed({ ...base, isStarter: false, playerId: 'B',
+        events: [ev({ period: '2TS', minute: 15, playerId: 'B', subOutPlayerId: 'A' })] }), 0);
+check("sub al 14' del 2TS (ultimo minuto giocabile): 1",
+    computeMinutesPlayed({ ...base, isStarter: false, playerId: 'B',
+        events: [ev({ period: '2TS', minute: 14, playerId: 'B', subOutPlayerId: 'A' })] }), 1);
 
-// ─── minute di recupero ───
-check('1TS satura a meta\'-1', getEffectiveMinute({ period: '1TS', minute: 5 }, 80), 39);
-check('2TS satura a durata-1', getEffectiveMinute({ period: '2TS', minute: 5 }, 80), 79);
-check('1TS non va sotto zero su partita minuscola', getEffectiveMinute({ period: '1TS', minute: 1 }, 2), 0);
-// Oltre la meta' non si sposta piu' il clock: si satura al confine, che
-// vale meta'-1 (e durata-1 nel 2T) esattamente come i recuperi.
-check("1T oltre la meta' satura al confine", getEffectiveMinute({ period: '1T', minute: 60 }, 80), 39);
-check("2T oltre la meta' satura al confine", getEffectiveMinute({ period: '2T', minute: 60 }, 80), 79);
+// ─── minutaggio senza supplementari: torna alla durata regolamentare ───
+const noSupp = { duration: D, stoppageActive: false };
+check('titolare in campo fino alla fine: 80 (nessun supplementare)',
+    computeMinutesPlayed({ ...noSupp, isStarter: true, events: [], playerId: 'A' }), D);
+check('sub al 3\' del 1TS senza supplementari: finisce alla partita',
+    computeMinutesPlayed({ ...noSupp, isStarter: false, playerId: 'B',
+        events: [ev({ period: '1TS', minute: 3, playerId: 'B', subOutPlayerId: 'A' })] }), 0);
+check('stessa partita, attivazione diversa, minuti diversi',
+    computeMinutesPlayed({ ...base, isStarter: true, events: [], playerId: 'A' })
+  !== computeMinutesPlayed({ ...noSupp, isStarter: true, events: [], playerId: 'A' }), true);
 
 // ─── casi limite ───
 check('sub in panchina che non entra mai: 0',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, events: [], playerId: 'B' }), 0);
-check('sub nel 2TS che esce subito dopo: 0',
-    computeMinutesPlayed({
-        duration: DURATION, isStarter: false, playerId: 'B',
-        events: [
-            ev({ period: '2TS', minute: 2, playerId: 'B', subOutPlayerId: 'A' }),
-            ev({ period: '2TS', minute: 4, playerId: 'C', subOutPlayerId: 'B' }),
-        ],
-    }), 0);
-check('sub nel 1TS che esce nel 2T: dalla metta\' alla propria uscita',
-    computeMinutesPlayed({
-        duration: DURATION, isStarter: false, playerId: 'B',
+    computeMinutesPlayed({ ...base, isStarter: false, events: [], playerId: 'B' }), 0);
+// Due sostituzioni dentro lo stesso blocco supplementare: B entra al 2' del
+// 1TS (assoluto 82) ed esce quando C entra al 4' (assoluto 84), quindi ha
+// giocato 2 minuti. Nel modello vecchio, dove il recupero collassava sul
+// confine, erano 0 perche' i due eventi finivano sullo stesso minuto.
+check('sub entrato ed uscito dentro il 1TS: 84 - 82 = 2',
+    computeMinutesPlayed({ ...base, isStarter: false, playerId: 'B',
         events: [
             ev({ period: '1TS', minute: 2, playerId: 'B', subOutPlayerId: 'A' }),
-            ev({ period: '2T', minute: 10, playerId: 'C', subOutPlayerId: 'B' }),
-        ],
-    }), 50 - 39);
-// Il caso che ha fatto fallire la prima versione: due sostituzioni nello
-// stesso recupero. B entra ed esce di li': 0 minuti, e NON deve rubare il
-// minuto di confine a chi e' uscito al suo posto.
-const doppio2TS = [
+            ev({ period: '1TS', minute: 4, playerId: 'C', subOutPlayerId: 'B' }),
+        ] }), 2);
+check('il titolare sostituito al suo posto prende 82',
+    computeMinutesPlayed({ ...base, isStarter: true, playerId: 'A',
+        events: [
+            ev({ period: '1TS', minute: 2, playerId: 'B', subOutPlayerId: 'A' }),
+            ev({ period: '1TS', minute: 4, playerId: 'C', subOutPlayerId: 'B' }),
+        ] }), 82);
+
+// ─── la guardia: nessun minuto inventato ───
+const doppio = [
     ev({ period: '2TS', minute: 2, playerId: 'B', subOutPlayerId: 'A' }),
     ev({ period: '2TS', minute: 4, playerId: 'C', subOutPlayerId: 'B' }),
 ];
-check('2TS: B entra ed esce nello stesso recupero -> 0',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B', events: doppio2TS }), 0);
-check('2TS: C entra nell ultimo recupero -> 1',
-    computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'C', events: doppio2TS }), 1);
-check('2TS: A esce per B -> 79',
-    computeMinutesPlayed({ duration: DURATION, isStarter: true, playerId: 'A', events: doppio2TS }), 79);
-check('2TS: doppio cambio nella finestra, i minuti non si gonfiano',
-    computeMinutesPlayed({ duration: DURATION, isStarter: true, playerId: 'A', events: doppio2TS })
-  + computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'B', events: doppio2TS })
-  + computeMinutesPlayed({ duration: DURATION, isStarter: false, playerId: 'C', events: doppio2TS }),
-    DURATION);
-
-check('titolare sostituito e rientrato: conta il primo stint',
-    computeMinutesPlayed({
-        duration: DURATION, isStarter: true, playerId: 'A',
-        events: [ev({ period: '2T', minute: 10, subOutPlayerId: 'A' })],
-    }), 50);
-
-// ─── il recupero non influisce MAI ───
-// Stessi eventi, durata identica, ma con 0 e con 30 minuti di recupero
-// dichiarati: il minutaggio deve essere identico. Il modulo non riceve
-// l'addedTime, quindi non puo' neanche provare a contarlo.
-const senzaStoppage = computeMinutesPlayed({ duration: DURATION, isStarter: true, events: [], playerId: 'A' });
-const conStoppage = computeMinutesPlayed({ duration: DURATION, isStarter: true, events: [], playerId: 'A' });
-check('recupero dichiarato non cambia i minuti', senzaStoppage === conStoppage, true);
-check('titolare senza eventi = durata esatta', senzaStoppage, DURATION);
+const sommaDoppio = ['A', 'B', 'C'].reduce((tot, pid) => tot + computeMinutesPlayed({
+    ...base, isStarter: pid === 'A', playerId: pid, events: doppio,
+}), 0);
+check('doppio cambio nel 2TS: i minuti non si gonfiano', sommaDoppio, END);
 
 console.log(fail === 0 ? 'MINUTI: TUTTI I CASI PASSANO' : `MINUTI: ${fail} FALLITI`);
