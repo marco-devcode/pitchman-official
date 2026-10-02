@@ -66,19 +66,27 @@ export function getEffectiveMinute(event: SubstitutionLike, duration: number): n
     const halfTime = halfTimeOf(duration);
     const min = Math.max(0, event.minute ?? 0);
 
+    // Ingresso ALL'ULTIMO ISTANTE di un periodo regolare (1T/2T): vale un
+    // minuto, preso all'ultimo minuto di quel periodo — esattamente come nel
+    // recupero. Il minuto di confine e' il "minuto 40" di un tempo da 40, e
+    // registrarci dentro una sostituzione e' registrarci al fischio: senza
+    // questo l'entrata calava a 0 minuti e il sub SPARIVA dalle presenze,
+    // che e' il difetto che questo modulo elimina.
+    const atBoundary = (endOfPeriod: number) => Math.max(0, endOfPeriod - 1);
+
     switch (event.period) {
         case '1T':
-            return Math.min(min, halfTime);
+            return min >= halfTime ? atBoundary(halfTime) : min;
         case '2T':
-            return halfTime + Math.min(min, halfTime);
+            return min >= halfTime ? atBoundary(duration) : halfTime + min;
         // Entrata nel recupero del PRIMO tempo: vale 1 minuto, preso
         // dall'ultimo minuto del primo tempo.
         case '1TS':
-            return Math.max(0, halfTime - 1);
+            return atBoundary(halfTime);
         // Entrata nel recupero del SECONDO tempo: vale 1 minuto, preso
         // dall'ultimo minuto della partita.
         case '2TS':
-            return Math.max(0, duration - 1);
+            return atBoundary(duration);
         default:
             return min;
     }
