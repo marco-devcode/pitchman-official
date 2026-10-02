@@ -315,7 +315,7 @@ function ConfrontoContent() {
         <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
           <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border-border dark:border-white/5 shadow-sm dark:shadow-[0_0_20px_rgba(0,0,0,0.2)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 transition-colors">
             <CardHeader className="pb-0 px-6 pt-6 bg-muted/20 dark:bg-black/20">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/40 dark:text-white/30 flex items-center justify-center gap-2">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/40 dark:text-white/30 flex items-center justify-center gap-2">
                 <BarChart2 className="h-4 w-4 text-primary dark:text-brand-green" /> Bilanciamento Tecnico Comparativo
               </CardTitle>
             </CardHeader>
@@ -328,7 +328,7 @@ function ConfrontoContent() {
             <CardContent className="p-0">
               <div className="grid grid-cols-3 divide-x divide-divider dark:divide-white/5 border-b border-divider dark:border-white/5 items-center py-4 bg-muted/40 dark:bg-black/60">
                 <div className="text-center font-black text-foreground dark:text-white text-xs truncate px-2 uppercase tracking-tight">{splitName(p1.name).lastName}</div>
-                <div className="text-center text-[8px] font-black text-muted-foreground/80 dark:text-muted-foreground/30 dark:text-white/30 uppercase tracking-[0.2em]">Metrica Analisi</div>
+                <div className="text-center text-[8px] font-black text-muted-foreground dark:text-muted-foreground/30 dark:text-white/30 uppercase tracking-[0.2em]">Metrica Analisi</div>
                 <div className="text-center font-black text-pink-500 text-xs truncate px-2 uppercase tracking-tight">{splitName(p2.name).lastName}</div>
               </div>
 
@@ -353,7 +353,7 @@ function ConfrontoContent() {
                         ? "text-primary dark:text-brand-green text-xl shadow-[inset_0_-2px_0_rgba(37,99,235,0.4)] dark:shadow-[inset_0_-2px_0_rgba(172,229,4,0.4)]" 
                         : "text-muted-foreground/20 dark:text-white/20 text-sm"
                     )}>{row.val1}</div>
-                    <div className="text-center text-[9px] font-black text-muted-foreground/80 dark:text-muted-foreground/40 dark:text-white/40 uppercase tracking-widest group-hover:text-primary dark:group-hover:text-brand-green transition-colors">{row.label}</div>
+                    <div className="text-center text-[9px] font-black text-muted-foreground dark:text-muted-foreground/40 dark:text-white/40 uppercase tracking-widest group-hover:text-primary dark:group-hover:text-brand-green transition-colors">{row.label}</div>
                     <div className={cn(
                       "text-center font-black transition-all",
                       is2Better ? "text-pink-500 text-xl shadow-[inset_0_-2px_0_rgba(236,72,153,0.4)]" : "text-muted-foreground/20 dark:text-white/20 text-sm"

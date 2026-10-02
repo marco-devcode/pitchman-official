@@ -24,7 +24,7 @@ export function SplashScreen() {
         </div>
       </div>
 
-      <div className="absolute bottom-8 text-muted-foreground/80 dark:text-muted-foreground/30 dark:text-white/25 text-[10px] font-bold uppercase tracking-[0.3em]">
+      <div className="absolute bottom-8 text-muted-foreground dark:text-muted-foreground/30 dark:text-white/25 text-[10px] font-bold uppercase tracking-[0.3em]">
         Caricamento...
       </div>
     </div>

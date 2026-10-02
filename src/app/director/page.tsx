@@ -78,8 +78,8 @@ export default function DirectorDashboard() {
         <section className="space-y-4 pt-4">
           <h3 className="text-xs font-black uppercase tracking-widest text-foreground/70 dark:text-white/50 px-2">Feed Ultime Partite (WIP)</h3>
           <div className="p-12 text-center bg-muted/30 dark:bg-black/20 border border-dashed border-border dark:border-white/10 rounded-3xl">
-            <p className="text-sm font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/40">In fase di sviluppo</p>
-            <p className="text-xs text-muted-foreground/80 dark:text-muted-foreground/60 mt-2 max-w-md mx-auto">
+            <p className="text-sm font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/40">In fase di sviluppo</p>
+            <p className="text-xs text-muted-foreground dark:text-muted-foreground/60 mt-2 max-w-md mx-auto">
               Qui appariranno i risultati aggregati di tutte le squadre supervisionate dal Direttore.
             </p>
           </div>

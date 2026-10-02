@@ -53,7 +53,7 @@ export function ExerciseFilterDialog({
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground dark:text-white leading-none">Filtra Archivio</DialogTitle>
-              <DialogDescription className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground/80 dark:text-muted-foreground/50">Ottimizza la ricerca tecnica</DialogDescription>
+              <DialogDescription className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground dark:text-muted-foreground/50">Ottimizza la ricerca tecnica</DialogDescription>
             </div>
             {activeFiltersCount > 0 && (
               <Button variant="ghost" size="sm" onClick={resetFilters} className="h-8 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/10 hover:text-rose-500 transition-all">
@@ -121,7 +121,7 @@ export function ExerciseFilterDialog({
                         : "bg-muted/10 dark:bg-black/20 border-transparent text-muted-foreground hover:bg-muted/20"
                     )}
                   >
-                    <v.icon className={cn("h-3.5 w-3.5", visibilityFilter === v.id ? "text-primary dark:text-brand-green" : "text-muted-foreground/80 dark:text-muted-foreground/40")} />
+                    <v.icon className={cn("h-3.5 w-3.5", visibilityFilter === v.id ? "text-primary dark:text-brand-green" : "text-muted-foreground dark:text-muted-foreground/40")} />
                     {v.label}
                   </button>
                 ))}
@@ -152,7 +152,7 @@ export function ExerciseFilterDialog({
                    </button>
                  ))}
                </div>
-               <p className="text-[8px] text-muted-foreground/80 dark:text-muted-foreground/40 font-bold uppercase tracking-widest text-center mt-3 italic leading-none">
+               <p className="text-[8px] text-muted-foreground dark:text-muted-foreground/40 font-bold uppercase tracking-widest text-center mt-3 italic leading-none">
                 * Filtro inclusivo (Almeno uno dei numeri selezionati).
                </p>
              </div>

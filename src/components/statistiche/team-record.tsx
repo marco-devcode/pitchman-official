@@ -32,7 +32,7 @@ export function TeamRecord() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-foreground dark:text-white mb-4">{teamRecord.matchesPlayed} <span className="text-xs font-bold text-muted-foreground/80 dark:text-muted-foreground/60 uppercase tracking-widest ml-1">Gare totali</span></div>
+                        <div className="text-3xl font-black text-foreground dark:text-white mb-4">{teamRecord.matchesPlayed} <span className="text-xs font-bold text-muted-foreground dark:text-muted-foreground/60 uppercase tracking-widest ml-1">Gare totali</span></div>
                         <div className="grid grid-cols-3 gap-2">
                             <div className="flex flex-col items-center p-3 bg-muted/50 dark:bg-black/40 rounded-2xl border border-primary/20 dark:border-brand-green/20 group hover:border-primary/40 dark:hover:border-brand-green/40 transition-all">
                                 <span className="text-[10px] font-black text-primary dark:text-brand-green uppercase tracking-widest mb-1.5 opacity-80">VITTORIA</span>
@@ -45,7 +45,7 @@ export function TeamRecord() {
                                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-80">PAREGGIO</span>
                                 <div className="flex items-baseline gap-1">
                                     <span className="text-2xl font-black text-foreground dark:text-white">{teamRecord.draws}</span>
-                                    <span className="text-xs font-bold text-muted-foreground/80 dark:text-muted-foreground/40">({drawPct}%)</span>
+                                    <span className="text-xs font-bold text-muted-foreground dark:text-muted-foreground/40">({drawPct}%)</span>
                                 </div>
                             </div>
                             <div className="flex flex-col items-center p-3 bg-muted/50 dark:bg-black/40 rounded-2xl border border-rose-500/20 group hover:border-rose-500/40 transition-all">

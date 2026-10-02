@@ -37,10 +37,10 @@ export function TrainingListDialog({ open, onOpenChange, sessions }: TrainingLis
         <DialogHeader className="p-6 border-b border-border dark:border-brand-green/20 space-y-4">
           <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground dark:text-white">Archivio Allenamenti</DialogTitle>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/80 dark:text-muted-foreground/40 dark:text-brand-green/40" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-muted-foreground/40 dark:text-brand-green/40" />
             <Input 
               placeholder="Cerca per data, focus o numero..."
-              className="pl-10 h-11 rounded-2xl bg-muted/30 dark:bg-white/5 border border-transparent focus:border-primary/30 dark:focus:border-brand-green/30 text-sm font-bold placeholder:text-muted-foreground/80 dark:text-muted-foreground/30 dark:placeholder:text-white/20 transition-all"
+              className="pl-10 h-11 rounded-2xl bg-muted/30 dark:bg-white/5 border border-transparent focus:border-primary/30 dark:focus:border-brand-green/30 text-sm font-bold placeholder:text-muted-foreground dark:text-muted-foreground/30 dark:placeholder:text-white/20 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -62,7 +62,7 @@ export function TrainingListDialog({ open, onOpenChange, sessions }: TrainingLis
                 >
                   <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-xl bg-muted dark:bg-black border border-border dark:border-brand-green/20 flex flex-col items-center justify-center transition-colors group-hover:border-primary/30 dark:group-hover:border-brand-green/50">
-                      <span className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60 leading-none group-hover:text-primary dark:group-hover:text-brand-green transition-colors">{format(d, "MMM", { locale: it })}</span>
+                      <span className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground/60 leading-none group-hover:text-primary dark:group-hover:text-brand-green transition-colors">{format(d, "MMM", { locale: it })}</span>
                       <span className="text-lg font-black text-foreground dark:text-white leading-none mt-0.5">{format(d, "dd")}</span>
                     </div>
                     <div className="flex flex-col text-left">
@@ -73,14 +73,14 @@ export function TrainingListDialog({ open, onOpenChange, sessions }: TrainingLis
                       </div>
                     </div>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground/80 dark:text-muted-foreground/30 group-hover:text-primary dark:group-hover:text-brand-green group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="h-5 w-5 text-muted-foreground dark:text-muted-foreground/30 group-hover:text-primary dark:group-hover:text-brand-green group-hover:translate-x-1 transition-all" />
                 </button>
               )
             })}
             {filteredSessions.length === 0 && (
               <div className="py-20 text-center flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in-95 duration-300">
                 <Search className="h-10 w-10 text-muted-foreground/10 dark:text-brand-green/10" />
-                <p className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/30 dark:text-white/20 tracking-widest">Nessun allenamento trovato</p>
+                <p className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground/30 dark:text-white/20 tracking-widest">Nessun allenamento trovato</p>
               </div>
             )}
           </div>

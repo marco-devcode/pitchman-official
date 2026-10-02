@@ -222,7 +222,7 @@ export function SquadFormationView() {
           </div>
 
           <div className="mt-6 flex items-center justify-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 text-center max-w-md">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/50 text-center max-w-md">
               Questa formazione rappresenta i giocatori che hanno iniziato più spesso nelle rispettive posizioni utilizzando il modulo prevalente della stagione.
             </span>
           </div>

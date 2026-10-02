@@ -31,7 +31,10 @@ function NavLink({ href, label, icon: Icon }: { href: string; label: string; ico
       href={href}
       className={cn(
         "flex flex-col items-center justify-center gap-1 p-2 transition-all w-full",
-        isActive ? "text-primary dark:text-brand-green" : "text-muted-foreground/50 dark:text-muted-foreground/30"
+        // Icona non attiva: /80 nel chiaro perche' il grigio al 50% sul fondo
+        // chiaro scende a 1.78:1 e le voci della barra sparivano. Sul nero il
+        // valore basso regge e resta /30.
+        isActive ? "text-primary dark:text-brand-green" : "text-muted-foreground dark:text-muted-foreground/30"
       )}
     >
       <div className={cn(
@@ -42,7 +45,9 @@ function NavLink({ href, label, icon: Icon }: { href: string; label: string; ico
       </div>
       <span className={cn(
         "text-[9px] font-black uppercase tracking-wider transition-colors",
-        isActive ? "text-foreground dark:text-brand-green" : "text-muted-foreground/40 dark:text-muted-foreground/30"
+        // Etichetta non attiva: stesso motivo, /40 era la soglia che non
+        // reggeva sul chiaro.
+        isActive ? "text-foreground dark:text-brand-green" : "text-muted-foreground dark:text-muted-foreground/30"
       )}>
         {label}
       </span>

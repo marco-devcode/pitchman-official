@@ -137,7 +137,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
               <DialogTitle className="text-foreground dark:text-white font-black uppercase text-xl md:text-2xl tracking-tight">
                 {player ? "Modifica Giocatore" : "Nuovo Giocatore"}
               </DialogTitle>
-              <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">
+              <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">
                 Dettagli anagrafici e ruolo tecnico in rosa.
               </DialogDescription>
             </div>
@@ -236,7 +236,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
                       {/* Selected roles preview */}
                       <div className="flex flex-wrap gap-1 flex-1">
                         {roles.length === 0 ? (
-                          <span className="text-[9px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/40">Nessun ruolo selezionato</span>
+                          <span className="text-[9px] font-bold uppercase text-muted-foreground dark:text-muted-foreground/40">Nessun ruolo selezionato</span>
                         ) : (
                           roles.map((role, idx) => (
                             <Badge
@@ -295,7 +295,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
             <DialogTitle className="text-foreground dark:text-white font-black uppercase text-lg tracking-tight">
               Seleziona Ruoli
             </DialogTitle>
-            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">
+            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">
               Tocca le posizioni sul campo per selezionare i ruoli. Il primo selezionato è il ruolo principale.
             </DialogDescription>
           </DialogHeader>

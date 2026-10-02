@@ -222,7 +222,7 @@ export default function RosaPage() {
                 <Input
                   type="text"
                   placeholder="Cerca"
-                  className="w-full h-12 pl-12 pr-4 rounded-full bg-background dark:bg-black border border-primary/30 dark:border-brand-green/30 text-foreground placeholder:text-muted-foreground/80 dark:text-muted-foreground/50 font-medium text-lg focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)]"
+                  className="w-full h-12 pl-12 pr-4 rounded-full bg-background dark:bg-black border border-primary/30 dark:border-brand-green/30 text-foreground placeholder:text-muted-foreground dark:text-muted-foreground/50 font-medium text-lg focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -298,7 +298,7 @@ export default function RosaPage() {
               </div>
               <div className="flex-1 text-left">
                 <span className="text-sm font-black uppercase tracking-tight">Panoramica Rosa</span>
-                <p className="text-[9px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/60 tracking-widest">
+                <p className="text-[9px] font-bold uppercase text-muted-foreground dark:text-muted-foreground/60 tracking-widest">
                   Visualizza posizione per posizione con indicatori di copertura
                 </p>
               </div>
@@ -390,7 +390,7 @@ export default function RosaPage() {
                           <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70 shrink-0">
                             {ruolo}
                           </span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/80 dark:text-muted-foreground/30 shrink-0" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground dark:text-muted-foreground/30 shrink-0" />
                         </>
                       )}
                     </div>

@@ -127,7 +127,7 @@ export function SmartLineupDialog({ open, onOpenChange }: SmartLineupDialogProps
                 value={rawList}
                 onChange={(e) => setRawList(e.target.value)}
                 disabled={isAnalyzing}
-                className="min-h-[200px] text-xs font-bold rounded-2xl bg-background dark:bg-black border-border dark:border-brand-green/30 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green text-foreground dark:text-white placeholder:text-muted-foreground/80 dark:text-muted-foreground/30 dark:placeholder:text-white/10"
+                className="min-h-[200px] text-xs font-bold rounded-2xl bg-background dark:bg-black border-border dark:border-brand-green/30 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green text-foreground dark:text-white placeholder:text-muted-foreground dark:text-muted-foreground/30 dark:placeholder:text-white/10"
               />
             </div>
 

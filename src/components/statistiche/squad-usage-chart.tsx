@@ -233,7 +233,7 @@ export function SquadUsageChart() {
               boxShadow: `0 0 6px ${glowColor}`,
             }}
           />
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/50">
             Ogni punto rappresenta un giocatore — in alto a destra = più utilizzato
           </span>
         </div>

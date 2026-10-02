@@ -247,7 +247,7 @@ export default function AllenamentoPage() {
                 <Button variant="ghost" className="flex flex-col items-center h-auto hover:bg-transparent px-2 transition-opacity active:opacity-70">
                   <div className="flex items-center gap-1.5 translate-y-0.5">
                     <CalendarRange className="h-3 w-3 text-primary/40 dark:text-brand-green/40" />
-                    <span className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/50 tracking-widest leading-tight">Settimana del</span>
+                    <span className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground/50 tracking-widest leading-tight">Settimana del</span>
                   </div>
                   <span className="text-sm font-black uppercase text-foreground tracking-tight mt-0.5">
                     {format(currentWeekStart, "dd MMM yyyy", { locale: it })}
@@ -270,7 +270,7 @@ export default function AllenamentoPage() {
                   locale={it}
                   className="p-3 bg-card dark:bg-background rounded-2xl"
                   classNames={{
-                    weekday: "text-muted-foreground/80 dark:text-muted-foreground/30 rounded-md w-9 font-black text-[0.6rem] uppercase tracking-tighter text-center",
+                    weekday: "text-muted-foreground dark:text-muted-foreground/30 rounded-md w-9 font-black text-[0.6rem] uppercase tracking-tighter text-center",
                     caption_label: "text-sm font-black uppercase tracking-[0.2em] text-foreground dark:text-white",
                     day: "h-10 w-10 p-0 m-0 flex items-center justify-center relative",
                     day_button: "text-foreground/80 dark:text-white/60 hover:bg-muted dark:hover:bg-black hover:text-foreground dark:hover:text-white hover:border hover:border-primary/30 dark:hover:border-brand-green/30 hover:shadow-sm dark:hover:shadow-[0_0_15px_rgba(172,229,4,0.4)] rounded-xl h-10 w-10 flex items-center justify-center p-0 font-black transition-all cursor-pointer relative z-10",

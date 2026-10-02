@@ -159,13 +159,13 @@ export default function ExerciseLibraryPage() {
       {loading && exercises.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 animate-pulse">
           <Loader2 className="h-12 w-12 text-primary dark:text-brand-green animate-spin mb-4" />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/60">Recupero Archivio...</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/60">Recupero Archivio...</p>
         </div>
       ) : filteredExercises.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-border dark:border-brand-green/20 rounded-[40px] bg-card/10 backdrop-blur-sm shadow-inner group transition-all hover:bg-card/20">
           <PiTrafficCone className="h-20 w-20 text-muted-foreground/20 dark:text-brand-green/20 mb-6 transition-transform group-hover:scale-110" />
           <h3 className="text-xl font-black uppercase tracking-tight text-foreground dark:text-white/80">Nessun esercizio trovato</h3>
-          <p className="text-[10px] font-bold text-muted-foreground/80 dark:text-muted-foreground/60 uppercase tracking-[0.2em] mt-3 max-w-[280px]">
+          <p className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/60 uppercase tracking-[0.2em] mt-3 max-w-[280px]">
             {searchTerm || focusFilter ? "Modifica i filtri di ricerca per trovare ciò che desideri." : "La libreria è vuota. Inizia aggiungendo il tuo primo esercizio tecnico."}
           </p>
           {!searchTerm && !focusFilter && (

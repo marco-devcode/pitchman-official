@@ -10,12 +10,21 @@
     --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
-    --primary: 210 100% 45%; /* Azzurro #0080FFish */
+    /* Azzurro del brand. Era a 45% di luminosita', che sul fondo chiaro
+       dava 4.37:1: sotto la soglia AA di 4.5, quindi i testi in primary erano
+       tecnicamente non conformi. A 42% si sale a circa 5:1 e resta lo stesso
+       colore per l'occhio. Nel tema scuro primary e' il nero e i testi usano
+       il brand-green, quindi qui non serve fare nulla. */
+    --primary: 210 100% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 10% 90%;
     --secondary-foreground: 0 0% 15%;
     --muted: 210 10% 95%;
-    --muted-foreground: 210 10% 40%;
+    /* Grigio del testo secondario. A 40% di luminosita' stava a 4.37:1: sotto
+       la soglia 4.5 appena, e le classi che aggiungono opacita' (/80) lo
+       portavano a 3.76:1. A 34% si sta sopra 4.5 anche con opacita' alta,
+       senza cambiare l'idea di "grigio secondario". */
+    --muted-foreground: 210 12% 34%;
     --accent: 74 96% 46%; /* Keep neon for context but primary is azzurro */
     --accent-foreground: 0 0% 0%;
     --destructive: 0 84% 60%;

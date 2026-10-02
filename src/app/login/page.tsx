@@ -176,7 +176,7 @@ export default function LoginPage() {
                 id="usernameOrEmail"
                 type={isLoginMode ? "text" : "email"}
                 placeholder={isLoginMode ? "Username o Email" : "Email"}
-                className={`h-12 bg-transparent border-primary/30 dark:border-neon-gradient rounded-xl px-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-0 placeholder:text-muted-foreground/80 dark:text-muted-foreground/50 transition-all font-sans ${fieldErrors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                className={`h-12 bg-transparent border-primary/30 dark:border-neon-gradient rounded-xl px-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-0 placeholder:text-muted-foreground dark:text-muted-foreground/50 transition-all font-sans ${fieldErrors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 value={usernameOrEmail}
                 onChange={(e) => {
                   setUsernameOrEmail(e.target.value);
@@ -192,7 +192,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="Password"
-                className={`h-12 bg-transparent border-primary/30 dark:border-neon-gradient rounded-xl px-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-0 placeholder:text-muted-foreground/80 dark:text-muted-foreground/50 transition-all ${fieldErrors.password && !isLoginMode ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                className={`h-12 bg-transparent border-primary/30 dark:border-neon-gradient rounded-xl px-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-0 placeholder:text-muted-foreground dark:text-muted-foreground/50 transition-all ${fieldErrors.password && !isLoginMode ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -209,7 +209,7 @@ export default function LoginPage() {
                   id="confirmPassword"
                   type="password"
                   placeholder="Conferma Password"
-                  className={`h-12 bg-transparent border-primary/30 dark:border-neon-gradient rounded-xl px-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-0 placeholder:text-muted-foreground/80 dark:text-muted-foreground/50 transition-all ${fieldErrors.password === "Le password non coincidono." ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                  className={`h-12 bg-transparent border-primary/30 dark:border-neon-gradient rounded-xl px-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-0 placeholder:text-muted-foreground dark:text-muted-foreground/50 transition-all ${fieldErrors.password === "Le password non coincidono." ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value);

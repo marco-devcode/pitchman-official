@@ -293,7 +293,7 @@ export default function CalendarioPage() {
               'px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ' +
               (activeTab === t
                 ? 'bg-background dark:bg-black border border-primary dark:border-brand-green text-foreground'
-                : 'text-muted-foreground/80 dark:text-muted-foreground/50')
+                : 'text-muted-foreground dark:text-muted-foreground/50')
             }
           >
             {t === 'all' ? 'Tutte' : t}

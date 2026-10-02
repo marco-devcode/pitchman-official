@@ -112,7 +112,7 @@ export function MatchEventsTab() {
                           {isTransitionTo2T && (
                             <div className="relative flex items-center justify-center py-4">
                               <div className="absolute left-0 right-0 h-px border-t border-dashed border-border dark:border-brand-green/20"></div>
-                              <span className="relative bg-card dark:bg-[#060a02] px-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/40 z-10">
+                              <span className="relative bg-card dark:bg-[#060a02] px-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/40 z-10">
                                 INT {halfTimeScore}
                               </span>
                             </div>
@@ -136,7 +136,7 @@ export function MatchEventsTab() {
                 {unTimedEvents.length > 0 && (
                   <div className="space-y-6 pt-8">
                     <div className="relative flex justify-center mb-8">
-                      <span className="bg-card dark:bg-background px-4 py-1 rounded-full border border-border dark:border-brand-green/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60 z-10 shadow-sm">
+                      <span className="bg-card dark:bg-background px-4 py-1 rounded-full border border-border dark:border-brand-green/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60 z-10 shadow-sm">
                         Senza minutaggio
                       </span>
                     </div>

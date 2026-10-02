@@ -129,7 +129,7 @@ export default function HomePage() {
           title={
             <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3">
               <span>Benvenuto, Mister {userName}</span>
-              <span className="hidden sm:inline text-muted-foreground/80 dark:text-muted-foreground/30 font-light">|</span>
+              <span className="hidden sm:inline text-muted-foreground dark:text-muted-foreground/30 font-light">|</span>
               <span className="text-sm sm:text-lg font-bold text-primary dark:text-white uppercase tracking-widest">{activeSeason?.name}</span>
             </div>
           }

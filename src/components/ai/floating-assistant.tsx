@@ -106,7 +106,7 @@ export function FloatingAssistant() {
                   <h3 className="text-sm font-black uppercase tracking-tight text-foreground dark:text-white leading-none">Coach AI</h3>
                   <div className="flex items-center gap-1 mt-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/60 tracking-wider">Analista Tattico</span>
+                    <span className="text-[9px] font-bold uppercase text-muted-foreground dark:text-muted-foreground/60 tracking-wider">Analista Tattico</span>
                   </div>
                 </div>
               </div>
@@ -151,8 +151,8 @@ export function FloatingAssistant() {
                 ))}
                 {isLoading && (
                   <div className="flex gap-3 mr-auto h-8 items-center pl-1">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/80 dark:text-muted-foreground/40" />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/40 animate-pulse">Analisi dati in corso...</span>
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground dark:text-muted-foreground/40" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/40 animate-pulse">Analisi dati in corso...</span>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -172,7 +172,7 @@ export function FloatingAssistant() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  className="h-12 bg-muted/50 dark:bg-zinc-900 border-none rounded-2xl pr-12 focus-visible:ring-1 focus-visible:ring-primary/30 dark:focus-visible:ring-brand-green/30 placeholder:text-muted-foreground/80 dark:text-muted-foreground/40 text-xs font-medium"
+                  className="h-12 bg-muted/50 dark:bg-zinc-900 border-none rounded-2xl pr-12 focus-visible:ring-1 focus-visible:ring-primary/30 dark:focus-visible:ring-brand-green/30 placeholder:text-muted-foreground dark:text-muted-foreground/40 text-xs font-medium"
                 />
                 <Button 
                   size="icon"

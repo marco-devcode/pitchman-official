@@ -130,7 +130,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
               <DialogTitle className="text-xl font-black uppercase tracking-tighter text-foreground dark:text-white leading-none">
                 {exercise ? "Modifica Esercizio" : "Nuovo Esercizio"}
               </DialogTitle>
-              <DialogDescription className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/50">
+              <DialogDescription className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/50">
                 Archivia la tua metodologia tecnica
               </DialogDescription>
             </div>
@@ -144,7 +144,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
               <div className="space-y-1.5 group">
                 <div className="flex items-center gap-2 mb-0.5">
                   <Target className="h-3.5 w-3.5 text-primary dark:text-brand-green" />
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Dati Base</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Dati Base</Label>
                 </div>
                 <Input 
                   placeholder="Nome dell'esercizio..." 
@@ -156,7 +156,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 mb-0.5 mt-2">
                       <Clock className="h-3.5 w-3.5 text-primary dark:text-brand-green" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Minuti</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Minuti</Label>
                     </div>
                     <Input 
                       type="number"
@@ -168,7 +168,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
                   </div>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 mb-0.5 mt-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Serie</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Serie</Label>
                     </div>
                     <Input 
                       type="number"
@@ -180,7 +180,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/40 ml-1">Obiettivi</Label>
+                  <Label className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/40 ml-1">Obiettivi</Label>
                   <Textarea 
                     placeholder="Quali sono gli obiettivi tecnici/tattici?" 
                     className="min-h-[60px] rounded-xl bg-background dark:bg-black/40 border-border dark:border-brand-green/10 focus-visible:ring-primary dark:focus-visible:ring-brand-green text-xs font-medium resize-none px-3 py-2"
@@ -189,7 +189,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/40 ml-1">Svolgimento</Label>
+                  <Label className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/40 ml-1">Svolgimento</Label>
                   <Textarea 
                     placeholder="Descrivi come si svolge l'esercizio..." 
                     className="min-h-[100px] rounded-xl bg-background dark:bg-black/40 border-border dark:border-brand-green/10 focus-visible:ring-primary dark:focus-visible:ring-brand-green text-xs font-medium resize-none px-3 py-2"
@@ -202,7 +202,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-0.5">
                   <Globe className="h-3.5 w-3.5 text-primary dark:text-brand-green" />
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Focus & Visibilità</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Focus & Visibilità</Label>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {DEFAULT_FOCUSES.map(f => (
@@ -246,7 +246,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
               <div className="space-y-2 group">
                 <div className="flex items-center gap-2 mb-0.5">
                   <Users className="h-3.5 w-3.5 text-primary dark:text-brand-green" />
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Adattabile a (N. Giocatori):</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Adattabile a (N. Giocatori):</Label>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {COMMON_PLAYER_COUNTS.map(c => (
@@ -272,7 +272,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
               <div className="space-y-3 group">
                 <div className="flex items-center gap-2 mb-0.5">
                   <ImageIcon className="h-3.5 w-3.5 text-primary dark:text-brand-green" />
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Risorse Multimediali</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Risorse Multimediali</Label>
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
@@ -364,7 +364,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
 
                 <div className="space-y-1.5 max-h-[260px] overflow-y-auto px-1 scrollbar-hide py-1 border border-border/40 dark:border-brand-green/5 rounded-2xl bg-black/5 dark:bg-black/20">
                   {media.length === 0 ? (
-                    <div className="py-8 flex flex-col items-center justify-center text-muted-foreground/80 dark:text-muted-foreground/30 italic">
+                    <div className="py-8 flex flex-col items-center justify-center text-muted-foreground dark:text-muted-foreground/30 italic">
                       <ImageIcon className="h-8 w-8 mb-2 opacity-20" />
                       <p className="text-[9px] font-bold uppercase tracking-tight">Nessuna risorsa aggiunta</p>
                     </div>

@@ -161,7 +161,7 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
                   {/* Selected roles preview */}
                   <div className="flex flex-wrap gap-1 flex-1">
                     {formData.roles.length === 0 ? (
-                      <span className="text-[9px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/40">Nessun ruolo</span>
+                      <span className="text-[9px] font-bold uppercase text-muted-foreground dark:text-muted-foreground/40">Nessun ruolo</span>
                     ) : (
                       formData.roles.map((role, idx) => (
                         <Badge

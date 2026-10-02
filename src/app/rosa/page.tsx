@@ -252,7 +252,7 @@ export default function RosaOverviewPage() {
   if (!activeSeason) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-sm font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60">
+        <p className="text-sm font-black uppercase text-muted-foreground dark:text-muted-foreground/60">
           Nessuna stagione attiva
         </p>
       </div>
@@ -361,7 +361,7 @@ export default function RosaOverviewPage() {
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <p className="text-xs font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/40">
+                <p className="text-xs font-black uppercase text-muted-foreground dark:text-muted-foreground/40">
                   Seleziona un ruolo sul campo
                 </p>
               </div>

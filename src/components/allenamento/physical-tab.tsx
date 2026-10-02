@@ -137,8 +137,8 @@ export function PhysicalTab() {
   if (testsForPlayer.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Activity className="h-10 text-muted-foreground/80 dark:text-muted-foreground/30 mb-3" />
-        <p className="text-xs font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60">
+        <Activity className="h-10 text-muted-foreground dark:text-muted-foreground/30 mb-3" />
+        <p className="text-xs font-black uppercase text-muted-foreground dark:text-muted-foreground/60">
           Nessun test registrato per questo giocatore
         </p>
         <Link
@@ -187,7 +187,7 @@ export function PhysicalTab() {
                       {r.rank}° su {r.total}
                     </span>
                   ) : (
-                    <span className="text-[9px] text-muted-foreground/80 dark:text-muted-foreground/30">—</span>
+                    <span className="text-[9px] text-muted-foreground dark:text-muted-foreground/30">—</span>
                   )}
                 </div>
               ))}

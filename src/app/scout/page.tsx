@@ -150,7 +150,7 @@ function ScoutContent() {
               placeholder="Cerca osservato per nome..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-10 w-full rounded-2xl border-border dark:border-brand-green/30 bg-card dark:bg-black/40 text-foreground dark:text-white font-bold text-sm focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] placeholder:text-muted-foreground/80 dark:text-muted-foreground/30 dark:placeholder:text-white/20"
+              className="pl-9 h-10 w-full rounded-2xl border-border dark:border-brand-green/30 bg-card dark:bg-black/40 text-foreground dark:text-white font-bold text-sm focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] placeholder:text-muted-foreground dark:text-muted-foreground/30 dark:placeholder:text-white/20"
             />
           </div>
         </div>
@@ -206,7 +206,7 @@ function ScoutContent() {
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <Search className="h-12 w-12 text-primary dark:text-brand-green mb-4 opacity-40" />
               <h3 className="text-sm font-black uppercase text-foreground dark:text-white">Nessun osservato trovato</h3>
-              <p className="text-[10px] font-bold text-muted-foreground/80 dark:text-muted-foreground/60 dark:text-white/30 uppercase tracking-widest mt-1">
+              <p className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/60 dark:text-white/30 uppercase tracking-widest mt-1">
                 {players?.length === 0 ? "Inizia aggiungendo il primo osservato alla tua lista." : "Prova a cambiare i filtri selezionati."}
               </p>
             </CardContent>
@@ -221,7 +221,7 @@ function ScoutContent() {
                       <h4 className="text-sm font-black uppercase tracking-tight text-foreground dark:text-white leading-tight">
                         {displayPlayerName(player as any)}
                       </h4>
-                      <span className="text-[9px] font-bold text-muted-foreground/80 dark:text-muted-foreground/60 dark:text-white/30 uppercase tracking-wider mt-0.5">
+                      <span className="text-[9px] font-bold text-muted-foreground dark:text-muted-foreground/60 dark:text-white/30 uppercase tracking-wider mt-0.5">
                         {player.role} • {player.currentTeam}
                       </span>
                     </div>

@@ -94,7 +94,7 @@ export function PlayerLeaderboard() {
           </div>
           <div>
             <CardTitle className="text-lg font-black uppercase tracking-tight text-foreground dark:text-white">Rendimento Giocatori</CardTitle>
-            <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60 tracking-wider">
+            <CardDescription className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground/60 tracking-wider">
               Statistiche individuali della stagione corrente.
             </CardDescription>
           </div>
@@ -178,23 +178,23 @@ export function PlayerLeaderboard() {
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-black text-primary dark:text-brand-green uppercase">P:</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Presenze</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Presenze</span>
           </div>
           <div className="flex items-center gap-1.5">
             <GiSoccerBall className="h-3 w-3 text-primary dark:text-brand-green" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Gol</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Gol</span>
           </div>
           <div className="flex items-center gap-1.5">
             <GiSoccerKick className="h-3 w-3 text-primary dark:text-brand-green" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Assist</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Assist</span>
           </div>
           <div className="flex items-center gap-1.5">
             <IoSquare className="h-3 w-3 text-yellow-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Ammonizioni</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Ammonizioni</span>
           </div>
           <div className="flex items-center gap-1.5">
             <IoSquare className="h-3 w-3 text-red-600" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">Espulsioni</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Espulsioni</span>
           </div>
         </div>
       </CardFooter>

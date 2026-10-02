@@ -67,7 +67,7 @@ export function GoalVenueCharts() {
                 </ChartContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-2xl font-black leading-none text-foreground">{total}</span>
-                    <span className="text-[8px] font-black text-muted-foreground/80 dark:text-muted-foreground/50 uppercase tracking-widest mt-1">Totali</span>
+                    <span className="text-[8px] font-black text-muted-foreground dark:text-muted-foreground/50 uppercase tracking-widest mt-1">Totali</span>
                 </div>
             </div>
         </div>
@@ -80,7 +80,7 @@ export function GoalVenueCharts() {
                     <GiSoccerBall className="h-4 w-4" />
                     DIFFERENZA RETI
                 </CardTitle>
-                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60 tracking-wider">Distribuzione gol fatti e subiti tra casa e trasferta.</CardDescription>
+                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground/60 tracking-wider">Distribuzione gol fatti e subiti tra casa e trasferta.</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
                 <div className="grid grid-cols-2 gap-4">
