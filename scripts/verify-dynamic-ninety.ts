@@ -15,7 +15,9 @@ function resolveMatchDuration(setting: number | undefined | null): number {
 function metrics(duration: number, totalMinutes: number, presenze: number, goals: number, assists: number) {
   const ninety = totalMinutes > 0 ? totalMinutes / duration : 0;
   return {
-    minutesPer: presenze > 0 ? Math.round((totalMinutes / presenze) / duration * 100) / 100 : 0,
+    // Minuti per PRESENZA: media dei minuti realmente giocati. Non divide per
+    // la durata della partita, quindi non cambia al cambiare l'impostazione.
+    minutesPerAppearance: presenze > 0 ? Math.round(totalMinutes / presenze) : 0,
     goalsPer90: ninety > 0 ? Math.round((goals / ninety) * 100) / 100 : 0,
     assistsPer90: ninety > 0 ? Math.round((assists / ninety) * 100) / 100 : 0,
     gaPer90: ninety > 0 ? Math.round(((goals + assists) / ninety) * 100) / 100 : 0,
@@ -46,20 +48,26 @@ const con90 = metrics(resolveMatchDuration(90), 240, 6, 4, 2);
 const con60 = metrics(resolveMatchDuration(60), 240, 6, 4, 2);
 
 // 240/80 = 3 partite piene da 80'   -> 4 gol / 3 = 1.33
-check('80: 4 gol in 240 min', con80, { minutesPer: 0.5, goalsPer90: 1.33, assistsPer90: 0.67, gaPer90: 2 });
+check('80: 4 gol in 240 min su 6 presenze', con80, { minutesPerAppearance: 40, goalsPer90: 1.33, assistsPer90: 0.67, gaPer90: 2 });
 // 240/90 = 2.67                    -> 4 gol / 2.67 = 1.50
-check('90: stessi minuti, 4 gol', con90, { minutesPer: 0.44, goalsPer90: 1.5, assistsPer90: 0.75, gaPer90: 2.25 });
+check('90: stessi minuti, 4 gol', con90, { minutesPerAppearance: 40, goalsPer90: 1.5, assistsPer90: 0.75, gaPer90: 2.25 });
 // 240/60 = 4 partite piene da 60'  -> 4 gol / 4 = 1.
 // I minuti per presenza restano 240/6 = 40', quindi 40/60 = 0.67 di partita:
 // le due scale dicono cose diverse ed e' giusto che dicano cose diverse.
-check('60: stessi minuti, 4 gol', con60, { minutesPer: 0.67, goalsPer90: 1, assistsPer90: 0.5, gaPer90: 1.5 });
+check('60: stessi minuti, 4 gol', con60, { minutesPerAppearance: 40, goalsPer90: 1, assistsPer90: 0.5, gaPer90: 1.5 });
 
 // Il ricalcolo produce DAVVERO numeri diversi: non e' una copia stanca.
-check('80 -> 90 cambia il risultato', con80.goalsPer90 !== con90.goalsPer90, true);
+// Le tre metriche per N' cambiano con l'impostazione...
+check('80 -> 90 cambia gol/N', con80.goalsPer90 !== con90.goalsPer90, true);
+// ...ma i minuti per presenza NO: sono una media dei minuti giocati, quindi
+// non hanno niente a che fare con la durata della partita.
+check('80 -> 90 NON cambia minuti/presenza', con80.minutesPerAppearance === con90.minutesPerAppearance, true);
+check('60 -> 90 NON cambia minuti/presenza', con60.minutesPerAppearance === con90.minutesPerAppearance, true);
 check('60 -> 90 cambia il risultato', con60.goalsPer90 !== con90.goalsPer90, true);
 
 // ─── casi limite ───
-check('zero minuti -> tutto 0', metrics(resolveMatchDuration(80), 0, 0, 4, 2), { minutesPer: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0 });
-check('sub da 5 min su 80 = 0.06 di partita', metrics(resolveMatchDuration(80), 5, 1, 0, 0), { minutesPer: 0.06, goalsPer90: 0, assistsPer90: 0, gaPer90: 0 });
+check('zero minuti -> tutto 0', metrics(resolveMatchDuration(80), 0, 0, 4, 2), { minutesPerAppearance: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0 });
+check('sub da 5 min su 80 = 5 minuti di media', metrics(resolveMatchDuration(80), 5, 1, 0, 0), { minutesPerAppearance: 5, goalsPer90: 0, assistsPer90: 0, gaPer90: 0 });
+check('media non arrotonda per difetto: 200 min su 3 presenze', metrics(resolveMatchDuration(90), 200, 3, 0, 0).minutesPerAppearance, 67);
 
 console.log(fail === 0 ? 'IMPOSTAZIONI: TUTTI I CASI PASSANO' : `IMPOSTAZIONI: ${fail} FALLITI`);

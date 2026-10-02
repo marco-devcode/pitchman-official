@@ -142,8 +142,8 @@ interface PlayerDetailStats {
   /** Completate con lineup in cui non era convocato (stessa regola del tab Giocatori) */
   notConvoked: number;
   goalsPer90: number;
-  /** Media minuti per partita piena (percentuale sulla durata reale) */
-  minutesPer90: number;
+  /** Media minuti per PRESENZA: totale minuti / numero di presenze */
+  minutesPerAppearance: number;
   /** Durata media reale delle partite: il denominatore delle metriche per 90' */
   matchDuration: number;
   assistsPer90: number;
@@ -470,12 +470,14 @@ function computePlayerStats(
   // Il denominatore e' la durata impostata in Gestione Squadra, non un 90
   // fisso e non la media delle partite: cambiando l'impostazione cambia qui.
   const totalNinety = totalMinutes > 0 ? totalMinutes / avgMatchDuration : 0;
-  // "Minuti per partita piena" = media minuti per presenza, rapportata alla
-  // durata REALE (1.0 = ha giocato tutta la partita). Non usa `appearances`
-  // perche' qui si conta con starts + subs: sono le due facce della presenza.
+  // "Minuti per presenza" = minuti totali / presenze. NON usa la durata della
+  // partita: e' una media sui minuti realmente giocati, quindi non cambia al
+  // cambiare i minuti in Impostazioni (le altre tre metriche per N' invece
+  // cambiano, ed e' il punto di quelle). Usa starts + subs perche' sono le
+  // due facce della presenza.
   const presenze = starts + subs;
-  const minutesPer90 = presenze > 0
-    ? Math.round((totalMinutes / presenze) / avgMatchDuration * 100) / 100
+  const minutesPerAppearance = presenze > 0
+    ? Math.round(totalMinutes / presenze)
     : 0;
   const playerStats: PlayerDetailStats = pStats
     ? {
@@ -499,11 +501,11 @@ function computePlayerStats(
       goalsPer90: totalNinety > 0 ? Math.round((pStats.stats.goals / totalNinety) * 100) / 100 : 0,
       assistsPer90: totalNinety > 0 ? Math.round((pStats.stats.assists / totalNinety) * 100) / 100 : 0,
       gaPer90: totalNinety > 0 ? Math.round(((pStats.stats.goals + pStats.stats.assists) / totalNinety) * 100) / 100 : 0,
-      minutesPer90,
+      minutesPerAppearance,
       matchDuration: avgMatchDuration,
       trainingAttendanceRate: null,
     }
-    : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, bench: 0, notConvoked: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, minutesPer90: 0, matchDuration: avgMatchDuration, trainingAttendanceRate: null };
+    : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, bench: 0, notConvoked: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, minutesPerAppearance: 0, matchDuration: avgMatchDuration, trainingAttendanceRate: null };
 
   // Storico presenze partite
   const allMatches = [...context.matches].sort((a, b) => a.date.localeCompare(b.date));
@@ -833,7 +835,7 @@ export default function PlayerDetailPage() {
             {/* 5^ riga: efficienza per partita piena. Il "90'" segue la
                 durata reale impostata in Gestione Squadra, non e' fisso. */}
             <div className="grid grid-cols-3 gap-2">
-              <StatCard icon={Clock} label={`Minuti / ${displayStats.matchDuration}'`} value={displayStats.minutesPer90} sub="media" />
+              <StatCard icon={Clock} label="Minuti / Presenza" value={displayStats.minutesPerAppearance} sub="media" />
               <StatCard icon={GiSoccerBall} label={`Gol / ${displayStats.matchDuration}'`} value={displayStats.goalsPer90} sub="media" color="text-primary dark:text-brand-green" />
               <StatCard icon={GiSoccerKick} label={`Assist / ${displayStats.matchDuration}'`} value={displayStats.assistsPer90} sub="media" />
             </div>
