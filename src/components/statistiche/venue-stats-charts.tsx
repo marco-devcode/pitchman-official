@@ -83,15 +83,15 @@ export function VenueStatsCharts() {
                 <div className="flex justify-center gap-4 mt-6">
                     <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-brand-green dark:bg-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">Vittoria</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/80">Vittoria</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-draw" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">Pareggio</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/80">Pareggio</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-loss" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">Sconfitta</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/80">Sconfitta</span>
                     </div>
                 </div>
             </CardContent>

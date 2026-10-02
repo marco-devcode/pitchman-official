@@ -91,11 +91,11 @@ export function GoalVenueCharts() {
                 <div className="flex justify-center gap-6 mt-6 border-t border-border pt-4">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-brand-green dark:bg-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">In Casa</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/80">In Casa</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-draw" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">Trasferta</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/80">Trasferta</span>
                     </div>
                 </div>
             </CardContent>

@@ -274,7 +274,7 @@ export function DraggablePlayer({
           non è intuitiva se non lo si dice. Solo per i titolari in campo, dove
           lo scambio ha senso. */}
       {type === 'starter' && isEditing && player && (
-        <span className="text-[7px] font-bold uppercase text-muted-foreground/70 text-center leading-none pointer-events-none">
+        <span className="text-[7px] font-bold uppercase text-muted-foreground dark:text-muted-foreground/70 text-center leading-none pointer-events-none">
           tieni premuto
         </span>
       )}

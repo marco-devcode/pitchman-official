@@ -387,7 +387,7 @@ export default function RosaPage() {
                         </div>
                       ) : (
                         <>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70 shrink-0">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground dark:text-muted-foreground/70 shrink-0">
                             {ruolo}
                           </span>
                           <ChevronRight className="h-4 w-4 text-muted-foreground dark:text-muted-foreground/30 shrink-0" />

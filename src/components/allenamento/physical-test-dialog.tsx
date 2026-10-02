@@ -294,7 +294,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 ml-1">Unità di misura</Label>
+              <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/80 ml-1">Unità di misura</Label>
               <Select value={unit} onValueChange={setUnit}>
                 <SelectTrigger className="h-11 text-xs font-bold uppercase rounded-xl bg-background dark:bg-black border border-border dark:border-brand-green/20">
                   <SelectValue />
@@ -311,7 +311,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 ml-1">Data</Label>
+              <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/80 ml-1">Data</Label>
               <Input
                 type="date"
                 value={date}

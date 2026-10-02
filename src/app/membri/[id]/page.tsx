@@ -688,7 +688,7 @@ export default function PlayerDetailPage() {
                       {player.secondaryRoles && player.secondaryRoles.map(r => (
                         <span
                           key={r}
-                          className="text-[8px] font-bold px-2 py-0.5 rounded-full border border-border dark:border-white/10 bg-muted/50 dark:bg-white/5 text-muted-foreground/70 dark:text-white/30"
+                          className="text-[8px] font-bold px-2 py-0.5 rounded-full border border-border dark:border-white/10 bg-muted/50 dark:bg-white/5 text-muted-foreground dark:text-muted-foreground/70 dark:text-white/30"
                         >
                           {roleLabel[r] ?? r}
                         </span>

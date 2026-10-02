@@ -176,7 +176,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
                   name="firstName"
                   render={({ field }) => (
                     <FormItem className="space-y-1.5">
-                      <FormLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 ml-1">Nome</FormLabel>
+                      <FormLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/80 ml-1">Nome</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="Mario" 
@@ -194,7 +194,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
                   name="lastName"
                   render={({ field }) => (
                     <FormItem className="space-y-1.5">
-                      <FormLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 ml-1">Cognome</FormLabel>
+                      <FormLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/80 ml-1">Cognome</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="Rossi" 
@@ -215,7 +215,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
                 name="roles"
                 render={() => (
                   <FormItem className="space-y-2">
-                    <FormLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 ml-1">Ruoli del giocatore</FormLabel>
+                    <FormLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/80 ml-1">Ruoli del giocatore</FormLabel>
                     <div className="flex items-center gap-2">
                       <Button
                         type="button"

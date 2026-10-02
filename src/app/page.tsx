@@ -226,10 +226,10 @@ export default function HomePage() {
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
           <div className="flex gap-2 sm:gap-3">
-            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground/80 dark:text-gray-400">POR: <span className="text-foreground dark:text-white font-black">{totPOR}</span></span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground/80 dark:text-gray-400">DIF: <span className="text-foreground dark:text-white font-black">{totDIF}</span></span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground/80 dark:text-gray-400">CEN: <span className="text-foreground dark:text-white font-black">{totCEN}</span></span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground/80 dark:text-gray-400">ATT: <span className="text-foreground dark:text-white font-black">{totATT}</span></span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground dark:text-muted-foreground/80 dark:text-gray-400">POR: <span className="text-foreground dark:text-white font-black">{totPOR}</span></span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground dark:text-muted-foreground/80 dark:text-gray-400">DIF: <span className="text-foreground dark:text-white font-black">{totDIF}</span></span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground dark:text-muted-foreground/80 dark:text-gray-400">CEN: <span className="text-foreground dark:text-white font-black">{totCEN}</span></span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-muted-foreground dark:text-muted-foreground/80 dark:text-gray-400">ATT: <span className="text-foreground dark:text-white font-black">{totATT}</span></span>
           </div>
           <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
         </div>

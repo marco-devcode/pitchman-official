@@ -133,7 +133,7 @@ export function ExerciseCard({ exercise, isOwner, onEdit, onDelete, onView }: Ex
       </CardHeader>
 
       <CardContent className="px-6 py-4 flex-1 flex flex-col justify-between">
-        <p className="text-[11px] text-muted-foreground/80 line-clamp-3 leading-relaxed font-medium mb-4 italic select-text">
+        <p className="text-[11px] text-muted-foreground dark:text-muted-foreground/80 line-clamp-3 leading-relaxed font-medium mb-4 italic select-text">
           {exercise.description}
         </p>
         
@@ -156,7 +156,7 @@ export function ExerciseCard({ exercise, isOwner, onEdit, onDelete, onView }: Ex
               ))
             ) : (
               <div className="h-8 w-8 rounded-xl bg-muted/20 flex items-center justify-center">
-                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground/20" />
+                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground dark:text-muted-foreground/20" />
               </div>
             )}
           </div>

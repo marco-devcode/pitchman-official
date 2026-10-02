@@ -79,7 +79,7 @@ export function TrainingListDialog({ open, onOpenChange, sessions }: TrainingLis
             })}
             {filteredSessions.length === 0 && (
               <div className="py-20 text-center flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in-95 duration-300">
-                <Search className="h-10 w-10 text-muted-foreground/10 dark:text-brand-green/10" />
+                <Search className="h-10 w-10 text-muted-foreground dark:text-muted-foreground/10 dark:text-brand-green/10" />
                 <p className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground/30 dark:text-white/20 tracking-widest">Nessun allenamento trovato</p>
               </div>
             )}

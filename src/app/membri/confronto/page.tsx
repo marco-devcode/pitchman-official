@@ -351,12 +351,12 @@ function ConfrontoContent() {
                       "text-center font-black transition-all",
                       is1Better 
                         ? "text-primary dark:text-brand-green text-xl shadow-[inset_0_-2px_0_rgba(37,99,235,0.4)] dark:shadow-[inset_0_-2px_0_rgba(172,229,4,0.4)]" 
-                        : "text-muted-foreground/20 dark:text-white/20 text-sm"
+                        : "text-muted-foreground dark:text-muted-foreground/20 dark:text-white/20 text-sm"
                     )}>{row.val1}</div>
                     <div className="text-center text-[9px] font-black text-muted-foreground dark:text-muted-foreground/40 dark:text-white/40 uppercase tracking-widest group-hover:text-primary dark:group-hover:text-brand-green transition-colors">{row.label}</div>
                     <div className={cn(
                       "text-center font-black transition-all",
-                      is2Better ? "text-pink-500 text-xl shadow-[inset_0_-2px_0_rgba(236,72,153,0.4)]" : "text-muted-foreground/20 dark:text-white/20 text-sm"
+                      is2Better ? "text-pink-500 text-xl shadow-[inset_0_-2px_0_rgba(236,72,153,0.4)]" : "text-muted-foreground dark:text-muted-foreground/20 dark:text-white/20 text-sm"
                     )}>{row.val2}</div>
                   </div>
                 )
