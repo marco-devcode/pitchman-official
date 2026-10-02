@@ -137,7 +137,15 @@ interface PlayerDetailStats {
   goalsScoredOnPitch: number;
   starts: number;
   subs: number;
+  /** In panchina senza mai entrare: NON e' una presenza */
+  bench: number;
+  /** Completate con lineup in cui non era convocato (stessa regola del tab Giocatori) */
+  notConvoked: number;
   goalsPer90: number;
+  /** Media minuti per partita piena (percentuale sulla durata reale) */
+  minutesPer90: number;
+  /** Durata media reale delle partite: il denominatore delle metriche per 90' */
+  matchDuration: number;
   assistsPer90: number;
   gaPer90: number;
   trainingAttendanceRate: number | null;
@@ -353,6 +361,19 @@ function isInjuredAtDate(dateStr: string, injuries?: { startDate: string; endDat
   });
 }
 
+/**
+ * Durata media REALE delle partite considerate. Il denominatore delle metriche
+ * per 90' non e' un 90 fisso: se in Gestione Squadra la partita e' da 40 o 60
+ * minuti, il "90'" deve seguire. Ogni partita ha la propria `duration`, quindi
+ * la media rispecitta l'impostazione quando le partite hanno la stessa durata
+ * e la rispetta anche quando non ce l'hanno.
+ */
+function averageMatchDuration(matches: Match[]): number {
+  const durate = matches.map((m) => m.duration).filter((d): d is number => typeof d === 'number' && d > 0);
+  if (!durate.length) return 90;
+  return Math.round(durate.reduce((a, b) => a + b, 0) / durate.length);
+}
+
 // ─── Calcolo statistiche di un giocatore su un contesto GIÀ filtrato per tipo partita ──
 // Pure function: prende il contesto, non lo legge dallo store. Chiamata da un useMemo
 // con il contesto filtrato, così cambiare tab ricalcola tutto senza rifetch.
@@ -373,6 +394,8 @@ function computePlayerStats(
   let goalsScoredOnPitch = 0;
   let starts = 0;
   let subs = 0;
+  let bench = 0;
+  let notConvoked = 0;
 
   const completedMatches = context.matches.filter((m) => m.status === "completed");
   for (const match of completedMatches) {
@@ -383,6 +406,11 @@ function computePlayerStats(
     const u = getMatchUsage(details, playerId, match.isHome);
     const isStarter = u.isStarter;
     const stat = details.stats.find((s) => s.playerId === playerId);
+
+    if (!u.appeared && (u.isOnBench || u.isStarter)) bench++;
+    // Stessa regola del tab Giocatori: senza lineup non sappiamo chi era in
+    // rosa, quindi quelle partite non sono "non convocato".
+    else if (!u.appeared && details.lineup) notConvoked++;
 
     if (u.appeared) {
       totalMinutes += u.minutesPlayed;
@@ -436,7 +464,18 @@ function computePlayerStats(
     }
   }
 
-  const ninety = totalMinutes > 0 ? totalMinutes / 90 : 0;
+  // Il denominatore non e' un 90 fisso: e' la durata MEDIA REALE delle
+  // partite di questo contesto, che coincide con i minuti impostati in
+  // Gestione Squadra quando tutte le partite hanno la stessa durata.
+  const avgMatchDuration = averageMatchDuration(completedMatches);
+  const totalNinety = totalMinutes > 0 ? totalMinutes / avgMatchDuration : 0;
+  // "Minuti per partita piena" = media minuti per presenza, rapportata alla
+  // durata REALE (1.0 = ha giocato tutta la partita). Non usa `appearances`
+  // perche' qui si conta con starts + subs: sono le due facce della presenza.
+  const presenze = starts + subs;
+  const minutesPer90 = presenze > 0
+    ? Math.round((totalMinutes / presenze) / avgMatchDuration * 100) / 100
+    : 0;
   const playerStats: PlayerDetailStats = pStats
     ? {
       appearances: pStats.stats.appearances,
@@ -454,12 +493,16 @@ function computePlayerStats(
       goalsScoredOnPitch,
       starts,
       subs,
-      goalsPer90: ninety > 0 ? Math.round((pStats.stats.goals / ninety) * 100) / 100 : 0,
-      assistsPer90: ninety > 0 ? Math.round((pStats.stats.assists / ninety) * 100) / 100 : 0,
-      gaPer90: ninety > 0 ? Math.round(((pStats.stats.goals + pStats.stats.assists) / ninety) * 100) / 100 : 0,
+      bench,
+      notConvoked,
+      goalsPer90: totalNinety > 0 ? Math.round((pStats.stats.goals / totalNinety) * 100) / 100 : 0,
+      assistsPer90: totalNinety > 0 ? Math.round((pStats.stats.assists / totalNinety) * 100) / 100 : 0,
+      gaPer90: totalNinety > 0 ? Math.round(((pStats.stats.goals + pStats.stats.assists) / totalNinety) * 100) / 100 : 0,
+      minutesPer90,
+      matchDuration: avgMatchDuration,
       trainingAttendanceRate: null,
     }
-    : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, trainingAttendanceRate: null };
+    : { appearances: 0, goals: 0, assists: 0, avgMinutes: 0, yellowCards: 0, redCards: 0, totalMinutes: 0, wins: 0, losses: 0, draws: 0, cleanSheets: 0, goalsConcededOnPitch: 0, goalsScoredOnPitch: 0, starts: 0, subs: 0, bench: 0, notConvoked: 0, goalsPer90: 0, assistsPer90: 0, gaPer90: 0, minutesPer90: 0, matchDuration: averageMatchDuration(completedMatches), trainingAttendanceRate: null };
 
   // Storico presenze partite
   const allMatches = [...context.matches].sort((a, b) => a.date.localeCompare(b.date));
@@ -584,7 +627,8 @@ export default function PlayerDetailPage() {
     const maxGoals = Math.max(playerStats.goals, 10);
     const maxAssists = Math.max(playerStats.assists, 10);
     const maxWins = maxApps;
-    const maxMins = 90;
+    // Scala del radar = durata REALE media delle partite, non 90 fisso
+    const maxMins = playerStats.matchDuration;
 
     return [
       { subject: "Presenze", score: (playerStats.appearances / maxApps) * 100, rawValue: playerStats.appearances },
@@ -737,6 +781,25 @@ export default function PlayerDetailPage() {
               <StatCard icon={Zap} label="Da Subentrato" value={displayStats.subs} />
             </div>
 
+            {/* 1b: panchina e non convocato. La panchina NON e' una presenza:
+                per questo sta fuori dai totali di sopra. */}
+            <div className="grid grid-cols-2 gap-2">
+              <StatCard
+                icon={User}
+                label="In Panchina"
+                value={displayStats.bench}
+                sub="non entrato"
+                color="text-orange-500"
+              />
+              <StatCard
+                icon={User}
+                label="Non Convocato"
+                value={displayStats.notConvoked}
+                sub="partite"
+                color="text-muted-foreground"
+              />
+            </div>
+
             {/* 2^ riga: Gol, Assist, Gol ogni xx minuti */}
             <div className="grid grid-cols-3 gap-2">
               <StatCard icon={GiSoccerBall} label="Gol" value={displayStats.goals} />
@@ -762,11 +825,15 @@ export default function PlayerDetailPage() {
               <StatCard icon={GiSoccerBall} label="Gol Subiti" value={displayStats.goalsConcededOnPitch} sub="in campo" color="text-rose-500" />
             </div>
 
-            {/* 5^ riga: efficienza per 90' (NON ridondante con i totali) */}
+            {/* 5^ riga: efficienza per partita piena. Il "90'" segue la
+                durata reale impostata in Gestione Squadra, non e' fisso. */}
             <div className="grid grid-cols-3 gap-2">
-              <StatCard icon={GiSoccerBall} label="Gol / 90'" value={displayStats.goalsPer90} sub="media" color="text-primary dark:text-brand-green" />
-              <StatCard icon={GiSoccerKick} label="Assist / 90'" value={displayStats.assistsPer90} sub="media" />
-              <StatCard icon={Target} label="G+A / 90'" value={displayStats.gaPer90} sub="media" color="text-primary dark:text-brand-green" />
+              <StatCard icon={Clock} label={`Minuti / ${displayStats.matchDuration}'`} value={displayStats.minutesPer90} sub="media" />
+              <StatCard icon={GiSoccerBall} label={`Gol / ${displayStats.matchDuration}'`} value={displayStats.goalsPer90} sub="media" color="text-primary dark:text-brand-green" />
+              <StatCard icon={GiSoccerKick} label={`Assist / ${displayStats.matchDuration}'`} value={displayStats.assistsPer90} sub="media" />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <StatCard icon={Target} label={`G+A / ${displayStats.matchDuration}'`} value={displayStats.gaPer90} sub="media" color="text-primary dark:text-brand-green" />
             </div>
 
             {/* 6^ riga: presenze allenamento (da trainingRecords già caricati) */}
