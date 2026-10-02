@@ -219,7 +219,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
           <DialogTitle className="text-foreground dark:text-white font-black uppercase text-xl tracking-tight">
             {test ? (step === 1 ? 'Modifica Test' : 'Risultati') : (step === 1 ? 'Nuovo Test' : 'Risultati')}
           </DialogTitle>
-          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60">
             {step === 1 ? 'Seleziona tipo, nome e unità di misura' : 'Inserisci i risultati per ogni giocatore'}
           </DialogDescription>
         </DialogHeader>
@@ -251,7 +251,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
               />
               {nomiEsistenti.length > 0 && (
                 <div className="mt-1.5">
-                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 ml-1 mb-1">
+                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/50 ml-1 mb-1">
                     Test esistenti (tocca per riusare)
                   </p>
                   <div className="flex flex-wrap gap-1">
@@ -344,7 +344,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
                       onChange={e => handleResultChange(player.id, e.target.value)}
                       className="w-24 h-9 text-right text-xs font-black rounded-lg bg-background dark:bg-black border border-border dark:border-brand-green/20 pr-8"
                     />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground/40 font-bold">
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground/80 dark:text-muted-foreground/40 font-bold">
                       {unit.startsWith('secondi') ? 's' : unit.startsWith('metri') ? 'm' : ''}
                     </span>
                   </div>

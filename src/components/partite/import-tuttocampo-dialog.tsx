@@ -188,7 +188,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
                       value={rawText}
                       onChange={(e) => setRawText(e.target.value)}
                       disabled={isLoading}
-                      className="min-h-[160px] text-[11px] font-bold rounded-2xl bg-background dark:bg-black border-border dark:border-brand-green/30 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green text-foreground dark:text-white placeholder:text-muted-foreground/30 dark:placeholder:text-white/10 transition-colors"
+                      className="min-h-[160px] text-[11px] font-bold rounded-2xl bg-background dark:bg-black border-border dark:border-brand-green/30 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green text-foreground dark:text-white placeholder:text-muted-foreground/80 dark:text-muted-foreground/30 dark:placeholder:text-white/10 transition-colors"
                     />
                   </TabsContent>
                   

@@ -212,7 +212,7 @@ export function AdvancedStatsSection() {
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm font-bold text-muted-foreground/30">Poche gare</p>
+                            <p className="text-sm font-bold text-muted-foreground/80 dark:text-muted-foreground/30">Poche gare</p>
                         )}
                     </CardContent>
                 </Card>
@@ -240,7 +240,7 @@ export function AdvancedStatsSection() {
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm font-bold text-muted-foreground/30">Poche gare</p>
+                            <p className="text-sm font-bold text-muted-foreground/80 dark:text-muted-foreground/30">Poche gare</p>
                         )}
                     </CardContent>
                 </Card>
@@ -268,7 +268,7 @@ export function AdvancedStatsSection() {
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm font-bold text-muted-foreground/30">Nessun Goal</p>
+                            <p className="text-sm font-bold text-muted-foreground/80 dark:text-muted-foreground/30">Nessun Goal</p>
                         )}
                     </CardContent>
                 </Card>
@@ -296,7 +296,7 @@ export function AdvancedStatsSection() {
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm font-bold text-muted-foreground/30">Poche gare</p>
+                            <p className="text-sm font-bold text-muted-foreground/80 dark:text-muted-foreground/30">Poche gare</p>
                         )}
                     </CardContent>
                 </Card>

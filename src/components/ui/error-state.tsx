@@ -135,7 +135,7 @@ export function ErrorState({
 
         {/* Text */}
         <div className="relative z-10 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/60">
             {resolvedType === "offline"
               ? "Connessione Assente"
               : resolvedType === "unauthorized"

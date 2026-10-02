@@ -18,9 +18,14 @@
  *    verde brand per la vittoria, giallo per il pareggio, rosso per la sconfitta.
  *    Verde neon (brand-green = #ace504), non emerald: è il verde del brand.
  *
- * 3. I NUMERI restano BIANCHI. Il colore lo porta il bordo, non il testo:
- *    numeri colorati e bordo dello stesso colore si leggono male, soprattutto
- *    il giallo su nero. Il bianco tiene su tutti e tre i fondi.
+ * 3. I NUMERI sono scuri nel tema chiaro e bianchi in quello scuro. Il colore
+ *    dell'esito lo porta il bordo, non il testo: numeri colorati e bordo dello
+ *    stesso colore si leggono male, soprattutto il giallo su nero.
+ *
+ *    Il bianco non "tiene su tutti e tre i fondi" come diceva prima: sopra una
+ *    card bianca in tema chiaro il punteggio spariva del tutto, contrasto 1:1,
+ *    cioe' il risultato di una partita era illeggibile proprio dove si legge
+ *    di piu'.
  */
 
 export interface ScoreBoxStyle {
@@ -95,7 +100,9 @@ export function scoreBoxStyle(opts: {
             pair,
             card: `${c.bordo} ${c.bagliore}`,
             box: '',
-            text: 'text-white dark:text-white',
+            // Scuro nel tema chiaro, bianco in quello scuro. Era bianco
+            // fisso: sopra la card bianca non si vedeva.
+            text: 'text-foreground dark:text-white',
         };
     }
 
@@ -103,6 +110,6 @@ export function scoreBoxStyle(opts: {
         pair,
         box: `${c.bordo} ${c.bagliore}`,
         card: '',
-        text: 'text-white dark:text-white',
+        text: 'text-foreground dark:text-white',
     };
 }

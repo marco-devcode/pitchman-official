@@ -123,7 +123,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange, onSave }: ImportTut
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={isScraping}
-                className="h-14 text-xs font-black uppercase rounded-2xl bg-muted/30 dark:bg-black border-border dark:border-brand-green/20 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green focus-visible:border-primary dark:focus-visible:border-brand-green transition-all px-5 placeholder:text-muted-foreground/30"
+                className="h-14 text-xs font-black uppercase rounded-2xl bg-muted/30 dark:bg-black border-border dark:border-brand-green/20 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green focus-visible:border-primary dark:focus-visible:border-brand-green transition-all px-5 placeholder:text-muted-foreground/80 dark:text-muted-foreground/30"
               />
             </div>
 

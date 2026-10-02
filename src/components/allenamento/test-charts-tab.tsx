@@ -495,7 +495,7 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
     return (
       <div className="py-12 text-center bg-card dark:bg-black/20 border border-dashed border-border dark:border-white/10 rounded-3xl">
         <Activity className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
-        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground/40 mb-4">Nessun test da visualizzare</p>
+        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/40 mb-4">Nessun test da visualizzare</p>
       </div>
     );
   }
@@ -530,7 +530,7 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
 
       {subTab === 'evoluzione' ? (
         <>
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 px-1 flex items-center gap-1.5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 px-1 flex items-center gap-1.5">
             <Users className="h-3 w-3" /> Andamento media squadra per test
           </p>
           {grouped.map(g => (
@@ -538,11 +538,11 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
               <CardHeader className="pb-0 px-4 pt-4">
                 <CardTitle className="text-xs font-black uppercase tracking-tight text-foreground dark:text-white flex items-center justify-between">
                   <span className="truncate">{g.name}</span>
-                  <span className="text-[9px] font-bold text-muted-foreground/50 shrink-0 ml-2">
+                  <span className="text-[9px] font-bold text-muted-foreground/80 dark:text-muted-foreground/50 shrink-0 ml-2">
                     {g.count} {g.count === 1 ? 'sessione' : 'sessioni'}
                   </span>
                 </CardTitle>
-                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40">
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/40">
                   Alone: minimo e massimo squadra attorno alla media
                 </p>
               </CardHeader>
@@ -550,7 +550,7 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
                 {g.series.length > 0 ? (
                   <EvoluzioneChart data={g.series} colors={chartColors} unit={g.unit} />
                 ) : (
-                  <div className="h-44 flex items-center justify-center text-[10px] font-bold uppercase text-muted-foreground/40">
+                  <div className="h-44 flex items-center justify-center text-[10px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/40">
                     Nessun dato
                   </div>
                 )}
@@ -560,7 +560,7 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
         </>
       ) : (
         <>
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 px-1 flex items-center gap-1.5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 px-1 flex items-center gap-1.5">
             <BarChart3 className="h-3 w-3" /> Distribuzione risultati per tentativo
           </p>
 
@@ -622,11 +622,11 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
               <CardHeader className="pb-0 px-4 pt-4">
                 <CardTitle className="text-xs font-black uppercase tracking-tight text-foreground dark:text-white flex items-center justify-between">
                   <span className="truncate">{attivo.name}</span>
-                  <span className="text-[9px] font-bold text-muted-foreground/50 shrink-0 ml-2">
+                  <span className="text-[9px] font-bold text-muted-foreground/80 dark:text-muted-foreground/50 shrink-0 ml-2">
                     {distribuzione.totale} rilevamenti
                   </span>
                 </CardTitle>
-                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40">
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/40">
                   10 quantili — clicca una barra per i nomi
                 </p>
               </CardHeader>
@@ -646,7 +646,7 @@ export function TestChartsTab({ tests, players }: { tests: PhysicalTest[]; playe
               </CardContent>
             </Card>
           ) : (
-            <div className="h-44 flex items-center justify-center text-[10px] font-bold uppercase text-muted-foreground/40">
+            <div className="h-44 flex items-center justify-center text-[10px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/40">
               Nessun dato
             </div>
           )}

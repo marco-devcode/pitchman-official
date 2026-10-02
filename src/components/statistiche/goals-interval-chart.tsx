@@ -27,7 +27,7 @@ export function GoalsIntervalChart() {
                     <CardTitle className="text-base font-black uppercase tracking-tight text-primary">Distribuzione Gol</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm font-bold text-muted-foreground/60 uppercase tracking-widest text-center py-10 opacity-50">Nessun gol segnato finora.</p>
+                    <p className="text-sm font-bold text-muted-foreground/80 dark:text-muted-foreground/60 uppercase tracking-widest text-center py-10 opacity-50">Nessun gol segnato finora.</p>
                 </CardContent>
             </Card>
         );
@@ -43,7 +43,7 @@ export function GoalsIntervalChart() {
         <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm">
             <CardHeader className="pb-2">
                 <CardTitle className="text-base font-black uppercase tracking-tight text-primary dark:text-white">Gol per Intervallo</CardTitle>
-                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-wider">Distribuzione dei gol segnati nei diversi momenti della gara.</CardDescription>
+                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60 tracking-wider">Distribuzione dei gol segnati nei diversi momenti della gara.</CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="min-h-[300px] w-full">

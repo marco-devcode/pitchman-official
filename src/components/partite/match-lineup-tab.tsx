@@ -285,7 +285,7 @@ export function MatchLineupTab() {
           </div>
           <Card className="bg-card dark:bg-black/40 border-border dark:border-white/5 rounded-3xl overflow-hidden shadow-sm">
             {!isEditing && substitutes.filter(s => s).length === 0 ? (
-              <div className="p-8 text-center text-[10px] font-black uppercase text-muted-foreground/50 tracking-widest">
+              <div className="p-8 text-center text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/50 tracking-widest">
                 Nessun giocatore in panchina
               </div>
             ) : (
@@ -369,7 +369,7 @@ export function MatchLineupTab() {
                 })}
               </CardContent>
               <div className="px-4 py-2 bg-muted/10 dark:bg-black/40 border-t border-border dark:border-white/5">
-                <p className="text-[8px] font-bold text-muted-foreground/40 uppercase text-center italic">
+                <p className="text-[8px] font-bold text-muted-foreground/80 dark:text-muted-foreground/40 uppercase text-center italic">
                   La logica delle squalifiche sarà aggiunta prossimamente
                 </p>
               </div>

@@ -137,7 +137,7 @@ export function MatchFormDialog({ open, onOpenChange, onSave, match }: MatchForm
           <DialogTitle className="font-black uppercase text-foreground">
             {match ? "Modifica Gara" : "Nuova Gara"}
           </DialogTitle>
-          <DialogDescription className="text-xs uppercase font-bold text-muted-foreground/60">
+          <DialogDescription className="text-xs uppercase font-bold text-muted-foreground/80 dark:text-muted-foreground/60">
             {match
               ? "Aggiorna le informazioni della partita."
               : "Inserisci i dettagli per pianificare la gara."}

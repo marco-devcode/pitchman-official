@@ -107,7 +107,7 @@ export function SmartPlayerDialog({ open, onOpenChange, onSave }: SmartPlayerDia
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 disabled={isAnalyzing}
-                className="min-h-[280px] text-xs font-black uppercase rounded-[24px] bg-muted/30 dark:bg-black border-border dark:border-brand-green/20 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green focus-visible:border-primary dark:focus-visible:border-brand-green transition-all p-5 placeholder:text-muted-foreground/30"
+                className="min-h-[280px] text-xs font-black uppercase rounded-[24px] bg-muted/30 dark:bg-black border-border dark:border-brand-green/20 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green focus-visible:border-primary dark:focus-visible:border-brand-green transition-all p-5 placeholder:text-muted-foreground/80 dark:text-muted-foreground/30"
               />
             </div>
             <div className="px-8 pb-4 pt-2">

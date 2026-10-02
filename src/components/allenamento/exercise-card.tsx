@@ -97,7 +97,7 @@ export function ExerciseCard({ exercise, isOwner, onEdit, onDelete, onView }: Ex
                     <Trash2 className="h-7 w-7 text-rose-500" />
                   </div>
                   <AlertDialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground dark:text-white">Elimina Esercizio?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-sm font-bold text-muted-foreground/60 leading-relaxed uppercase tracking-widest">
+                  <AlertDialogDescription className="text-sm font-bold text-muted-foreground/80 dark:text-muted-foreground/60 leading-relaxed uppercase tracking-widest">
                     Questa azione non può essere annullata. L'esercizio verrà rimosso permanentemente dal tuo archivio tecnico.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -120,7 +120,7 @@ export function ExerciseCard({ exercise, isOwner, onEdit, onDelete, onView }: Ex
         <CardTitle className="text-xl font-black uppercase tracking-tighter text-foreground line-clamp-1 group-hover:text-primary dark:group-hover:text-brand-green transition-colors">
           {exercise.name}
         </CardTitle>
-        <div className="flex items-center gap-4 mt-1 text-muted-foreground/40">
+        <div className="flex items-center gap-4 mt-1 text-muted-foreground/80 dark:text-muted-foreground/40">
            <div className="flex items-center gap-1.5">
               <Users className="h-3 w-3" />
               <span className="text-[9px] font-black uppercase tracking-widest">{exercise.playerCount.slice(0,2).join(', ')} {exercise.playerCount.length > 2 ? '+' : ''}</span>

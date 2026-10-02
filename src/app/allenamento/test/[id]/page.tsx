@@ -62,7 +62,7 @@ export default function TestDetailPage() {
   if (!test) {
     return (
       <div className="flex flex-col items-center py-16 text-center">
-        <p className="text-sm font-black uppercase text-muted-foreground/60">Test non trovato</p>
+        <p className="text-sm font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60">Test non trovato</p>
         <Link href="/allenamento/test" className="mt-4 text-xs font-bold uppercase text-foreground hover:text-primary">
           ← Torna ai test
         </Link>
@@ -231,7 +231,7 @@ function TestDetail({
       {setNumbers.length > 0 && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between px-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/60">
               {setNumbers.length === 1 ? '1 tentativo' : `${setNumbers.length} tentativi`}
             </span>
             <Button
@@ -276,17 +276,17 @@ function TestDetail({
         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
           SET {currentSetNumber}
         </span>
-        <span className="text-[10px] font-bold uppercase text-muted-foreground/60">• {formatDate(test.date)}</span>
-        <span className="text-[10px] font-bold uppercase text-muted-foreground/60">• {test.unit}</span>
-        <span className="text-[10px] font-bold uppercase text-muted-foreground/60 ml-auto">
+        <span className="text-[10px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/60">• {formatDate(test.date)}</span>
+        <span className="text-[10px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/60">• {test.unit}</span>
+        <span className="text-[10px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/60 ml-auto">
           {test.results.length} {test.results.length === 1 ? 'giocatore' : 'giocatori'}
         </span>
       </div>
 
       {/* Results list / edit form */}
       <div className="flex items-center gap-2 px-1">
-        <Edit3 className="h-3 w-3 text-muted-foreground/40" />
-        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+        <Edit3 className="h-3 w-3 text-muted-foreground/80 dark:text-muted-foreground/40" />
+        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/40">
           {editing ? 'Modifica risultati' : 'Risultati'}
         </span>
       </div>
@@ -317,14 +317,14 @@ function TestDetail({
                     })}
                     className="w-24 h-9 text-right text-xs font-black rounded-lg bg-background dark:bg-black border border-border dark:border-brand-green/20 pr-8 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green focus-visible:border-primary dark:focus-visible:border-brand-green"
                   />
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground/40 font-bold">
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground/80 dark:text-muted-foreground/40 font-bold">
                     {test.unit === 'secondi' ? 's' : test.unit === 'metri' ? 'm' : ''}
                   </span>
                 </div>
               ) : (
                 <span className={cn(
                   'text-[11px] font-black',
-                  existingResult ? 'text-foreground' : 'text-muted-foreground/30'
+                  existingResult ? 'text-foreground' : 'text-muted-foreground/80 dark:text-muted-foreground/30'
                 )}>
                   {existingResult ? formatValue(existingResult.value, test.unit) : '—'}
                 </span>
@@ -349,7 +349,7 @@ function TestDetail({
                 key={entry.playerId}
                 className="flex items-center gap-3 px-4 py-2.5 border-b border-border dark:border-brand-green/10 last:border-b-0"
               >
-                <span className="w-5 text-center text-[11px] font-black text-muted-foreground/60">
+                <span className="w-5 text-center text-[11px] font-black text-muted-foreground/80 dark:text-muted-foreground/60">
                   {idx + 1}
                 </span>
                 <span className="flex-1 text-xs font-bold truncate">{getPlayerName(entry.playerId)}</span>

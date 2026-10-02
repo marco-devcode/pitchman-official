@@ -55,7 +55,7 @@ export function InjuryFormDialog({
     };
 
     const calendarClassNames = {
-        weekday: "text-muted-foreground/30 rounded-md w-9 font-black text-[0.6rem] uppercase tracking-tighter text-center",
+        weekday: "text-muted-foreground/80 dark:text-muted-foreground/30 rounded-md w-9 font-black text-[0.6rem] uppercase tracking-tighter text-center",
         caption_label: "text-sm font-black uppercase tracking-[0.2em] text-foreground dark:text-white",
         day: "h-10 w-10 p-0 m-0 flex items-center justify-center relative",
         day_button: "text-foreground/80 dark:text-white/60 hover:bg-muted dark:hover:bg-black hover:text-foreground dark:hover:text-white hover:border hover:border-primary/30 dark:hover:border-brand-green/30 hover:shadow-sm dark:hover:shadow-[0_0_15px_rgba(172,229,4,0.4)] rounded-xl h-10 w-10 flex items-center justify-center p-0 font-black transition-all cursor-pointer relative z-10",
@@ -82,7 +82,7 @@ export function InjuryFormDialog({
                     <DialogTitle className="text-foreground dark:text-white font-black uppercase text-xl md:text-2xl tracking-tight text-center">
                         Infermeria
                     </DialogTitle>
-                    <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 text-center">
+                    <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/60 text-center">
                         Aggiungi o rimuovi un periodo di infortunio
                     </DialogDescription>
                 </DialogHeader>

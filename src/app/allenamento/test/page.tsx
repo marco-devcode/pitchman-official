@@ -183,7 +183,7 @@ export default function PhysicalTestsPage() {
               'px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ' +
               (view === v
                 ? 'bg-background dark:bg-black border border-primary dark:border-brand-green text-foreground'
-                : 'text-muted-foreground/50')
+                : 'text-muted-foreground/80 dark:text-muted-foreground/50')
             }
           >
             {v === 'list' ? 'Test' : 'Grafici'}
@@ -203,7 +203,7 @@ export default function PhysicalTestsPage() {
               'px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ' +
               (filter === f
                 ? 'bg-background dark:bg-black border border-primary dark:border-brand-green text-foreground'
-                : 'text-muted-foreground/50')
+                : 'text-muted-foreground/80 dark:text-muted-foreground/50')
             }
           >
             {f === 'all' ? 'Tutti' : f === 'velocita' ? 'Velocità' : 'Resistenza'}

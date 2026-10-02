@@ -61,7 +61,7 @@ export function VenueStatsCharts() {
                 </ChartContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-xl font-black leading-none text-foreground">{total}</span>
-                    <span className="text-[8px] font-black text-muted-foreground/50 uppercase tracking-widest">Gare</span>
+                    <span className="text-[8px] font-black text-muted-foreground/80 dark:text-muted-foreground/50 uppercase tracking-widest">Gare</span>
                 </div>
             </div>
         </div>
@@ -71,7 +71,7 @@ export function VenueStatsCharts() {
         <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm">
             <CardHeader className="pb-2">
                 <CardTitle className="text-base font-black uppercase tracking-tight text-primary dark: text-white">Statistiche Risultati</CardTitle>
-                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-wider">Distribuzione esiti Totale, In Casa e In Trasferta.</CardDescription>
+                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60 tracking-wider">Distribuzione esiti Totale, In Casa e In Trasferta.</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
                 <div className="grid grid-cols-3 gap-2">

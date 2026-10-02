@@ -43,7 +43,7 @@ export function TeamPerformanceChart() {
         <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm">
             <CardHeader className="pb-2">
                 <CardTitle className="text-base font-black uppercase tracking-tight dark:text-white">Andamento Risultati</CardTitle>
-                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-wider">
+                <CardDescription className="text-[10px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/60 tracking-wider">
                     Sequenza cronologica di Vittorie (V), Pareggi (P) e Sconfitte (S).
                 </CardDescription>
             </CardHeader>

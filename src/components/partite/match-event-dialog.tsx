@@ -293,13 +293,13 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           <DialogTitle className="text-2xl font-black uppercase text-center text-foreground dark:text-white tracking-widest leading-none">
             Evento
           </DialogTitle>
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/30 text-center mt-1">Tempo Reale</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/80 dark:text-muted-foreground/30 text-center mt-1">Tempo Reale</p>
         </DialogHeader>
 
         <div className="space-y-2">
           {/* SQUADRA */}
           <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Squadra</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Squadra</span>
             <Select
               value={team}
               onValueChange={(v) => { setTeam(v as any); setPlayerId(""); setSubInPlayerId(""); setSubOutPlayerId(""); }}
@@ -319,7 +319,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
 
           {/* EVENTO */}
           <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Tipo</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Tipo</span>
             <Select
               value={uiType}
               onValueChange={(v) => setUiType(v as UIEventType)}
@@ -350,7 +350,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           {uiType === 'stoppage' && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Tempo</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Tempo</span>
                 <div className="flex gap-1.5">
                   {(['1TS', '2TS'] as const).map(p => (
                     <button
@@ -372,7 +372,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
               </div>
 
               <div className="bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1 block mb-2">Minuti</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1 block mb-2">Minuti</span>
                 <div className="grid grid-cols-9 gap-1.5">
                   {Array.from({ length: 9 }, (_, i) => i + 1).map(n => (
                     <button
@@ -399,7 +399,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           {/* TIPO GOAL (SOTTO TIPO EVENTO) */}
           {uiType === 'goal' && (
             <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all animate-in fade-in slide-in-from-top-1 duration-200">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Tipo Goal</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Tipo Goal</span>
               <Select 
                 value={goalType} 
                 onValueChange={(v) => {
@@ -430,7 +430,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           {uiType === 'goal' && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Marcatore</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Marcatore</span>
                 {isPitchManSide ? (
                   <Select
                     value={playerId}
@@ -454,7 +454,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
               </div>
               {goalType !== 'rigore' && (
                 <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Assist</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Assist</span>
                   {isPitchManSide ? (
                     <Select
                       value={assistPlayerId}
@@ -485,7 +485,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           {uiType === 'own_goal' && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Autogol di</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Autogol di</span>
                 {isPitchManSide ? (
                   <Select
                     value={playerId}
@@ -565,7 +565,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           {/* PLAYER SELECTION FOR OTHERS */}
           {['penalty_saved', 'penalty_missed', 'chance', 'woodwork'].includes(uiType) && (
             <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Player</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Player</span>
               {isPitchManSide ? (
                 <Select
                   value={playerId}
@@ -592,7 +592,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           {/* CARDS SECTION (ALL IN LINEUP) */}
           {['yellow_card', 'red_card'].includes(uiType) && (
             <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Giocatore</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Giocatore</span>
               {isPitchManSide ? (
                 <Select
                   value={playerId}
@@ -619,7 +619,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
           {/* NOTES FIELD */}
           {uiType === 'note' && (
             <div className="bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1 block mb-2">Testo Nota</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1 block mb-2">Testo Nota</span>
               <textarea
                 className="w-full bg-transparent border-none text-[12px] font-medium focus:outline-none text-foreground min-h-[80px] resize-none disabled:opacity-50"
                 placeholder="Inserisci i dettagli dell'evento..."
@@ -637,7 +637,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
               al submit. Mostrarla insieme era pura ridondanza. */}
           {uiType !== 'stoppage' && (
           <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-transparent hover:border-brand-green/20 p-3 rounded-xl transition-all">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 ml-1">Tempo</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 dark:text-muted-foreground/50 ml-1">Tempo</span>
             <div className="flex items-center gap-2">
               <Select
                 value={period}

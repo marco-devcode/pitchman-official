@@ -337,7 +337,7 @@ export default function TrainingDetailPage() {
                                 <div className="flex items-center gap-2 shrink-0">
                                   <div className="flex items-center gap-1.5">
                                     <div className="flex flex-col items-center">
-                                      <Label className="text-[8px] font-black uppercase text-muted-foreground/50 mb-0.5">Serie</Label>
+                                      <Label className="text-[8px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/50 mb-0.5">Serie</Label>
                                       <Input 
                                         type="number"
                                         className="h-8 w-12 text-center text-[10px] font-black uppercase bg-background dark:bg-black border-border dark:border-brand-green/20 p-0 focus-visible:ring-brand-green"
@@ -351,9 +351,9 @@ export default function TrainingDetailPage() {
                                         placeholder="1"
                                       />
                                     </div>
-                                    <span className="text-muted-foreground/30 font-black text-xs mt-3">x</span>
+                                    <span className="text-muted-foreground/80 dark:text-muted-foreground/30 font-black text-xs mt-3">x</span>
                                     <div className="flex flex-col items-center">
-                                      <Label className="text-[8px] font-black uppercase text-muted-foreground/50 mb-0.5">Minuti</Label>
+                                      <Label className="text-[8px] font-black uppercase text-muted-foreground/80 dark:text-muted-foreground/50 mb-0.5">Minuti</Label>
                                       <Input 
                                         type="number"
                                         className="h-8 w-14 text-center text-[10px] font-black uppercase bg-background dark:bg-black border-border dark:border-brand-green/20 p-0 focus-visible:ring-brand-green"
@@ -541,7 +541,7 @@ export default function TrainingDetailPage() {
                                  <CheckCircle2 className="h-3 w-3 text-white dark:text-black" />
                               </div>
                            ) : (
-                              <PlusIcon className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground" />
+                              <PlusIcon className="h-4 w-4 text-muted-foreground/80 dark:text-muted-foreground/30 group-hover:text-foreground" />
                            )}
                         </button>
                       );

@@ -187,7 +187,7 @@ export function TrainingStatsDialog({ open, onOpenChange, currentWeekStart }: Tr
         </div>
 
         <div className="p-4 bg-muted/30 dark:bg-black border-t border-border dark:border-brand-green/20 flex flex-col items-center gap-2 transition-colors shrink-0">
-          <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40">Dati riferiti alla settimana attuale</span>
+          <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/40">Dati riferiti alla settimana attuale</span>
           <div className="flex items-center justify-center gap-6">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-primary dark:bg-brand-green shadow-sm dark:shadow-[0_0_6px_rgba(172,229,4,0.5)]" />

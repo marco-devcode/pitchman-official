@@ -467,7 +467,7 @@ export default function AltroPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-lg font-black tracking-tight">{user?.username}</span>
-                <span className="text-sm text-muted-foreground/60">{user?.email}</span>
+                <span className="text-sm text-muted-foreground/80 dark:text-muted-foreground/60">{user?.email}</span>
               </div>
             </div>
 
@@ -576,7 +576,7 @@ export default function AltroPage() {
                     className="data-[state=checked]:bg-primary dark:data-[state=checked]:bg-brand-green"
                   />
                 </div>
-                <p className="text-[10px] text-muted-foreground/60 font-medium">Marcare tutti come presenti alla creazione automatica degli allenamenti.</p>
+                <p className="text-[10px] text-muted-foreground/80 dark:text-muted-foreground/60 font-medium">Marcare tutti come presenti alla creazione automatica degli allenamenti.</p>
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 dark:bg-card/20 hover:bg-muted/50 dark:hover:bg-card/30 border border-border dark:border-transparent">
@@ -597,7 +597,7 @@ export default function AltroPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-[10px] text-muted-foreground/60 font-medium -mt-2">Tab predefinita per Bomber, Assistman, Fedelissimo e per le statistiche del giocatore. Le amichevoli non finiscono nel campionato.</p>
+              <p className="text-[10px] text-muted-foreground/80 dark:text-muted-foreground/60 font-medium -mt-2">Tab predefinita per Bomber, Assistman, Fedelissimo e per le statistiche del giocatore. Le amichevoli non finiscono nel campionato.</p>
             </div>
 
             <Button 

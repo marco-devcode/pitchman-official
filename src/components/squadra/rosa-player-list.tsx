@@ -77,7 +77,7 @@ export function RolePlayerList({
         >
           {selectedRole}
         </span>
-        <span className="text-[10px] font-bold uppercase text-muted-foreground/60">
+        <span className="text-[10px] font-bold uppercase text-muted-foreground/80 dark:text-muted-foreground/60">
           ({ROLE_LABELS[selectedRole]})
         </span>
       </div>
@@ -85,7 +85,7 @@ export function RolePlayerList({
       {/* Ordered / Already in formation — Rosa players */}
       {rosaPlayerIds.length > 0 && (
         <div className="space-y-1">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/40">
             In formazione
           </span>
           {rosaPlayerIds.map((playerId, idx) => {
@@ -129,7 +129,7 @@ export function RolePlayerList({
                   <p className="text-xs font-bold truncate">
                     {player.lastName} {player.firstName}
                   </p>
-                  <p className="text-[9px] font-medium text-muted-foreground/60 uppercase">
+                  <p className="text-[9px] font-medium text-muted-foreground/80 dark:text-muted-foreground/60 uppercase">
                     {player.roles?.join(', ')} {isExcluded && '• escluso'}
                   </p>
                 </div>
@@ -214,7 +214,7 @@ export function RolePlayerList({
       {/* Compatible players (not yet in formation) */}
       {compatiblePlayers.filter((p) => !ordered.includes(p.id)).length > 0 && (
         <div className="space-y-1">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/40">
             Compatibili ({selectedRole})
           </span>
           {compatiblePlayers
@@ -246,7 +246,7 @@ export function RolePlayerList({
                     <p className="text-xs font-bold truncate">
                       {player.lastName} {player.firstName}
                     </p>
-                    <p className="text-[9px] font-medium text-muted-foreground/60 uppercase">
+                    <p className="text-[9px] font-medium text-muted-foreground/80 dark:text-muted-foreground/60 uppercase">
                       {player.roles?.join(', ')} {isExcluded && '• escluso'}
                     </p>
                   </div>
@@ -259,7 +259,7 @@ export function RolePlayerList({
       {/* Incompatible / cross-role players */}
       {incompatiblePlayers.length > 0 && (
         <div className="space-y-1">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground/40">
             Altri giocatori della categoria
           </span>
           {incompatiblePlayers.map((player) => (
@@ -279,7 +279,7 @@ export function RolePlayerList({
                 <p className="text-xs font-bold truncate">
                   {player.lastName} {player.firstName}
                 </p>
-                <p className="text-[9px] font-medium text-muted-foreground/60 uppercase">
+                <p className="text-[9px] font-medium text-muted-foreground/80 dark:text-muted-foreground/60 uppercase">
                   {player.roles?.join(', ')}
                 </p>
               </div>
