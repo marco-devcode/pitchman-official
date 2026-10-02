@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { LayoutGrid, AlertCircle, Loader2 } from "lucide-react";
 import { cn, displayPlayerName } from "@/lib/utils";
 import { FORMATION_POSITIONS, getPositionAcronym, MATCH_FORMATIONS } from "@/lib/lineup-mapping";
+import { computeMostUsedLineup } from "@/lib/most-used-lineup";
 
 /**
  * Righe del campo per le statistiche: array di indici di slot, dalla punta in
@@ -83,48 +84,24 @@ export function SquadFormationView() {
           return;
         }
 
-        // 1. Trova il modulo più usato
-        const formationCounts: Record<string, number> = {};
-        completedMatches.forEach(m => {
-          const lineup = context.matchesDetails[m.id]?.lineup;
-          if (lineup?.formation) {
-            formationCounts[lineup.formation] = (formationCounts[lineup.formation] || 0) + 1;
-          }
-        });
-
-        const mostUsedFormation = Object.entries(formationCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "4-4-2";
-        const formationApps = formationCounts[mostUsedFormation] || 0;
-
-        // 2. Per ogni posizione (0-10) del modulo, trova il giocatore più presente
-        const positionPlayerCounts: Record<number, Record<string, number>> = {};
-        for (let i = 0; i <= 10; i++) positionPlayerCounts[i] = {};
-
-        completedMatches.forEach(m => {
-          const lineup = context.matchesDetails[m.id]?.lineup;
-          if (lineup && lineup.formation === mostUsedFormation) {
-            lineup.starters.forEach((p, idx) => {
-              const pid = typeof p === 'string' ? p : p.playerId;
-              if (pid) {
-                positionPlayerCounts[idx][pid] = (positionPlayerCounts[idx][pid] || 0) + 1;
-              }
-            });
-          }
-        });
-
-        const starters: { playerId: string; name: string }[] = [];
-        for (let i = 0; i <= 10; i++) {
-          const topPlayerId = Object.entries(positionPlayerCounts[i]).sort((a, b) => b[1] - a[1])[0]?.[0];
-          const player = players.find(p => p.id === topPlayerId);
-          starters.push({
-            playerId: topPlayerId || "",
-            name: player ? player.name : "---"
-          });
+        // Calcolo in una funzione pura (src/lib/most-used-lineup.ts): un
+        // giocatore entra nella formazione tipo UNA volta sola, anche se ha
+        // ricoperto piu' posizioni.
+        const best = computeMostUsedLineup(
+          completedMatches,
+          (m) => context.matchesDetails[m.id]?.lineup,
+          (pid) => players.find(p => p.id === pid)?.name,
+        );
+        if (!best) {
+          setError("Nessuna formazione registrata nelle partite completate.");
+          setLoading(false);
+          return;
         }
 
         setBestLineup({
-          formation: mostUsedFormation,
-          starters,
-          apps: formationApps
+          formation: best.formation,
+          starters: best.starters,
+          apps: best.apps
         });
       } catch (err) {
         console.error("Error calculating best lineup:", err);

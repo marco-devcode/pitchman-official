@@ -6,6 +6,7 @@ import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
 import { useSettingsStore } from './useSettingsStore';
 import type { AdvancedStatsLeaderboard, MatchType } from '@/lib/types';
+import type { PlayerUsageCounts } from '@/lib/player-usage';
 import { getErrorMessage } from '@/lib/error-utils';
 import { filterContextByType, type FilterType } from '@/lib/aggregators/filter';
 
@@ -31,6 +32,8 @@ interface PlayerLeaderboardEntry {
         yellowCards: number;
         redCards: number;
     };
+    /** Pan / Sub / NC: la panchina NON e' una presenza, quindi va contata qui */
+    usage?: PlayerUsageCounts;
 }
 
 interface TrendEntry {

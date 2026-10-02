@@ -10,6 +10,7 @@ import { usePlayersStore } from "@/store/usePlayersStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { aggregationRepository } from "@/lib/repositories/aggregation-repository";
+import { getMatchUsage } from "@/lib/player-usage";
 import { cn, displayPlayerName } from "@/lib/utils";
 import { Player, getPrimaryRole } from '@/lib/types';
 import { useThemeStore } from "@/store/useThemeStore";
@@ -69,12 +70,14 @@ function calculatePlayerStats(playerId: string, context: any, player: Player, pS
   for (const match of completedMatches) {
     const details = context.matchesDetails[match.id];
     if (!details) continue;
-    const isStarter = details.lineup?.starters.includes(playerId) ?? false;
+    // Stessa definizione degli altri aggregatori: entrare in campo e' la
+    // presenza, la panchina no (nè come presenza né per W/D/L e minuti).
+    const u = getMatchUsage(details, playerId, match.isHome);
+    const isStarter = u.isStarter;
     const stat = details.stats.find((s: any) => s.playerId === playerId);
-    const hasPlayed = isStarter || !!stat;
 
-    if (hasPlayed) {
-      totalMinutes += stat?.minutesPlayed ?? 0;
+    if (u.appeared) {
+      totalMinutes += u.minutesPlayed;
 
       const chronologicalEvents = [...details.events].sort((a: any, b: any) => a.minute - b.minute);
       const myTeam = match.isHome ? 'home' : 'away';

@@ -23,7 +23,7 @@ import { GiSoccerBall, GiSoccerKick } from "react-icons/gi";
 import { IoSquare } from "react-icons/io5";
 import { displayPlayerName } from "@/lib/utils";
 
-type SortKey = 'name' | 'appearances' | 'goals' | 'assists' | 'avgMinutes' | 'yellowCards' | 'redCards';
+type SortKey = 'name' | 'appearances' | 'goals' | 'assists' | 'avgMinutes' | 'yellowCards' | 'redCards' | 'bench' | 'subAppearances' | 'notConvoked';
 type SortOrder = 'asc' | 'desc' | null;
 
 export function PlayerLeaderboard() {
@@ -41,6 +41,9 @@ export function PlayerLeaderboard() {
       if (sortKey === 'name') {
         aVal = (a.lastName || a.name || "").toLowerCase();
         bVal = (b.lastName || b.name || "").toLowerCase();
+      } else if (sortKey === 'bench' || sortKey === 'subAppearances' || sortKey === 'notConvoked') {
+        aVal = a.usage?.[sortKey] || 0;
+        bVal = b.usage?.[sortKey] || 0;
       } else {
         aVal = a.stats[sortKey as keyof typeof a.stats] || 0;
         bVal = b.stats[sortKey as keyof typeof b.stats] || 0;
@@ -118,6 +121,24 @@ export function PlayerLeaderboard() {
                   <div className="flex items-center justify-center">P <SortIcon column="appearances" /></div>
                 </TableHead>
                 <TableHead 
+                  className="w-12 text-center cursor-pointer hover:bg-primary/5 dark:hover:bg-brand-green/5 transition-colors text-[10px] font-black uppercase tracking-widest px-2 text-muted-foreground"
+                  onClick={() => handleSort('bench')}
+                >
+                  <div className="flex items-center justify-center">Pan <SortIcon column="bench" /></div>
+                </TableHead>
+                <TableHead 
+                  className="w-12 text-center cursor-pointer hover:bg-primary/5 dark:hover:bg-brand-green/5 transition-colors text-[10px] font-black uppercase tracking-widest px-2 text-muted-foreground"
+                  onClick={() => handleSort('subAppearances')}
+                >
+                  <div className="flex items-center justify-center">Sub <SortIcon column="subAppearances" /></div>
+                </TableHead>
+                <TableHead 
+                  className="w-12 text-center cursor-pointer hover:bg-primary/5 dark:hover:bg-brand-green/5 transition-colors text-[10px] font-black uppercase tracking-widest px-2 text-muted-foreground"
+                  onClick={() => handleSort('notConvoked')}
+                >
+                  <div className="flex items-center justify-center">NC <SortIcon column="notConvoked" /></div>
+                </TableHead>
+                <TableHead 
                   className="w-12 text-center cursor-pointer hover:bg-primary/5 dark:hover:bg-brand-green/5 transition-colors text-[10px] font-black uppercase tracking-widest px-2 text-muted-foreground" 
                   onClick={() => handleSort('goals')}
                 >
@@ -156,6 +177,9 @@ export function PlayerLeaderboard() {
                     {displayPlayerName(player as any)}
                   </TableCell>
                   <TableCell className="text-center text-xs font-bold px-2 text-muted-foreground dark:text-white/80">{player.stats.appearances}</TableCell>
+                  <TableCell className="text-center text-xs font-bold px-2 text-muted-foreground dark:text-white/70">{player.usage?.bench ?? 0}</TableCell>
+                  <TableCell className="text-center text-xs font-bold px-2 text-primary dark:text-brand-green">{player.usage?.subAppearances ?? 0}</TableCell>
+                  <TableCell className="text-center text-xs font-bold px-2 text-muted-foreground dark:text-white/50">{player.usage?.notConvoked ?? 0}</TableCell>
                   <TableCell className="text-center font-black text-sm text-primary dark:text-brand-green px-2">{player.stats.goals}</TableCell>
                   <TableCell className="text-center font-bold text-xs text-primary dark:text-brand-green px-2">{player.stats.assists}</TableCell>
                   <TableCell className="text-center px-2">
@@ -179,6 +203,18 @@ export function PlayerLeaderboard() {
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-black text-primary dark:text-brand-green uppercase">P:</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Presenze</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black text-muted-foreground dark:text-white/70 uppercase">Pan</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Panchina</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black text-primary dark:text-brand-green uppercase">Sub</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Subentrato</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black text-muted-foreground dark:text-white/50 uppercase">NC</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">Non convocato</span>
           </div>
           <div className="flex items-center gap-1.5">
             <GiSoccerBall className="h-3 w-3 text-primary dark:text-brand-green" />

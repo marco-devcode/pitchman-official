@@ -16,6 +16,7 @@ import { useThemeStore } from "@/store/useThemeStore";
 import { aggregationRepository, type SeasonDataContext } from "@/lib/repositories/aggregation-repository";
 import { trainingRepository } from "@/lib/repositories/training-repository";
 import { filterContextByType, type FilterType } from "@/lib/aggregators/filter";
+import { getMatchUsage } from "@/lib/player-usage";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { MatchTypeFilters } from "@/components/statistiche/match-type-filters";
 import type { Player, TrainingSession, TrainingAttendance, TrainingStatus, Match, PlayerRole } from "@/lib/types";
@@ -377,17 +378,16 @@ function computePlayerStats(
   for (const match of completedMatches) {
     const details = context.matchesDetails[match.id];
     if (!details) continue;
-    const isStarter = details.lineup?.starters.includes(playerId) ?? false;
-    const isSub = details.lineup?.substitutes.includes(playerId) ?? false;
+    // Unica definizione di presenza: titolare o entrato. Essere in panchina
+    // NON conta (nè come presenza né per W/D/L e minuti).
+    const u = getMatchUsage(details, playerId, match.isHome);
+    const isStarter = u.isStarter;
     const stat = details.stats.find((s) => s.playerId === playerId);
-    // La presenza viene dall'ingresso in campo (titolare o sub), non da "minuti > 0":
-    // un subentrato all'ultimo minuto di recupero ha 0 minuti ma ha comunque giocato.
-    const hasPlayed = isStarter || isSub || !!stat;
 
-    if (hasPlayed) {
-      totalMinutes += stat?.minutesPlayed ?? 0;
+    if (u.appeared) {
+      totalMinutes += u.minutesPlayed;
       if (isStarter) starts++;
-      else if (stat && stat.minutesPlayed > 0) subs++;
+      else if (u.cameOn) subs++;
 
       // Calcolo On-Pitch Goals
       const chronologicalEvents = [...details.events].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
@@ -468,14 +468,12 @@ function computePlayerStats(
     const details = context.matchesDetails[match.id];
     if (!details || !details.lineup) return { match, status: "non_convocato" };
 
-    const isStarter = details.lineup.starters.includes(playerId);
-    const isSub = details.lineup.substitutes.includes(playerId);
-    const stat = details.stats.find((s) => s.playerId === playerId);
-    const minutesPlayed = stat?.minutesPlayed ?? 0;
+    // stesso criterio dell aggregatore: entrare conta, anche con 0 minuti
+    const u = getMatchUsage(details, playerId, match.isHome);
 
-    if (isStarter) return { match, status: "titolare" };
-    if (isSub) {
-      if (minutesPlayed > 0) return { match, status: "entrato" };
+    if (u.isStarter) return { match, status: "titolare" };
+    if (u.isOnBench) {
+      if (u.cameOn) return { match, status: "entrato" };
       return { match, status: "inutilizzato" };
     }
 

@@ -1,5 +1,6 @@
 import type { SeasonDataContext, TeamStatsRecord } from '@/lib/repositories/aggregation-repository';
 import type { Match, MatchType } from '@/lib/types';
+import { getMatchUsage, emptyUsageCounts, type PlayerUsageCounts } from '@/lib/player-usage';
 
 export type FilterType = 'all' | MatchType;
 
@@ -68,34 +69,39 @@ export interface PlayerStatsRow {
     yellowCards: number;
     redCards: number;
   };
+  usage: PlayerUsageCounts;
 }
 
 export function computePlayerStats(ctx: SeasonDataContext): PlayerStatsRow[] {
   const completed = ctx.matches.filter((m: Match) => m.status === 'completed');
   const rows: PlayerStatsRow[] = [];
   for (const p of ctx.players) {
-    let appearances = 0;
     let goals = 0;
     let assists = 0;
     let minutes = 0;
     let yellowCards = 0;
     let redCards = 0;
+    const usage = emptyUsageCounts();
     for (const m of completed) {
       const details = ctx.matchesDetails[m.id];
       if (!details) continue;
-      const lineup = details.lineup;
-      const isStarter = lineup?.starters.some((pid: any) => (typeof pid === 'string' ? pid : pid.playerId) === p.id) ?? false;
-      const isSub = lineup?.substitutes.some((pid: any) => (typeof pid === 'string' ? pid : pid.playerId) === p.id) ?? false;
-      const stats = details.stats.find((s: any) => s.playerId === p.id);
-      const hasPlayed = isStarter || isSub || !!stats;
-      if (hasPlayed) {
-        appearances++;
+      const side = m.isHome ? 'home' : 'away';
+      // Stessa fonte di verita' degli altri aggregatori: la panchina non e'
+      // una presenza, l'ingresso in campo si'.
+      const u = getMatchUsage(details, p.id, m.isHome);
+      if (u.isStarter) usage.starts++;
+      if (u.cameOn && !u.isStarter) usage.subAppearances++;
+      if (u.appeared) usage.appearances++;
+      else if (u.isOnBench || u.isStarter) usage.bench++;
+      else if (details.lineup) usage.notConvoked++;
+
+      if (u.appeared) {
+        minutes += u.minutesPlayed;
+        const stats = details.stats.find((s: any) => s.playerId === p.id);
         if (stats) {
-          minutes += stats.minutesPlayed || 0;
           yellowCards += stats.yellowCards || 0;
           redCards += stats.redCards || 0;
         }
-        const side = m.isHome ? 'home' : 'away';
         goals += details.events.filter((e: any) => e.type === 'goal' && e.playerId === p.id && e.team === side).length;
         assists += details.events.filter((e: any) => e.type === 'goal' && e.assistPlayerId === p.id && e.team === side).length;
       }
@@ -104,13 +110,14 @@ export function computePlayerStats(ctx: SeasonDataContext): PlayerStatsRow[] {
       playerId: p.id,
       name: p.name,
       stats: {
-        appearances,
+        appearances: usage.appearances,
         goals,
         assists,
-        avgMinutes: appearances > 0 ? Math.round(minutes / appearances) : 0,
+        avgMinutes: usage.appearances > 0 ? Math.round(minutes / usage.appearances) : 0,
         yellowCards,
         redCards,
       },
+      usage,
     });
   }
   return rows.sort((a, b) => b.stats.goals - a.stats.goals);

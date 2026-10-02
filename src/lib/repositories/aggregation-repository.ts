@@ -26,6 +26,7 @@ import {
     AdvancedStatsOptions
 } from '../../services/stats-advanced-service';
 import { AdvancedStatsLeaderboardSchema } from '../schemas';
+import { getMatchUsage, emptyUsageCounts } from '../player-usage';
 
 export interface TeamStatsRecord {
     wins: number;
@@ -308,41 +309,39 @@ export const aggregationRepository = {
         const results = [];
 
         for (const player of context.players) {
-            let appearances = 0;
             let goals = 0;
             let assists = 0;
             let totalMinutes = 0;
             let yellowCards = 0;
             let redCards = 0;
+            const usage = emptyUsageCounts();
 
             for (const match of completedMatches) {
                 const details = context.matchesDetails[match.id];
                 if (!details) continue;
 
-                const isStarter = details.lineup?.starters.some(pid => (typeof pid === 'string' ? pid : pid.playerId) === player.id) ?? false;
-                // Presenza: non basta essere in panchina, serve essere entrato
-                // in campo. Un subentrato all'ULTIMO minuto di recupero ha 0
-                // minuti ma conta come presenza, e in questo aggregatore non
-                // avrebbe nessun documento stats: controllare solo isStarter o
-                // !!playerStats lo avrebbe fatto sparire dalle presenze.
-                const isSubstitute = details.lineup?.substitutes.some(pid => (typeof pid === 'string' ? pid : pid.playerId) === player.id) ?? false;
-                const hasComeOn = details.events.some(e =>
-                    e.type === 'substitution'
-                    && e.playerId === player.id
-                    && e.team === (match.isHome ? 'home' : 'away')
-                );
-                const playerStats = details.stats.find(s => s.playerId === player.id);
-                const hasPlayed = isStarter || isSubstitute || !!playerStats || hasComeOn;
+                const isPitchManSide = match.isHome ? 'home' : 'away';
+                // Unica fonte della definizione di presenza/usaggio: essere in
+                // panchina NON e' una presenza, e i minuti non la provano
+                // (un subentrato nell'ultimo recupero ha 0 minuti ma gioca).
+                const u = getMatchUsage(details, player.id, isPitchManSide === 'home');
 
-                if (hasPlayed) {
-                    appearances++;
+                if (u.isStarter) usage.starts++;
+                if (u.cameOn && !u.isStarter) usage.subAppearances++;
+                if (u.appeared) usage.appearances++;
+                else if (u.isOnBench || u.isStarter) usage.bench++;
+                // "Non convocato" ha senso solo dove la lineup esiste: su una
+                // partita senza lineup registrata non sappiamo chi era in rosa.
+                else if (details.lineup) usage.notConvoked++;
+
+                if (u.appeared) {
+                    totalMinutes += u.minutesPlayed;
+                    const playerStats = details.stats.find(s => s.playerId === player.id);
                     if (playerStats) {
-                        totalMinutes += playerStats.minutesPlayed || 0;
                         yellowCards += playerStats.yellowCards || 0;
                         redCards += playerStats.redCards || 0;
                     }
 
-                    const isPitchManSide = match.isHome ? 'home' : 'away';
                     // Nota: own_goal NON viene conteggiato come gol personale del giocatore
                     goals += details.events.filter(e => e.type === 'goal' && e.playerId === player.id && e.team === isPitchManSide).length;
                     assists += details.events.filter(e => e.type === 'goal' && e.assistPlayerId === player.id && e.team === isPitchManSide).length;
@@ -353,13 +352,14 @@ export const aggregationRepository = {
                 playerId: player.id,
                 name: player.name,
                 stats: {
-                    appearances,
+                    appearances: usage.appearances,
                     goals,
                     assists,
-                    avgMinutes: appearances > 0 ? Math.round(totalMinutes / appearances) : 0,
+                    avgMinutes: usage.appearances > 0 ? Math.round(totalMinutes / usage.appearances) : 0,
                     yellowCards,
                     redCards
-                }
+                },
+                usage,
             });
         }
         return results;
