@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { RoundBadge } from '@/components/calendario/round-badge';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMatchesStore } from '@/store/useMatchesStore';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
@@ -50,16 +51,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-const RoundBadge = ({ round }: { round?: number }) => {
-  if (!round || round === 0) return null;
-
-  return (
-    <div className="w-8 h-8 rounded-xl flex items-center justify-center border-2 border-primary dark:border-brand-green bg-primary/10 dark:bg-black text-primary dark:text-brand-green text-[10px] font-black shrink-0 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
-      {round}
-    </div>
-  );
-};
 
 export default function CalendarioPage() {
   const { user, isAuthenticated } = useAuthStore();

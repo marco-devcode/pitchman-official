@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { ClipboardList } from "lucide-react";
 import { useStatsStore } from "@/store/useStatsStore";
 import {
   Card,
@@ -27,6 +29,7 @@ type SortKey = 'name' | 'appearances' | 'goals' | 'assists' | 'avgMinutes' | 'ye
 type SortOrder = 'asc' | 'desc' | null;
 
 export function PlayerLeaderboard() {
+  const router = useRouter();
   const { playerLeaderboard, loading } = useStatsStore();
   const [sortKey, setSortKey] = useState<SortKey>('goals');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -101,6 +104,21 @@ export function PlayerLeaderboard() {
               Statistiche individuali della stagione corrente.
             </CardDescription>
           </div>
+
+          {/* I test allenamento stanno su una pagina diversa: da qui il
+              rendimento non si vede. Bordo a gradiente, testo --t1. */}
+          <button
+            type="button"
+            onClick={() => router.push("/allenamento/test")}
+            className="ml-auto shrink-0 flex items-center gap-1.5 h-9 px-4 rounded-xl
+                       border-theme bg-theme-fill-soft text-theme
+                       text-[10px] font-black uppercase tracking-widest
+                       shadow-theme transition-all hover:bg-theme-fill active:scale-95"
+            style={{ borderWidth: 2 }}
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            vedi test
+          </button>
         </div>
       </CardHeader>
       <CardContent className="p-0">

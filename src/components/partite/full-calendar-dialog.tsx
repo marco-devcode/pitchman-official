@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { PlusCircle, Trash2, Calendar, Home, Plane, Globe, ChevronLeft, ClipboardCopy, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Match, MatchStatus } from "@/lib/types";
+import { RoundBadge } from "@/components/calendario/round-badge";
 import { useMatchesStore } from "@/store/useMatchesStore";
 import { useStatsStore } from "@/store/useStatsStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
@@ -128,16 +129,6 @@ export function FullCalendarDialog({ open, onOpenChange }: FullCalendarDialogPro
       case 'canceled': return <div className="h-1.5 w-1.5 rounded-full bg-destructive shadow-sm dark:shadow-[0_0_6px_rgba(239,68,68,0.5)]" />;
       default: return null;
     }
-  };
-
-  const RoundBadge = ({ round }: { round?: number }) => {
-    if (!round || round === 0) return null;
-
-    return (
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center border-2 border-primary dark:border-brand-green bg-primary/10 dark:bg-black text-primary dark:text-brand-green text-xs font-black shrink-0">
-        {round}
-      </div>
-    );
   };
 
   return (
