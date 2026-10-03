@@ -1,6 +1,6 @@
 'use client';
 
-import { FormationModule, ROLE_LABELS, getRoleCategory, ROLE_CATEGORY_COLORS, PlayerRole, FORMATION_POSITIONS, FORMATION_ROLES, Player } from '@/lib/types';
+import { FormationModule, ROLE_LABELS, getRoleCategory, ROLE_CATEGORY_COLORS, PlayerRole, FORMATION_SLOT_COORDS, FORMATION_ROLES, Player } from '@/lib/types';
 import { FormationCoverage, CoverageLevel, getPlayersForRole } from '@/lib/rosa-coverage';
 import { cn } from '@/lib/utils';
 
@@ -40,7 +40,7 @@ function getPlayerById(id: string, players: Player[], observedPlayers: ObservedP
 }
 
 export function RosaPitch({ formation, coverage, selectedSlot, onSelectSlot, slotPlayers, players, observedPlayers }: RosaPitchProps) {
-  const positions = FORMATION_POSITIONS[formation];
+  const positions = FORMATION_SLOT_COORDS[formation];
   const rolesInFormation = FORMATION_ROLES[formation];
 
   const getPlayerInfo = (slotIdx: number, playerIdx: number): string | null => {

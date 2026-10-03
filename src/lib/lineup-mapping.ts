@@ -30,7 +30,7 @@ export const FORMATION_NUMBERS: Record<string, number[]> = {
   "3-4-3": [1, 4, 5, 6, 3, 8, 11, 2, 7, 9, 10]
 };
 
-export const FORMATION_POSITIONS: Record<string, string[]> = {
+export const FORMATION_SLOT_ROLES: Record<string, string[]> = {
   "4-4-2": ["POR", "TS", "DC", "DC", "TD", "AS", "CS", "CD", "AD", "ATT", "ATT"],
   "4-3-3": ["POR", "TS", "DC", "DC", "TD", "CS", "CDC", "CD", "AS", "ATT", "AD"],
   // 3-5-2: cinque di centro. CS sta a SINISTRA, CD a DESTRA, CDC al centro.
@@ -49,6 +49,19 @@ export const FORMATION_POSITIONS: Record<string, string[]> = {
   // destra finiva sul centrocampo destro invece che su quello destro).
   "4-3-1-2": ["POR", "TS", "DC", "DC", "TD", "CS", "CDC", "CD", "TRQ", "ATT", "ATT"]
 };
+
+/**
+ * Alias storico. Il nome `FORMATION_POSITIONS` qui indicava i RUOLI, mentre in
+ * `types.ts` lo stesso nome indicava le COORDINATE: due tavole diverse con lo
+ * stesso nome in due moduli, e un `import` sbagliato passava senza errori.
+ *
+ * Resta per chi lo usa gia' (`lineup-form-dialog`, `squad-formation-view`), ma
+ * il nome nuovo dice cosa contiene. Le coordinate di `types.ts` si chiamano
+ * `FORMATION_SLOT_COORDS`.
+ *
+ * @deprecated usa FORMATION_SLOT_ROLES
+ */
+export const FORMATION_POSITIONS = FORMATION_SLOT_ROLES;
 
 export const FORMATION_COORDINATES: Record<string, { top: number, left: number }[]> = {
   "4-4-2": [
@@ -136,7 +149,7 @@ function assertMatchFormationsHaveData() {
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') return;
 
   const mancanti = MATCH_FORMATIONS.filter(
-    (f) => !FORMATION_NUMBERS[f] || !FORMATION_COORDINATES[f] || !FORMATION_POSITIONS[f],
+    (f) => !FORMATION_NUMBERS[f] || !FORMATION_COORDINATES[f] || !FORMATION_SLOT_ROLES[f],
   );
   if (mancanti.length) {
     throw new Error(
@@ -158,7 +171,7 @@ export function getSubstituteNumber(index: number): number {
 }
 
 export function getPositionAcronym(formation: string, index: number): string {
-  const positions = FORMATION_POSITIONS[formation] || FORMATION_POSITIONS["4-4-2"];
+  const positions = FORMATION_SLOT_ROLES[formation] || FORMATION_SLOT_ROLES["4-4-2"];
   return positions[index] || "N/A";
 }
 
@@ -190,7 +203,7 @@ const sideOf = (left: number) => (left < 40 ? 'SX' : left > 60 ? 'DX' : 'CTR');
 function assertFormationInvariants() {
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') return;
 
-  for (const [formation, roles] of Object.entries(FORMATION_POSITIONS)) {
+  for (const [formation, roles] of Object.entries(FORMATION_SLOT_ROLES)) {
     const numbers = FORMATION_NUMBERS[formation];
     const coords = FORMATION_COORDINATES[formation];
 

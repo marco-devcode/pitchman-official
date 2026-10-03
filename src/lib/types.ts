@@ -94,30 +94,47 @@ export const FORMATIONS: FormationModule[] = MATCH_FORMATIONS;
 // importarli da qui rende chiaro che la lista e' condivisa, non una copia.
 export { MATCH_FORMATIONS, type MatchFormation } from './formation-modules';
 
+// Unica copia dei RUOLI: vedi FORMATION_ROLES piu' in basso. Nessun ciclo:
+// lineup-mapping importa solo formation-modules, che non importa nulla.
+import { FORMATION_SLOT_ROLES } from './lineup-mapping';
+
 export const DEFAULT_FORMATION: FormationModule = '4-3-3';
 
-// Mapping of formation -> roles on the pitch (order matters for layout)
-// This is used by the Rosa Overview screen
-// CS = Centrocampista Sinistro (sta a sinistra), CD = Centrocampista Destro (sta a destra)
-export const FORMATION_ROLES: Record<FormationModule, PlayerRole[]> = {
-  '4-3-3':   ['POR', 'TS', 'DC', 'DC', 'TD', 'CS', 'CDC', 'CD', 'AS', 'ATT', 'AD'],
-  '4-2-3-1': ['POR', 'TS', 'DC', 'DC', 'TD', 'CS', 'CD', 'AS', 'TRQ', 'AD', 'ATT'],
-  '4-4-2':   ['POR', 'TS', 'DC', 'DC', 'TD', 'AS', 'CS', 'CD', 'AD', 'ATT', 'ATT'],
-  // 3-5-2: CS a sinistra, CD a destra, CDC al centro. Era invertito.
-  '3-5-2':   ['POR', 'DC', 'DC', 'DC', 'ASA', 'CS', 'CDC', 'CD', 'ADA', 'ATT', 'ATT'],
-  '3-4-2-1': ['POR', 'DC', 'DC', 'DC', 'ASA', 'CS', 'CD', 'ADA', 'TRQ', 'TRQ', 'ATT'],
-  '3-4-3':   ['POR', 'DC', 'DC', 'DC', 'ASA', 'CS', 'CD', 'ADA', 'AS', 'ATT', 'AD'],
-  '3-4-1-2': ['POR', 'DC', 'DC', 'DC', 'ASA', 'CS', 'CD', 'ADA', 'TRQ', 'ATT', 'ATT'],
-  // 4-3-1-2: era "CS, CD, CS" — due sinistri e nessun mediano. Il CDC sta
-  // davanti alla difesa, il CD a destra.
-  '4-3-1-2': ['POR', 'TS', 'DC', 'DC', 'TD', 'CS', 'CDC', 'CD', 'TRQ', 'ATT', 'ATT'],
-};
+/**
+ * Ruoli di ogni formazione, nell'ordine dei slot.
+ *
+ * Non li ripeto: vengono da `lineup-mapping.FORMATION_POSITIONS`, che e' l'unica
+ * copia. Erano due tavole identiche in due moduli, e la regola del progetto e'
+ * che i due schermi non devono contraddirsi sul ruolo di uno slot — quindi due
+ * copie non erano una ridondanza, erano una divergenza che aspettava di
+ * succedere (era gia' successo sul 4-3-1-2 e sul 3-5-2).
+ *
+ * `scripts/verify-formations.ts` confronta le due copie voce per voce: dopo
+ * questa modifica la verifica deve dire che coincidono per costruzione.
+ *
+ * NOTA: le COORDINATE qui sotto NON vengono da lineup-mapping, e non devono.
+ * Sono diverse in tutte e otto le formazioni di proposito — la rosa e' una
+ * vista di copertura, il campo partita e' il posizionamento tattico. Sono
+ * l'unica duplicazione che va tenuta, e per questo il nome dice `SLOT`.
+ */
+// CS = Centrocampista Sinistro (sta a sinistra), CD = Centrocampista Destro
+export const FORMATION_ROLES: Record<FormationModule, PlayerRole[]> =
+  FORMATION_SLOT_ROLES as Record<FormationModule, PlayerRole[]>;
 
-// Map a role slot position to pitch coordinates (top %, left %)
-// Each formation has its own layout for realistic positioning
+/**
+ * Dove cade ogni slot, in percentuale, per il campo della ROSA.
+ *
+ * Queste coordinate sono diverse da quelle di `lineup-mapping` in tutte e otto
+ * le formazioni, di proposito: qui la rosa e' una vista di copertura, li'
+ * formation-mapping il posizionamento tattico reale. Non vanno unificate.
+ *
+ * Il nome dice COORDS per non confonderlo con i ruoli: il vecchio nome era
+ * `FORMATION_POSITIONS`, identico a quello della tabella dei RUOLI in
+ * lineup-mapping, e i due contenuti non avevano niente in comune.
+ */
 export interface SlotPosition { top: string; left: string }
 
-export const FORMATION_POSITIONS: Record<FormationModule, SlotPosition[]> = {
+export const FORMATION_SLOT_COORDS: Record<FormationModule, SlotPosition[]> = {
   '4-3-3': [
     { top: '90%', left: '50%' },  // POR
     { top: '72%', left: '15%' },  // TS (sinistra)
@@ -225,52 +242,17 @@ export const FORMATION_POSITIONS: Record<FormationModule, SlotPosition[]> = {
 };
 
 /**
- * Le due mappe di formazione (questa e lineup-mapping.ts) devono concordare
- * sugli ACRONIMI di ogni slot, anche se le COORDINATE sono deliberatamente
- * diverse: la rosa e' una vista di copertura, il campo partita e' il
- * posizionamento tattico reale, e i due layout non hanno motivo di
- * coincidere. Sugli acronimi invece devono, altrimenti i due schermi si
- * contraddicono ("manca un CDC" nella rosa mentre la partita lo schiera,
- * o viceversa). Difetto reale: il 4-3-1-2 aveva CS, CD, CS qui e
- * CS, CDC, CD nelle partite.
+ * Le due mappe di formazione (questa e lineup-mapping.ts) dovevano concordare
+ * sugli ACRONIMI di ogni slot. Non e' piu' necessario: i ruoli hanno una sola
+ * copia, `FORMATION_SLOT_ROLES` in lineup-mapping, e `FORMATION_ROLES` qui ne
+ * e' un semplice alias. L'asserzione che controllava la concordanza e' stata
+ * tolta perche' confrontava un valore con se stesso: non poteva piu' fallire,
+ * e una verifica che non puo' fallire e' peggio di nessuna, perche' sembra
+ * garantire ancora qualcosa.
  *
- * require pigro e solo in sviluppo: cosi' i due moduli restano indipendenti,
- * nessun import statico (e quindi nessun ciclo) viene creato, e se
- * lineup-mapping non fosse raggiungibile non si blocca il caricamento.
+ * Le COORDINATE restano due tabelle distinte, e devono restarlo: la rosa e' una
+ * vista di copertura, il campo partita il posizionamento tattico.
  */
-function assertCrossMapAcronyms() {
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') return;
-
-  let matchMap: Record<string, string[]> | undefined;
-  try {
-    matchMap = (require('./lineup-mapping') as { FORMATION_POSITIONS: Record<string, string[]> }).FORMATION_POSITIONS;
-  } catch {
-    return;
-  }
-  if (!matchMap) return;
-
-  for (const [formation, roles] of Object.entries(FORMATION_ROLES)) {
-    const partita = matchMap[formation];
-    if (!partita) {
-      throw new Error(
-        `[types] ${formation}: presente nella rosa ma assente da lineup-mapping. Le due mappe devono elencare le stesse formazioni.`,
-      );
-    }
-    if (partita.length !== roles.length) {
-      throw new Error(`[types] ${formation}: ${partita.length} acronimi nelle partite contro ${roles.length} nella rosa.`);
-    }
-    for (let i = 0; i < roles.length; i++) {
-      if (partita[i] !== roles[i]) {
-        throw new Error(
-          `[types] ${formation} slot ${i}: acronimo divergente fra le due mappe — rosa=${roles[i]} partita=${partita[i]}. ` +
-          `I due schermi mostrerebbero ruoli diversi per lo stesso slot.`,
-        );
-      }
-    }
-  }
-}
-
-assertCrossMapAcronyms();
 
 export function getRoleCategory(role: PlayerRole): RoleCategory {
   for (const [cat, roles] of Object.entries(ROLE_CATEGORIES) as [RoleCategory, PlayerRole[]][]) {

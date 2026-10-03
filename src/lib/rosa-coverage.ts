@@ -2,7 +2,7 @@
 
 import { Player, PlayerRole, FormationModule, FORMATION_ROLES } from '@/lib/types';
 import type { SlotPosition } from '@/lib/types';
-import { FORMATION_POSITIONS } from '@/lib/types';
+import { FORMATION_SLOT_COORDS } from '@/lib/types';
 
 export type CoverageLevel = 'covered' | 'warning' | 'critical';
 
@@ -123,5 +123,5 @@ export function getFirstCriticalSlot(formation: FormationModule, coverage: Forma
  * Get the position of each slot in a formation.
  */
 export function getFormationSlotPositions(formation: FormationModule): SlotPosition[] {
-  return FORMATION_POSITIONS[formation];
+  return FORMATION_SLOT_COORDS[formation];
 }
