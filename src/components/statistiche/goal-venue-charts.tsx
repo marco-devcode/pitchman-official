@@ -4,22 +4,25 @@ import { useStatsStore } from "@/store/useStatsStore";
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
-import { useThemeStore } from "@/store/useThemeStore";
 import { GiSoccerBall } from "react-icons/gi";
 
-import { COLORS } from "@/lib/design-tokens";
+import { COLORS, useThemeCharts } from "@/lib/design-tokens";
 
 export function GoalVenueCharts() {
     const { homeRecord, awayRecord } = useStatsStore();
-    const { theme } = useThemeStore();
-    const isDark = theme === "dark";
+    // I colori vengono da `useThemeCharts`, non da `COLORS.charts.primary(isDark)`:
+    // quella e' una funzione che legge `--a1` solo quando viene chiamata, e senza
+    // una dipendenza React il grafico restava del colore precedente quando
+    // l'utente cambiava i due colori con la pagina gia' aperta.
+    const charts = useThemeCharts();
+    const isDark = charts.isDark;
 
-    const HOME_COLOR = COLORS.charts.primary(isDark);
+    const HOME_COLOR = charts.primary;
     const AWAY_COLOR = COLORS.functional.draw;
 
     const TOOLTIP_BG = isDark ? "rgba(0,0,0,0.92)" : "rgba(255,255,255,0.97)";
-    const TOOLTIP_BORDER = COLORS.charts.grid(isDark);
-    const TOOLTIP_COLOR = COLORS.charts.text(isDark);
+    const TOOLTIP_BORDER = charts.grid;
+    const TOOLTIP_COLOR = charts.text;
 
     if (!homeRecord || !awayRecord) return null;
     if (homeRecord.matchesPlayed === 0 && awayRecord.matchesPlayed === 0) return null;

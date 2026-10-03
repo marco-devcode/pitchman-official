@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useThemeStore } from '@/store/useThemeStore';
 import { formatValue, formatDate, isDescendingUnit } from '@/lib/test-utils';
 import { displayStarterName } from '@/lib/utils';
-import { readThemeChartPalette } from '@/lib/design-tokens';
+import { useThemeChartPalette } from '@/lib/design-tokens';
 import type { PhysicalTest, Player } from '@/lib/types';
 import { Activity, Users, BarChart3, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,9 +22,13 @@ import { Skeleton } from '@/components/ui/skeleton';
  * `danger` resta rosso: segnala la linea della media, non e' un colore di tema.
  */
 function useChartColors() {
+  // `isDark` resta dallo store: cambia davvero quando l'utente cambia tema, e
+  // governa solo il rosso di `danger`. La PALETTE invece viene dall'unico hook
+  // che la rilette quando cambiano i colori: questa copia locale la congelava
+  // in `useMemo([isDark])`, e `isDark` non cambia quando cambiano i DUE colori.
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
-  const palette = useMemo(() => readThemeChartPalette(isDark), [isDark]);
+  const palette = useThemeChartPalette();
   return {
     ...palette,
     danger: isDark ? '#ff4d4f' : 'hsl(0 78% 48%)',

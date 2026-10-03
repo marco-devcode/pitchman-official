@@ -14,7 +14,7 @@ import type { PhysicalTest, Player } from '@/lib/types';
 import { Activity, Trophy, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { readThemeChartPalette } from '@/lib/design-tokens';
+import { useThemeChartPalette } from '@/lib/design-tokens';
 
 // ─── Helper colors ─────────────────────────────────────
 /**
@@ -24,9 +24,11 @@ import { readThemeChartPalette } from '@/lib/design-tokens';
  * scelti dall'utente. Ora legge i due colori dal tema.
  */
 function useChartColors() {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
-  return useMemo(() => readThemeChartPalette(isDark), [isDark]);
+  // Un solo posto legge i colori del tema, e li rilette quando l'utente li
+  // cambia. La copia locale chiamava `readThemeChartPalette` dentro
+  // `useMemo([isDark])`, quindi i grafici restavano indietro: `isDark` non
+  // cambia quando cambiano i due colori.
+  return useThemeChartPalette();
 }
 
 const LineChart = dynamic<{ data: { date: string; value: number }[]; colors: any; unit: string }>(

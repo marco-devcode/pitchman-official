@@ -6,6 +6,26 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * I ruoli di un giocatore, come stringa.
+ *
+ * Esiste perche' il campo `role` e' deprecato ma e' ancora quello che la
+ * maggior parte del codice legge, e perche' `roles` non e' l'unico posto
+ * dove vivono: alcuni documenti hanno `roles`, altri solo `role` o
+ * `secondaryRoles`. Leggendo solo `role`, una scheda mostrava "DC" a un
+ * giocatore che nella rosa risultava "DC, CDC, TRQ": due schermate che
+ * dicevano cose diverse sullo stesso giocatore.
+ *
+ * Un campo `roles` vuoto non deve far fallire la riga: si ripiega su `role`,
+ * poi sui secondari. Se non c'e' niente, stringa vuota.
+ */
+export function displayPlayerRoles(player: { roles?: string[]; role?: string; secondaryRoles?: string[] } | undefined | null): string {
+  if (!player) return '';
+  if (player.roles && player.roles.length > 0) return player.roles.join(', ');
+  const legacy = [player.role, ...(player.secondaryRoles ?? [])].filter(Boolean);
+  return legacy.length > 0 ? legacy.join(', ') : '';
+}
+
+/**
  * Restituisce il nome del giocatore nell'ordine COGNOME NOME per le liste.
  * Se il giocatore ha firstName e lastName separati li usa direttamente,
  * altrimenti inverte le parti del fullName.

@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from "react";
+
 /**
  * Design Tokens per l'applicazione.
  * Questi valori corrispondono alle variabili CSS in globals.css e tailwind.config.ts.
@@ -47,7 +49,6 @@ export const COLORS = {
   }
 };
 
-import { useEffect, useState } from "react";
 
 /** I due colori del tema nel grafico: serie, aloni e gradiente. */
 export type ChartThemeColors = {
@@ -131,16 +132,58 @@ export function useChartColors() {
 }
 
 /**
+ * I due colori del tema, riletti quando l'utente li cambia.
+ *
+ * `readThemeChartPalette` legge una volta sola: va bene per i grafici che non
+ * devono reagire, ma quattro hook locali la chiamavano dentro un
+ * `useMemo([isDark])`, e i grafici rimanevano indietro quando cambiavano i
+ * colori. Verificato nel browser: impostando `--a1`/`--a2` a runtime i grafici
+ * restavano sul colore precedente, e sopravviveva anche un verde hardcoded
+ * (`#ACE504`).
+ *
+ * Il motivo e' che `isDark` NON cambia quando cambiano i due colori: restano
+ * `light` o `dark`, quindi la dipendenza del `useMemo` era soddisfatta e il
+ * memo non si ricalcolava. Qui si osserva l'attributo `style` della root, che
+ * il motore del tema riscrive a ogni scelta dell'utente.
+ *
+ * Un solo posto legge i colori, quindi correggerne uno corregge tutti.
+ */
+export function useThemeChartPalette() {
+  const [isDark, setIsDark] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const check = () => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+      setTick((t) => t + 1);
+    };
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme-mode", "style"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  // `tick` serve solo a invalidare il memo quando cambiano i colori.
+  return useMemo(() => readThemeChartPalette(isDark), [isDark, tick]);
+}
+
+/**
  * I due colori del tema, letti una volta sola e subito.
  *
  * Serve ai grafici che non hanno bisogno di reagire ai cambi di tema nel
  * tempo: la scheda giocatore e i tab fisici ne avevano una copia locale con
  * il verde neon scritto a mano, che non seguiva i colori dell'utente.
  * Chiamarlo dentro un `useMemo` evita di rileggere a ogni render.
+ *
+ * Per un grafico che DEVE seguire i colori usare `useThemeChartPalette`.
  */
 export function readThemeChartPalette(isDark: boolean) {
   if (typeof window === "undefined") {
     return {
+      isDark,
       primary: COLORS.brand.green,
       primaryFill: "rgba(172,229,4,0.15)",
       accent: COLORS.brand.cyan,
@@ -159,6 +202,7 @@ export function readThemeChartPalette(isDark: boolean) {
   const a1 = cs.getPropertyValue("--a1").trim() || COLORS.brand.green;
   const a2 = cs.getPropertyValue("--a2").trim() || COLORS.brand.cyan;
   return {
+    isDark,
     primary: a1,
     primaryFill: withAlpha(a1, 0.15),
     accent: a2,
@@ -171,6 +215,33 @@ export function readThemeChartPalette(isDark: boolean) {
     tooltipColor: isDark ? "#fff" : "#000",
     cursorFill: withAlpha(a1, 0.05),
     muted: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
+  };
+}
+
+/**
+ * Gli stessi colori di `COLORS.charts`, ma riletti quando l'utente li cambia.
+ *
+ * `COLORS.charts.primary(isDark)` e' una funzione: legge `--a1` nel momento
+ * in cui viene chiamata, e se il componente non ri-renderizza il valore resta
+ * quello vecchio. I grafici del tab "Grafici" lo chiamavano durante il render
+ * senza dipendere da nulla, quindi restavano verdi anche cambiando i due colori
+ * (misurato: `#ff2d55` prima e dopo il cambio).
+ *
+ * Espone le stesse chiavi di `COLORS.charts` piu' `isDark`, cosi' i grafici
+ * passano da `COLORS.charts.primary(isDark)` a `colors.primary` e continuano a
+ * usare il resto invariato.
+ */
+export function useThemeCharts() {
+  const palette = useThemeChartPalette();
+  return {
+    isDark: palette.isDark,
+    primary: palette.primary,
+    secondary: palette.accent,
+    primaryGlow: withAlpha(palette.primary, 0.4),
+    secondaryGlow: withAlpha(palette.accent, 0.4),
+    gradient: palette.gradient,
+    text: palette.tooltipColor,
+    grid: palette.isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
   };
 }
 

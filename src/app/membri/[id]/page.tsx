@@ -28,7 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { readThemeChartPalette } from "@/lib/design-tokens";
+import { useThemeChartPalette } from "@/lib/design-tokens";
 import { computeOnPitchGoals } from "@/lib/on-pitch";
 
 // ─── Helper colori chart adattivi ─────────────────────────────────────────────
@@ -40,9 +40,11 @@ import { computeOnPitchGoals } from "@/lib/on-pitch";
  * Ora legge i due colori dal tema.
  */
 function useChartColors() {
-  const { theme } = useThemeStore();
-  const isDark = theme === "dark";
-  return useMemo(() => readThemeChartPalette(isDark), [isDark]);
+  // Un solo posto legge i colori del tema, e li rilette quando l'utente li
+  // cambia. La copia locale chiamava `readThemeChartPalette` dentro
+  // `useMemo([isDark])`, quindi i grafici restavano indietro: `isDark` non
+  // cambia quando cambiano i due colori.
+  return useThemeChartPalette();
 }
 
 // ─── Tipi grafici ─────────────────────────────────────────────────────────────

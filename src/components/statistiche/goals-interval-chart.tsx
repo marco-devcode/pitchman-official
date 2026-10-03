@@ -6,16 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer } from "@/components/ui/chart";
 import { useThemeStore } from "@/store/useThemeStore";
 
-import { COLORS as DesignTokens } from "@/lib/design-tokens";
+import { useThemeCharts } from "@/lib/design-tokens";
 
 export function GoalsIntervalChart() {
     const { goalsIntervals } = useStatsStore();
     const { theme } = useThemeStore();
     const isDark = theme === "dark";
 
+    // I colori dei grafici arrivano dall'unico hook che li rilette quando
+    // l'utente cambia i due colori: `COLORS.charts.*(isDark)` e' una funzione
+    // che legge `--a1` solo quando viene chiamata, e senza una dipendenza
+    // React il valore restava quello di prima.
+    const charts = useThemeCharts();
+
     const TOOLTIP_BG = isDark ? "rgba(0,0,0,0.92)" : "rgba(255,255,255,0.97)";
-    const TOOLTIP_BORDER = DesignTokens.charts.grid(isDark);
-    const TOOLTIP_COLOR = DesignTokens.charts.text(isDark);
+    const TOOLTIP_BORDER = charts.grid;
+    const TOOLTIP_COLOR = charts.text;
     const LEGEND_COLOR = isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)";
 
     const hasData = goalsIntervals.some(item => item.value > 0);
@@ -39,17 +45,17 @@ export function GoalsIntervalChart() {
     // Prima erano il verde del brand piu' due sue sfumature fisse, quindi i
     // gol per intervallo restavano verdi con qualunque tema e il secondo
     // colore non compariva mai.
-    const INTERVAL_COLORS = isDark
-        ? [
-            DesignTokens.charts.primary(true),
-            DesignTokens.charts.secondary(true),
-            DesignTokens.charts.primaryGlow(true),
-          ]
-        : [
-            DesignTokens.charts.primary(false),
-            DesignTokens.charts.secondary(false),
-            DesignTokens.charts.primaryGlow(false),
-          ];
+    //
+    // `useThemeCharts` invece di `DesignTokens.charts.primary(true)`: quella e'
+    // una funzione che legge `--a1` quando viene chiamata, e le due righe
+    // passavano `true`/`false` a mano invece di `isDark`. Il risultato era che
+    // i colori restavano indietro quando l'utente cambiava i due colori con la
+    // pagina gia' aperta.
+    const INTERVAL_COLORS = [
+        charts.primary,
+        charts.secondary,
+        charts.primaryGlow,
+    ];
 
     return (
         <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm">

@@ -4,22 +4,24 @@ import { useStatsStore } from "@/store/useStatsStore";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
-import { useThemeStore } from "@/store/useThemeStore";
-import { COLORS } from "@/lib/design-tokens";
+import { COLORS, useThemeCharts } from "@/lib/design-tokens";
 
 export function TeamPerformanceChart() {
     const { teamTrend } = useStatsStore();
-    const { theme } = useThemeStore();
-    const isDark = theme === "dark";
+    // Cfr. goal-venue-charts: `COLORS.charts.*(isDark)` legge `--a1` solo al
+    // momento della chiamata, quindi il grafico restava indietro al cambio dei
+    // due colori. `useThemeCharts` rilegge.
+    const charts = useThemeCharts();
+    const isDark = charts.isDark;
 
     // Colori adattivi centralizzati
-    const LINE_COLOR = COLORS.charts.primary(isDark);
-    const GRID_COLOR = COLORS.charts.grid(isDark);
-    const REF_COLOR = COLORS.charts.grid(isDark);
+    const LINE_COLOR = charts.primary;
+    const GRID_COLOR = charts.grid;
+    const REF_COLOR = charts.grid;
     const TICK_COLOR = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.4)";
     const TOOLTIP_BG = isDark ? "rgba(0,0,0,0.92)" : "rgba(255,255,255,0.97)";
-    const TOOLTIP_BORDER = COLORS.charts.grid(isDark);
-    const TOOLTIP_TEXT = COLORS.charts.text(isDark);
+    const TOOLTIP_BORDER = charts.grid;
+    const TOOLTIP_TEXT = charts.text;
     const TOOLTIP_SUB = isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)";
 
     if (!teamTrend || teamTrend.length === 0) {
@@ -78,8 +80,13 @@ export function TeamPerformanceChart() {
                                         const resultLabel =
                                             data.value === 1 ? "Vittoria" :
                                                 data.value === -1 ? "Sconfitta" : "Pareggio";
+                                        // Vittoria col primo colore del tema, non con
+                                        // il verde del brand: `#ACE504` e' il vecchio
+                                        // tema, e su un tema diverso sembrava ancora
+                                        // "il verde" mentre il resto del grafico
+                                        // aveva gia' cambiato.
                                         const resultColor =
-                                            data.value === 1 ? COLORS.functional.win :
+                                            data.value === 1 ? charts.primary :
                                                 data.value === -1 ? COLORS.functional.loss : COLORS.functional.draw;
 
                                         return (

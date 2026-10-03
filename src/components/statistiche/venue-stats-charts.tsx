@@ -4,22 +4,21 @@ import { useStatsStore } from "@/store/useStatsStore";
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
-import { useThemeStore } from "@/store/useThemeStore";
-import { COLORS } from "@/lib/design-tokens";
+import { COLORS, useThemeCharts } from "@/lib/design-tokens";
 
 export function VenueStatsCharts() {
     const { teamRecord, homeRecord, awayRecord } = useStatsStore();
-    const { theme } = useThemeStore();
-    const isDark = theme === "dark";
+    const charts = useThemeCharts();
+    const isDark = charts.isDark;
 
     // Colori centralizzati
-    const WIN_COLOR = COLORS.functional.win;
+    const WIN_COLOR = charts.primary;
     const DRAW_COLOR = COLORS.functional.draw;
     const LOSS_COLOR = COLORS.functional.loss;
 
     const TOOLTIP_BG = isDark ? "rgba(0,0,0,0.92)" : "rgba(255,255,255,0.97)";
-    const TOOLTIP_BORDER = COLORS.charts.grid(isDark);
-    const TOOLTIP_COLOR = COLORS.charts.text(isDark);
+    const TOOLTIP_BORDER = charts.grid;
+    const TOOLTIP_COLOR = charts.text;
 
     if (!teamRecord || teamRecord.matchesPlayed === 0) return null;
 

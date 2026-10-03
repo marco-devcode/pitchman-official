@@ -9,11 +9,11 @@ import { ArrowLeft, User, Shield, Sword, Zap, Clock, AlertTriangle, Target, Cale
 import { usePlayersStore } from "@/store/usePlayersStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { readThemeChartPalette } from "@/lib/design-tokens";
+import { useThemeChartPalette } from "@/lib/design-tokens";
 import { computeOnPitchGoals } from "@/lib/on-pitch";
 import { aggregationRepository } from "@/lib/repositories/aggregation-repository";
 import { getMatchUsage } from "@/lib/player-usage";
-import { cn, displayPlayerName } from "@/lib/utils";
+import { cn, displayPlayerName, displayPlayerRoles } from "@/lib/utils";
 import { Player, getPrimaryRole } from '@/lib/types';
 import { useThemeStore } from "@/store/useThemeStore";
 
@@ -30,12 +30,12 @@ const RadarChart = dynamic(
       const { theme } = useThemeStore();
       const isDark = theme === "dark";
 
-      const gridColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
-      const axisColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.4)";
-      const tooltipBg = isDark ? "black" : "white";
-      const palette = readThemeChartPalette(isDark);
+      const palette = useThemeChartPalette();
+      const gridColor = palette.grid;
+      const axisColor = palette.tick;
+      const tooltipBg = palette.tooltipBg;
       const tooltipBorder = palette.tooltipBorder;
-      const tooltipText = isDark ? "white" : "black";
+      const tooltipText = palette.tooltipColor;
       const cursorFill = palette.cursorFill;
 
       return (
@@ -44,8 +44,11 @@ const RadarChart = dynamic(
             <PolarGrid stroke={gridColor} />
             <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: axisColor, fontWeight: 900 }} />
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-            <Radar name={name1} dataKey="score1" stroke={isDark ? "#ace504" : "#2563eb"} fill={isDark ? "#ace504" : "#2563eb"} fillOpacity={0.15} strokeWidth={2} />
-            <Radar name={name2} dataKey="score2" stroke="#ec4899" fill="#ec4899" fillOpacity={0.15} strokeWidth={2} />
+            {/* I due colori sono quelli del tema, non due verdi fissi: qui il
+                verde era `#ace504` hardcoded e il rosa `#ec4899`, quindi il
+                grafico di confronto restava verde anche con un altro tema. */}
+            <Radar name={name1} dataKey="score1" stroke={palette.primary} fill={palette.primary} fillOpacity={0.15} strokeWidth={2} />
+            <Radar name={name2} dataKey="score2" stroke={palette.accent} fill={palette.accent} fillOpacity={0.15} strokeWidth={2} />
             <Tooltip
               contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 16, fontSize: 11, color: tooltipText }}
               itemStyle={{ color: tooltipText }}
@@ -257,7 +260,10 @@ function ConfrontoContent() {
               <User className="h-6 w-6 text-primary dark:text-brand-green" />
             </div>
             <h3 className="font-black text-lg text-foreground dark:text-white leading-tight">{p1 ? displayPlayerName(p1) : "..."}</h3>
-            <span className="text-[9px] font-black tracking-[0.2em] uppercase text-muted-foreground dark:text-white/30">{p1?.role}</span>
+            {/* `displayPlayerRoles`, non `p1?.role`: il campo `role` e' deprecato
+                e mostrava un solo ruolo a un giocatore che nella lista subito
+                sotto ne aveva tre. Le due schermate si contraddicevano. */}
+            <span className="text-[9px] font-black tracking-[0.2em] uppercase text-muted-foreground dark:text-white/30">{displayPlayerRoles(p1)}</span>
           </CardContent>
         </Card>
 
