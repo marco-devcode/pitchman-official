@@ -10,6 +10,7 @@ import { usePlayersStore } from "@/store/usePlayersStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { readThemeChartPalette } from "@/lib/design-tokens";
+import { computeOnPitchGoals } from "@/lib/on-pitch";
 import { aggregationRepository } from "@/lib/repositories/aggregation-repository";
 import { getMatchUsage } from "@/lib/player-usage";
 import { cn, displayPlayerName } from "@/lib/utils";
@@ -81,32 +82,14 @@ function calculatePlayerStats(playerId: string, context: any, player: Player, pS
     if (u.appeared) {
       totalMinutes += u.minutesPlayed;
 
-      const chronologicalEvents = [...details.events].sort((a: any, b: any) => a.minute - b.minute);
-      const myTeam = match.isHome ? 'home' : 'away';
-      const oppTeam = match.isHome ? 'away' : 'home';
-
-      let enterMin = 0;
-      let exitMin = match.duration || 90;
-
-      if (!isStarter && stat && stat.minutesPlayed > 0) {
-        const subIn = chronologicalEvents.find((e: any) => e.type === 'substitution' && e.playerId === playerId);
-        enterMin = subIn ? subIn.minute : 0;
-      }
-      const subOut = chronologicalEvents.find((e: any) => e.type === 'substitution' && e.subOutPlayerId === playerId);
-      if (subOut) exitMin = subOut.minute;
-
-      let matchGoalsConcededCount = 0;
-      chronologicalEvents.forEach((e: any) => {
-        if (e.minute >= enterMin && e.minute <= exitMin) {
-          if (e.type === 'goal') {
-            if (e.team === myTeam) goalsScoredOnPitch++;
-            if (e.team === oppTeam) { goalsConcededOnPitch++; matchGoalsConcededCount++; }
-          } else if (e.type === 'own_goal') {
-            if (e.team === myTeam) { goalsConcededOnPitch++; matchGoalsConcededCount++; }
-            if (e.team === oppTeam) goalsScoredOnPitch++;
-          }
-        }
-      });
+      // Gol in campo: calcolo unico, in src/lib/on-pitch.ts.
+      const onPitch = computeOnPitchGoals(
+        details.events, playerId, match.isHome, isStarter,
+        stat?.minutesPlayed, match.duration,
+      );
+      goalsScoredOnPitch += onPitch.goalsScoredOnPitch;
+      goalsConcededOnPitch += onPitch.goalsConcededOnPitch;
+      const matchGoalsConcededCount = onPitch.matchGoalsConcededCount;
 
       if (getPrimaryRole(player) === 'POR' && matchGoalsConcededCount === 0) cleanSheets++;
 

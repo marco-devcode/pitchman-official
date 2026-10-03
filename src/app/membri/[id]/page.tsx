@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { readThemeChartPalette } from "@/lib/design-tokens";
+import { computeOnPitchGoals } from "@/lib/on-pitch";
 
 // ─── Helper colori chart adattivi ─────────────────────────────────────────────
 /**
@@ -418,40 +419,16 @@ function computePlayerStats(
       if (isStarter) starts++;
       else if (u.cameOn) subs++;
 
-      // Calcolo On-Pitch Goals
-      const chronologicalEvents = [...details.events].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
-      const myTeam = match.isHome ? 'home' : 'away';
-      const oppTeam = match.isHome ? 'away' : 'home';
-
-      let enterMin = 0;
-      let exitMin = match.duration || 90;
-
-      if (!isStarter && stat && stat.minutesPlayed > 0) {
-        const subIn = chronologicalEvents.find(e => e.type === 'substitution' && e.playerId === playerId);
-        enterMin = subIn ? (subIn.minute ?? 0) : 0;
-      }
-      const subOut = chronologicalEvents.find(e => e.type === 'substitution' && e.subOutPlayerId === playerId);
-      if (subOut) exitMin = subOut.minute ?? (match.duration || 90);
-
-      let matchGoalsConcededCount = 0;
-      chronologicalEvents.forEach(e => {
-        if (e.minute !== null && e.minute >= enterMin && e.minute <= exitMin) {
-          if (e.type === 'goal') {
-            if (e.team === myTeam) goalsScoredOnPitch++;
-            if (e.team === oppTeam) {
-              goalsConcededOnPitch++;
-              matchGoalsConcededCount++;
-            }
-          } else if (e.type === 'own_goal') {
-            // Autogol: un own_goal della mia squadra = gol subito, dell'avversario = gol fatto
-            if (e.team === myTeam) {
-              goalsConcededOnPitch++;
-              matchGoalsConcededCount++;
-            }
-            if (e.team === oppTeam) goalsScoredOnPitch++;
-          }
-        }
-      });
+      // Gol in campo: calcolo unico, in src/lib/on-pitch.ts. Era duplicato
+      // qui e nel confronto, con due difetti che la copia del confronto aveva
+      // (vedi il file).
+      const onPitch = computeOnPitchGoals(
+        details.events, playerId, match.isHome, isStarter,
+        stat?.minutesPlayed, match.duration,
+      );
+      goalsScoredOnPitch += onPitch.goalsScoredOnPitch;
+      goalsConcededOnPitch += onPitch.goalsConcededOnPitch;
+      const matchGoalsConcededCount = onPitch.matchGoalsConcededCount;
 
       // Applica clean sheet logic
       if (player && getPrimaryRole(player) === 'POR' && matchGoalsConcededCount === 0) cleanSheets++;

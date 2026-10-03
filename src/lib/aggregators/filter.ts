@@ -18,46 +18,6 @@ export function filterContextByType(ctx: SeasonDataContext, type: FilterType): S
   return { ...ctx, matches: filteredMatches, matchesDetails: filteredDetails };
 }
 
-export interface TeamRecord {
-  overall: TeamStatsRecord;
-  home: TeamStatsRecord;
-  away: TeamStatsRecord;
-}
-
-export function computeTeamRecord(ctx: SeasonDataContext): TeamRecord {
-  const create = (): TeamStatsRecord => ({ wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, matchesPlayed: 0 });
-  const overall = create();
-  const home = create();
-  const away = create();
-
-  for (const m of ctx.matches) {
-    if (m.status !== 'completed') continue;
-    const result = m.result || { home: 0, away: 0 };
-    if (m.isHome) {
-      overall.matchesPlayed++;
-      home.matchesPlayed++;
-      overall.goalsFor += result.home;
-      overall.goalsAgainst += result.away;
-      home.goalsFor += result.home;
-      home.goalsAgainst += result.away;
-      if (result.home > result.away) { overall.wins++; home.wins++; }
-      else if (result.home < result.away) { overall.losses++; home.losses++; }
-      else { overall.draws++; home.draws++; }
-    } else {
-      overall.matchesPlayed++;
-      away.matchesPlayed++;
-      overall.goalsFor += result.away;
-      overall.goalsAgainst += result.home;
-      away.goalsFor += result.away;
-      away.goalsAgainst += result.home;
-      if (result.away > result.home) { overall.wins++; away.wins++; }
-      else if (result.away < result.home) { overall.losses++; away.losses++; }
-      else { overall.draws++; away.draws++; }
-    }
-  }
-  return { overall, home, away };
-}
-
 export interface PlayerStatsRow {
   playerId: string;
   name: string;
@@ -121,37 +81,4 @@ export function computePlayerStats(ctx: SeasonDataContext): PlayerStatsRow[] {
     });
   }
   return rows.sort((a, b) => b.stats.goals - a.stats.goals);
-}
-
-export interface IntervalData {
-  label: string;
-  value: number;
-  fill: string;
-}
-
-export function computeGoalsByInterval(ctx: SeasonDataContext): IntervalData[] {
-  const completed = ctx.matches.filter((m: Match) => m.status === 'completed');
-  const int1 = 30;
-  const int2 = 60;
-  const labels: Array<{ label: string; condition: (min: number) => boolean }> = [
-    { label: '1-30', condition: (min: number) => min <= int1 },
-    { label: '31-60', condition: (min: number) => min > int1 && min <= int2 },
-    { label: '61+', condition: (min: number) => min > int2 },
-  ];
-  const values = labels.map(() => 0);
-  for (const m of completed) {
-    const details = ctx.matchesDetails[m.id];
-    if (!details) continue;
-    const side = m.isHome ? 'home' : 'away';
-    for (const e of details.events.filter((e: any) => e.type === 'goal' && e.team === side)) {
-      const minute = e.minute ?? 0;
-      for (let i = 0; i < labels.length; i++) {
-        if (labels[i].condition(minute)) {
-          values[i]++;
-          break;
-        }
-      }
-    }
-  }
-  return labels.map((l, i) => ({ label: l.label, value: values[i], fill: '#ace504' }));
 }
