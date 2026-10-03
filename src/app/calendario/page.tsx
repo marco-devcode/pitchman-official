@@ -508,7 +508,9 @@ export default function CalendarioPage() {
                 // box-shadow di un figlio viene ritagliato ai bordi del
                 // contenitore. Rimosso di proposito, il contenuto non deborda.
                 "bg-card dark:bg-black/40 border border-border dark:border-white/5 rounded-2xl cursor-pointer hover:bg-muted dark:hover:bg-white/5 transition-all group",
-                m.status === 'scheduled' && "border-l-4 border-l-primary dark:border-l-brand-green"
+                // Barra laterale delle partite future: gradiente del tema,
+                // 5px per specifica. Il colore non e' scritto qui.
+                m.status === 'scheduled' && "border-l-theme"
               )}
             >
               <CardContent className="p-4 pl-2 flex items-center justify-between gap-2">
@@ -561,7 +563,7 @@ export default function CalendarioPage() {
                   ) : m.status === 'canceled' ? (
                     <Badge variant="outline" className="text-[9px] uppercase font-black border-rose-500/50 text-rose-500">Annullata</Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[9px] uppercase font-black border-primary/50 dark:border-brand-green/50 text-primary dark:text-brand-green animate-pulse">Programmata</Badge>
+                    <Badge variant="outline" className="text-[9px] uppercase font-black bg-theme-fill border-theme-dim text-theme animate-pulse">Programmata</Badge>
                   )}
 
                   {isEditMode ? (

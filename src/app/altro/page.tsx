@@ -14,6 +14,7 @@ import { playerRepository } from '@/lib/repositories/player-repository';
 import { matchRepository } from '@/lib/repositories/match-repository';
 import { GiSoccerBall } from "react-icons/gi";
 import { useThemeStore } from '@/store/useThemeStore';
+import { ThemeColorDialog } from '@/components/theme/theme-color-panel';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { useMatchesStore } from '@/store/useMatchesStore';
 import { usePlayersStore } from '@/store/usePlayersStore';
@@ -59,6 +60,7 @@ export default function AltroPage() {
   // Dialog states
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isSquadraOpen, setIsSquadraOpen] = useState(false);
+  const [isColorsOpen, setIsColorsOpen] = useState(false);
   const [isNotificheOpen, setIsNotificheOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
@@ -408,16 +410,19 @@ export default function AltroPage() {
           </div>
         </div>
 
-        {/* Tema */}
+        {/* Tema: apre il selettore dei due colori */}
         <div
-          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)]"
+          onClick={() => setIsColorsOpen(true)}
+          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] active:scale-[0.98]"
         >
           <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
             <Moon className="h-6 w-6 text-primary dark:text-brand-green" />
           </div>
           <div className="flex flex-col flex-1">
             <span className="text-foreground font-black text-lg tracking-wide uppercase">Tema</span>
-            <span className="text-foreground/40 text-[10px] font-bold uppercase tracking-widest">Chiaro/Scuro</span>
+            <span className="text-foreground/40 text-[10px] font-bold uppercase tracking-widest">
+              Chiaro/Scuro &amp; colori
+            </span>
           </div>
           <div className="bg-muted/80 rounded-full flex items-center p-1 mr-2 shadow-inner border border-white/10">
             {/* Un toggle visivo custom che mimi quello nel mockup */}
@@ -485,6 +490,8 @@ export default function AltroPage() {
       </Dialog>
 
       {/* Gestione Squadra Dialog */}
+      <ThemeColorDialog open={isColorsOpen} onOpenChange={setIsColorsOpen} />
+
       <Dialog open={isSquadraOpen} onOpenChange={setIsSquadraOpen}>
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="max-w-[95vw] sm:max-w-lg rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground max-h-[90vh] overflow-y-auto">
           <DialogHeader>

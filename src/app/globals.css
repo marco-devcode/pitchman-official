@@ -56,12 +56,16 @@
   }
 
   .dark {
-    --background: 0 0% 3%;
-    /* Extra Deep Black #080808 */
+    /* Sfondo FISSO #0a0a0a: non dipende dal tema, per specifica. Il
+       contrasto di ogni colore del tema si calcola sempre contro questo, e
+       per questo --theme-bg lo ricalca: il motore e la pagina non possono
+       avere due sfondi diversi. */
+    --background: 0 0% 4%;
+    /* #0a0a0a */
     --foreground: 0 0% 100%;
 
-    --card: 0 0% 5%;
-    /* #0d0d0d */
+    --card: 0 0% 6%;
+    /* #101010 */
     --card-foreground: 0 0% 100%;
 
     --popover: 0 0% 5%;
@@ -106,6 +110,21 @@
 
     --card-yellow: 48 96% 53%;
     --card-red: 0 84% 60%;
+
+    /* ─── Tema scuro: default delle variabili generate ───
+       Qui stanno i valori di partenza, non quelli dell'utente: quelli
+       vengono scritti da ThemeProvider via CSSOM e vincono su questa
+       dichiarazione. Servono per due motivi: la pagina non deve dipendere
+       dal JavaScript per avere un accento, e il fallback (JS assente,
+       idratazione non ancora avvenuta) resta il verde neon del brand
+       invece di nero. */
+    --theme-bg: #0a0a0a;
+    --theme-card: #101010;
+    --a1: #4eeb00;
+    --a2: #00d9ff;
+    --t1: #4eeb00;
+    --t2: #00d9ff;
+    --grad: linear-gradient(135deg, var(--a1), var(--a2));
   }
 }
 
@@ -213,4 +232,89 @@
     -ms-user-select: text;
     user-select: text;
   }
+}
+/* ─── Uso dei colori del tema (regola 4 della specifica) ───
+   FUORI da @layer utilities, e non per scelta estetica.
+
+   Tailwind v3 PURGA il CSS personalizzato dichiarato dentro @layer utilities
+   se il nome della classe non compare in nessun file scansionato dai
+   `content` glob. Verificato: delle dieci classi qui sotto, le sette non
+   ancora usate da nessun componente sparivano dal CSS compilato — senza
+   errore, senza avviso, e il componente che le usa avrebbe avuto un bordo
+   invisibile. Fuori da qualunque layer il CSS non viene mai purgato.
+
+   Per il mismo sono scritte come CSS puro e non con @apply: non hanno
+   bisogno delle utility, e restano leggibili.
+
+   I componenti non scrivono mai un colore: scrivono `border-theme` o
+   `bg-theme-fill` e ottengono il risultato corretto per qualunque coppia
+   l'utente abbia scelto. */
+
+.border-theme {
+  background:
+    linear-gradient(var(--theme-card), var(--theme-card)) padding-box,
+    var(--grad) border-box;
+  border: 2px solid transparent;
+}
+
+.border-theme-thick {
+  background:
+    linear-gradient(var(--theme-card), var(--theme-card)) padding-box,
+    var(--grad) border-box;
+  border: 5px solid transparent;
+}
+
+.bg-theme-fill {
+  background-color: color-mix(in srgb, var(--a1) 18%, #000);
+}
+
+.bg-theme-fill-strong {
+  background-color: color-mix(in srgb, var(--a1) 22%, #000);
+}
+
+.bg-theme-fill-soft {
+  background-color: color-mix(in srgb, var(--a1) 14%, #000);
+}
+
+.bg-theme-fill-alt {
+  background-color: color-mix(in srgb, var(--a2) 18%, #000);
+}
+
+/* Barra laterale delle partite future: gradiente SOLO sul bordo sinistro.
+   Serve una classe a se' perche' `border-theme-thick` farebbe il bordo a 5px
+   su tutti e quattro i lati, e una barra laterale ha un lato solo. Stessa
+   tecnica del gradiente con `padding-box`/`border-box`, ma dichiarando solo
+   `border-left`. */
+.border-l-theme {
+  border-left: 5px solid transparent;
+  background-image:
+    linear-gradient(var(--theme-card), var(--theme-card)),
+    var(--grad);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.border-l-theme-thin {
+  border-left: 2px solid transparent;
+  background-image:
+    linear-gradient(var(--theme-card), var(--theme-card)),
+    var(--grad);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.border-theme-dim {
+  border-color: color-mix(in srgb, var(--a1) 35%, transparent);
+}
+
+.shadow-theme {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--a1) 20%, transparent);
+}
+
+.text-theme {
+  color: var(--t1);
+}
+
+.text-theme-alt {
+  color: var(--t2);
 }
