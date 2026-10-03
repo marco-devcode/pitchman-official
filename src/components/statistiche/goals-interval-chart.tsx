@@ -35,9 +35,21 @@ export function GoalsIntervalChart() {
 
     const chartConfig = { value: { label: "Gol" } };
 
+    // Tre barre: il primo colore del tema, il secondo, e una via di mezzo.
+    // Prima erano il verde del brand piu' due sue sfumature fisse, quindi i
+    // gol per intervallo restavano verdi con qualunque tema e il secondo
+    // colore non compariva mai.
     const INTERVAL_COLORS = isDark
-        ? [DesignTokens.brand.green, "rgba(172, 229, 4, 0.7)", "rgba(172, 229, 4, 0.4)"]
-        : [DesignTokens.charts.primary(false), "rgba(0, 120, 255, 0.6)", "rgba(0, 120, 255, 0.3)"];
+        ? [
+            DesignTokens.charts.primary(true),
+            DesignTokens.charts.secondary(true),
+            DesignTokens.charts.primaryGlow(true),
+          ]
+        : [
+            DesignTokens.charts.primary(false),
+            DesignTokens.charts.secondary(false),
+            DesignTokens.charts.primaryGlow(false),
+          ];
 
     return (
         <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm">

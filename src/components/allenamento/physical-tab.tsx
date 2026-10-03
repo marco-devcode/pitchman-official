@@ -14,21 +14,19 @@ import type { PhysicalTest, Player } from '@/lib/types';
 import { Activity, Trophy, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { readThemeChartPalette } from '@/lib/design-tokens';
 
 // ─── Helper colors ─────────────────────────────────────
+/**
+ * I colori dei grafici di questo tab.
+ *
+ * Era una copia locale con il verde neon scritto a mano: non seguiva i colori
+ * scelti dall'utente. Ora legge i due colori dal tema.
+ */
 function useChartColors() {
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
-  return {
-    primary:      isDark ? '#ace504' : 'hsl(210 100% 45%)',
-    primaryFill:  isDark ? 'rgba(172,229,4,0.15)' : 'rgba(0,128,255,0.12)',
-    grid:         isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)',
-    tick:         isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.4)',
-    tooltipBg:    isDark ? 'rgba(0,0,0,0.92)' : 'rgba(255,255,255,0.97)',
-    tooltipBorder:isDark ? 'rgba(172,229,4,0.3)' : 'rgba(0,128,255,0.25)',
-    tooltipColor: isDark ? '#fff' : '#000',
-    cursorFill:   isDark ? 'rgba(172,229,4,0.05)' : 'rgba(0,128,255,0.05)',
-  };
+  return useMemo(() => readThemeChartPalette(isDark), [isDark]);
 }
 
 const LineChart = dynamic<{ data: { date: string; value: number }[]; colors: any; unit: string }>(

@@ -28,22 +28,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { readThemeChartPalette } from "@/lib/design-tokens";
 
 // ─── Helper colori chart adattivi ─────────────────────────────────────────────
+/**
+ * I colori dei grafici di questa pagina.
+ *
+ * Era una copia locale con il verde neon scritto a mano, che non seguiva i
+ * colori scelti dall'utente: con un tema viola i grafici restavano verdi.
+ * Ora legge i due colori dal tema.
+ */
 function useChartColors() {
   const { theme } = useThemeStore();
   const isDark = theme === "dark";
-  return {
-    primary:      isDark ? "#ace504"                  : "hsl(210 100% 45%)",
-    primaryFill:  isDark ? "rgba(172,229,4,0.15)"     : "rgba(0,128,255,0.12)",
-    grid:         isDark ? "rgba(255,255,255,0.05)"   : "rgba(0,0,0,0.07)",
-    tick:         isDark ? "rgba(255,255,255,0.3)"    : "rgba(0,0,0,0.4)",
-    tooltipBg:    isDark ? "rgba(0,0,0,0.92)"         : "rgba(255,255,255,0.97)",
-    tooltipBorder:isDark ? "rgba(172,229,4,0.3)"      : "rgba(0,128,255,0.25)",
-    tooltipColor: isDark ? "#fff"                     : "#000",
-    cursorFill:   isDark ? "rgba(172,229,4,0.05)"     : "rgba(0,128,255,0.05)",
-    muted:        isDark ? "rgba(255,255,255,0.2)"    : "rgba(0,0,0,0.1)",
-  };
+  return useMemo(() => readThemeChartPalette(isDark), [isDark]);
 }
 
 // ─── Tipi grafici ─────────────────────────────────────────────────────────────
