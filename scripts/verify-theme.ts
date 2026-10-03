@@ -8,8 +8,9 @@
 import {
     buildTheme, contrastRatio, correctForContrast, hexToRgb, rgbToHex,
     themeVariables, backgroundFor, toHslTriplet, bestTextOn,
-    type Rgb,
+    lighterOf, themeFill, type Rgb,
 } from '../src/lib/theme-engine';
+import { DEFAULT_ACCENT_A, DEFAULT_ACCENT_B } from '../src/store/useThemeStore';
 
 const DARK_BG = backgroundFor('dark');
 const LIGHT_BG = backgroundFor('light');
@@ -124,5 +125,44 @@ check('triplet HSL senza virgole', toHslTriplet({ r: 74, g: 235, b: 0 }) === '10
 // testo sopra il riempimento: il caso peggiore e' un riempimento chiarissimo
 check('su bianco il testo e\' nero', bestTextOn({ r: 255, g: 255, b: 255 }) === '#000000');
 check('su nero il testo e\' bianco', bestTextOn({ r: 0, g: 0, b: 0 }) === '#ffffff');
+
+// ─── i colori di BASE non devono cambiare ───
+// Il difetto: il default era `#4eeb00`, che NON e' il token originale
+// `hsl(74 96% 46%)` ma un verde diverso (tonalita' 100 contro 74). Il tema
+// senza scelte deve quindi riprodurre i token di globals.css alla virgola.
+const conDefault = themeVariables(buildTheme({ a1: DEFAULT_ACCENT_A, a2: DEFAULT_ACCENT_B, mode: 'dark' }));
+check('il default riproduce il verde di base (tonalita\' 74)',
+    Math.abs(parseFloat(conDefault['--brand-green']) - 74) < 0.5, conDefault['--brand-green']);
+check('il default riproduce la saturazione di base (96%)',
+    Math.abs(parseFloat(conDefault['--brand-green'].split(' ')[1]) - 96) < 1, conDefault['--brand-green']);
+check('il default riproduce la luminosita\' di base (46%)',
+    Math.abs(parseFloat(conDefault['--brand-green'].split(' ')[2]) - 46) < 1, conDefault['--brand-green']);
+check('il default e\' leggibile sul fondo scuro',
+    contrastRatio(hexToRgb(conDefault['--a1']), DARK_BG) >= 4.5, `${conDefault['--a1']}`);
+
+// ─── il testo sopra il gradiente: regola 6 ───
+// Nessun colore di testo supera 4.5:1 su ENTRAMBI gli estremi di un gradiente
+// fra due colori arbitrari. Per una coppia rosso/blu e' impossibile: sul rosso
+// il nero sta a 5.25 e il bianco a 4.0, sul blu e' inverso e nessuno dei due
+// arriva a 4.5. Quindi il testo va su un riempimento mescolato col nero, non
+// sul gradiente pieno: e' cio' che fanno `.bg-theme-fill` + `.text-theme`.
+// Due abbinamenti DIVERSI, e confonderli e' il difetto:
+//  a) `bg-primary` = riempimento PIENO del colore -> testo bianco o nero
+//     secondo il contrasto reale col colore.
+//  b) `.bg-theme-fill` = colore mescolato col nero al 14-22' -> superficie
+//     SEMPRE scura, quindi il testo e' `--t1`, quello chiaro.
+// Sul rosso al 18% il nero sta a 1.12:1: illeggibile. Il chiaro sta a 4.71:1.
+for (const [nome, a1, a2] of COPPIE) {
+    const t = buildTheme({ a1, a2, mode: 'dark' });
+    const fill = themeFill(t.a1, 18);
+    const ratioFill = contrastRatio(hexToRgb(rgbToHex(t.t1)), fill);
+    check(`${nome} [dark]: testo chiaro leggibile sul riempimento al 18%`, ratioFill >= 4.5,
+        `--t1 ${rgbToHex(t.t1)} su ${rgbToHex(fill)} ratio ${ratioFill.toFixed(2)}`);
+}
+// e il testo del riempimento pieno deve essere leggibile sul colore pieno
+const pieno = buildTheme({ a1: '#ff0000', a2: '#0000ff', mode: 'dark' });
+check('il testo del riempimento pieno e\' leggibile sul colore pieno',
+    contrastRatio(hexToRgb(pieno.onFill), pieno.a1) >= 4.5,
+    `${pieno.onFill} su ${rgbToHex(pieno.a1)}`);
 
 console.log(fail === 0 ? 'TEMA: TUTTI I CASI PASSANO' : `TEMA: ${fail} FALLITI`);

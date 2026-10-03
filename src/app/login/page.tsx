@@ -224,7 +224,7 @@ export default function LoginPage() {
           <div className="space-y-4 pt-2">
             <Button 
               type="submit" 
-              className="w-full h-14 bg-primary dark:bg-neon-gradient text-white dark:text-primary-foreground font-bold text-lg rounded-full shadow-md dark:shadow-none dark:glow-neon hover:opacity-90 transition-all border-none"
+              className="w-full h-14 bg-primary dark:bg-theme-fill text-white dark:text-theme font-bold text-lg rounded-full shadow-md dark:shadow-none dark:shadow-theme hover:opacity-90 transition-all border-none"
             >
               {isLoginMode ? "ACCEDI" : "REGISTRATI"}
             </Button>

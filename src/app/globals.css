@@ -72,9 +72,11 @@
     --popover-foreground: 0 0% 100%;
 
     --primary: 74 96% 46%;
-    /* #4eeb00 Original Neon */
+    /* = #b1e605. Il commento precedente diceva "#4eeb00": non e' lo stesso
+       colore (tonalita' 100 contro 74), e sbagliarlo fa cambiare il verde di
+       base dell'app. I default del tema in useThemeStore sono la conversione
+       esatta di questo triplet. */
     --primary-foreground: 0 0% 100%;
-    /* White text as requested */
 
     --secondary: 220 35% 4%;
     --secondary-foreground: 0 0% 100%;

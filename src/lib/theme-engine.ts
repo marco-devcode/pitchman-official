@@ -221,6 +221,67 @@ export interface ThemeResult {
     steps: { a1: number; a2: number; t1: number; t2: number };
 }
 
+/**
+ * Il piu' chiaro dei due.
+ *
+ * Serve per capire se un testo scuro sopra il riempimento e' praticabile:
+ * un colore chiaro genera un riempimento chiaro anche mescolato col nero,
+ * e su quello il nero diventa l'unica scelta leggibile.
+ */
+export function lighterOf(a: Rgb, b: Rgb): Rgb {
+    return relativeLuminance(a) >= relativeLuminance(b) ? a : b;
+}
+
+/**
+ * La superficie del riempimento su cui il testo viene dipinto.
+ *
+ * Sul tema scuro e' la regola 4 della specifica: colore mescolato col NERO al
+ * 14-22%, quindi una superficie scura. Sul tema chiaro la miscela col nero
+ * darebbe una macchia scura in una pagina bianca: li' si miscola col BIANCO,
+ * e la superficie resta chiara come il resto del tema.
+ */
+export function themeFill(color: Rgb, percent = 18, mode: ThemeMode = 'dark'): Rgb {
+    const p = percent / 100;
+    if (mode === 'light') {
+        return {
+            r: color.r + (255 - color.r) * p,
+            g: color.g + (255 - color.g) * p,
+            b: color.b + (255 - color.b) * p,
+        };
+    }
+    return { r: color.r * p, g: color.g * p, b: color.b * p };
+}
+
+/**
+ * Porta il TESTO a 4.5:1 contro il riempimento su cui viene dipinto.
+ *
+ * Il ciclo schiarisce il COLORE e rimisura sul riempimento che quel colore
+ * genera, non il contrario. Correggere direttamente il riempimento sembrava
+ * equivalente e non lo e': il riempimento e' gia' scurissimo, quindi
+ * schiarirlo sposta i tre canali in proporzione diverse e ne distrugge la
+ * tonalita' (la saturazione del verde di base e' scesa dal 96% al 14%). La
+ * regola 3 impone che la correzione agisca solo sulla luminosita'.
+ */
+export function correctForFill(
+    color: Rgb,
+    percent = 22,
+    mode: ThemeMode = 'dark',
+    threshold: number = AA_THRESHOLD,
+): { color: Rgb; ratio: number; steps: number } {
+    // La correzione segue il tema: schiarisce sullo scuro, scurisce sul
+    // chiaro, per la stessa ragione di `correctForContrast`.
+    const dark = mode !== 'light';
+    let current = { ...color };
+    let steps = 0;
+    let ratio = contrastRatio(current, themeFill(current, percent, mode));
+    while (ratio < threshold && steps < MAX_STEPS) {
+        current = dark ? lightenOnce(current) : darkenOnce(current);
+        steps++;
+        ratio = contrastRatio(current, themeFill(current, percent, mode));
+    }
+    return { color: current, ratio, steps };
+}
+
 export function backgroundFor(mode: ThemeMode): Rgb {
     return mode === 'light' ? LIGHT_BG : DARK_BG;
 }
@@ -238,20 +299,27 @@ export function buildTheme({ a1, a2, mode = 'dark' }: ThemeInput): ThemeResult {
     // la soglia e' identica; sul tema chiaro il testo su fondo bianco e' il
     // caso difficile, quindi qui si parte dai colori gia' schiariti: scurire
     // non e' ammesso, ma partire dal gia' corretto evita di doverlo fare.
-    // Sul tema chiaro la correzione gia' scurisce (vedi directionFor), quindi
-    // il testo parte dagli stessi valori corretti dei bordi: rifare la
-    // correzione sarebbe un no-op, non un miglioramento.
-    const textBase1 = c1.color;
-    const textBase2 = c2.color;
-    const t1 = correctForContrast(textBase1, bg);
-    const t2 = correctForContrast(textBase2, bg);
+    // Il testo colorato sta SOPRA i riempimenti, non sullo sfondo della
+    // pagina, quindi e' il riempimento il vincolo: #7676a8 era 4.7:1 sullo
+    // sfondo ma 4.25:1 sul suo riempimento al 18%. Si schiarisce il COLORE
+    // finche' non passa sul riempimento che lui stesso genera.
+    const t1 = correctForFill(c1.color, 22, mode);
+    const t2 = correctForFill(c2.color, 22, mode);
 
     return {
         a1: c1.color,
         a2: c2.color,
         t1: t1.color,
         t2: t2.color,
-        onFill: bestTextOn(c1.color),
+        // `--primary-foreground` e' il testo sopra un RIEMPIMENTO PIENO di
+        // `bg-primary`, che e' il colore stesso: qui il bianco o il nero si
+        // sceglie col contrasto reale.
+        //
+        // NON e' il testo sopra `.bg-theme-fill`: quello e' il colore mescolato
+        // col nero al 14-22%, quindi una superficie SEMPRE scura, e il suo
+        // testo e' `--t1` (chiaro). Abbinarli era un errore: su un riempimento
+        // rosso al 18% il nero sta a 1.12:1 — illeggibile.
+        onFill: bestTextOn(t1.color),
         hsl: {
             primary: toHslTriplet(t1.color),
             ring: toHslTriplet(t1.color),
