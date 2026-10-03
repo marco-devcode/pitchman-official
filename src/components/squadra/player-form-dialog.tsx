@@ -131,7 +131,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
     <>
       {/* Main Player Form Dialog */}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent hideClose className="sm:max-w-[425px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_25px_rgba(172,229,4,0.05)] p-6 overflow-hidden">
+        <DialogContent hideClose className="sm:max-w-[425px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-themesoft p-6 overflow-hidden">
           <DialogHeader className="flex-row items-start justify-between space-y-0">
             <div className="space-y-1 text-left">
               <DialogTitle className="text-foreground dark:text-white font-black uppercase text-xl md:text-2xl tracking-tight">
@@ -271,7 +271,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
                 <Button 
                   type="submit" 
                   disabled={isSaving}
-                  className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all"
+                  className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all"
                 >
                   {isSaving ? (
                     <>
@@ -290,7 +290,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
 
       {/* Roles Pop-up Dialog */}
       <Dialog open={isRolesDialogOpen} onOpenChange={setIsRolesDialogOpen}>
-        <DialogContent className="sm:max-w-[360px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_25px_rgba(172,229,4,0.05)] p-6 overflow-hidden">
+        <DialogContent className="sm:max-w-[360px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-themesoft p-6 overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground dark:text-white font-black uppercase text-lg tracking-tight">
               Seleziona Ruoli
@@ -317,7 +317,7 @@ export function PlayerFormDialog({ open, onOpenChange, onSave, player, onAIImpor
             <Button 
               type="button" 
               onClick={() => handleRolesSave(roles)}
-              className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-11 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all"
+              className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-11 shadow-sm dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all"
             >
               Conferma
             </Button>

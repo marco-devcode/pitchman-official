@@ -47,7 +47,7 @@ export function MatchEventsTab() {
 
   return (
     <div className="space-y-6 relative">
-      <Card className="bg-card dark:bg-black/40 border border-border dark:border-brand-green/30 rounded-3xl shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.08)] overflow-hidden">
+      <Card className="bg-card dark:bg-black/40 border border-border dark:border-brand-green/30 rounded-3xl shadow-sm dark:shadow-theme overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <Button
             className="rounded-full h-10 px-4 bg-background dark:bg-black border border-primary/20 dark:border-brand-green/20 text-primary dark:text-brand-green hover:bg-primary/5 dark:hover:bg-brand-green/5 shadow-sm font-black uppercase text-[11px] sm:text-xs transition-all hover:scale-105 active:scale-95"
@@ -58,7 +58,7 @@ export function MatchEventsTab() {
           {events.length > 0 && (
             <Button
               onClick={() => setIsTrackerOpen(true)}
-              className="h-10 px-5 rounded-full bg-primary dark:bg-brand-green text-white dark:text-black font-black uppercase tracking-widest shadow-md dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+              className="h-10 px-5 rounded-full bg-primary dark:bg-brand-green text-white dark:text-black font-black uppercase tracking-widest shadow-md dark:shadow-theme-strong hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
             >
               <Zap className="h-4 w-4" /> LIVE
             </Button>
@@ -72,7 +72,7 @@ export function MatchEventsTab() {
               <p className="text-[10px] font-bold text-foreground/30 dark:text-muted-foreground mt-2 uppercase mb-6">Usa il + per aggiungere eventi alla partita.</p>
               <Button
                 onClick={() => setIsTrackerOpen(true)}
-                className="h-12 px-8 rounded-full bg-primary dark:bg-brand-green text-white dark:text-black font-black uppercase tracking-widest shadow-lg dark:shadow-[0_0_20px_rgba(172,229,4,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                className="h-12 px-8 rounded-full bg-primary dark:bg-brand-green text-white dark:text-black font-black uppercase tracking-widest shadow-lg dark:shadow-theme-strong hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
               >
                 <Zap className="h-5 w-5" /> LIVE
               </Button>

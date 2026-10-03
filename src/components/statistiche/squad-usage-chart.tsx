@@ -78,7 +78,7 @@ function CustomTooltip({
   const data = payload[0].payload;
 
   return (
-    <div className="bg-background dark:bg-black border border-border dark:border-brand-green/30 rounded-2xl p-3 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.1)] text-xs">
+    <div className="bg-background dark:bg-black border border-border dark:border-brand-green/30 rounded-2xl p-3 shadow-xl dark:shadow-theme text-xs">
       <p className="font-black uppercase tracking-wider text-foreground dark:text-white mb-2">
         {data.name}
       </p>
@@ -138,7 +138,7 @@ export function SquadUsageChart() {
   const maxY = Math.max(...chartData.map((d) => d.y));
 
   return (
-    <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
+    <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
       <CardContent className="pr-2 pt-6 pb-6">
         <ResponsiveContainer width="100%" height={420}>
           <ScatterChart

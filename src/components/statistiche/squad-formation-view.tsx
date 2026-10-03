@@ -145,7 +145,7 @@ export function SquadFormationView() {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
+      <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
         <CardContent className="pt-6 pb-8 px-4 sm:px-6">
           <div className="flex items-center justify-center gap-4 mb-8">
             <div className="px-4 py-2 rounded-2xl bg-primary/10 dark:bg-brand-green/10 border border-primary/20 dark:border-brand-green/20">
@@ -179,7 +179,7 @@ export function SquadFormationView() {
                           "w-9 h-9 sm:w-11 sm:h-11 md:w-14 md:h-14 shrink-0 rounded-full flex items-center justify-center border-2 md:border-2 shadow-xl transition-transform hover:scale-110",
                           isPOR
                             ? "bg-amber-600 border-amber-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]"
-                            : "bg-primary/90 dark:bg-brand-green/90 border-primary dark:border-brand-green text-white dark:text-black shadow-[0_0_15px_rgba(172,229,4,0.3)]"
+                            : "bg-primary/90 dark:bg-brand-green/90 border-primary dark:border-brand-green text-white dark:text-black shadow-theme-strong"
                         )}>
                           <span className="text-[8px] md:text-[11px] font-black uppercase text-center leading-none">
                             {getPositionAcronym(bestLineup.formation, starterIdx)}

@@ -183,7 +183,7 @@ export function MatchLineupTab() {
           {!isEditing ? (
             <Button
               onClick={() => setIsEditing(true)}
-              className="h-10 px-6 bg-primary dark:bg-brand-green text-white dark:text-black rounded-2xl font-black uppercase text-xs shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-105 active:scale-95 transition-all"
+              className="h-10 px-6 bg-primary dark:bg-brand-green text-white dark:text-black rounded-2xl font-black uppercase text-xs shadow-lg dark:shadow-theme-strong hover:scale-105 active:scale-95 transition-all"
             >
               <Settings2 className="mr-2 h-4 w-4" />
               Modifica Formazione
@@ -199,7 +199,7 @@ export function MatchLineupTab() {
               </Button>
               <Button
                 onClick={handleSave}
-                className="h-10 px-6 bg-primary dark:bg-brand-green text-white dark:text-black rounded-2xl font-black uppercase text-[10px] shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] animate-in fade-in slide-in-from-left-4"
+                className="h-10 px-6 bg-primary dark:bg-brand-green text-white dark:text-black rounded-2xl font-black uppercase text-[10px] shadow-lg dark:shadow-theme-strong animate-in fade-in slide-in-from-left-4"
               >
                 <Save className="mr-2 h-4 w-4" />
                 Salva

@@ -126,14 +126,14 @@ function ScoutContent() {
         <div className="flex gap-2">
           <Button
             size="sm"
-            className="h-9 text-[10px] font-black uppercase rounded-xl bg-card border border-border dark:bg-black dark:border-brand-green/30 text-foreground dark:text-white hover:bg-muted dark:hover:bg-black/60 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)] transition-all"
+            className="h-9 text-[10px] font-black uppercase rounded-xl bg-card border border-border dark:bg-black dark:border-brand-green/30 text-foreground dark:text-white hover:bg-muted dark:hover:bg-black/60 shadow-sm dark:shadow-theme transition-all"
             onClick={() => setIsCategoryDialogOpen(true)}
           >
             <Tag className="mr-1.5 h-3.5 w-3.5 text-primary dark:text-brand-green" /> Etichette
           </Button>
           <Button
             size="sm"
-            className="h-9 text-[10px] font-black uppercase rounded-xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-white hover:opacity-90 dark:hover:bg-black/80 shadow-md dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] hover:scale-105 transition-all"
+            className="h-9 text-[10px] font-black uppercase rounded-xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-white hover:opacity-90 dark:hover:bg-black/80 shadow-md dark:shadow-theme hover:scale-105 transition-all"
             onClick={() => { setEditingPlayer(null); setIsPlayerDialogOpen(true); }}
           >
             <UserPlus className="mr-1.5 h-3.5 w-3.5 text-white dark:text-brand-green" /> Nuovo
@@ -150,7 +150,7 @@ function ScoutContent() {
               placeholder="Cerca osservato per nome..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-10 w-full rounded-2xl border-border dark:border-brand-green/30 bg-card dark:bg-black/40 text-foreground dark:text-white font-bold text-sm focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] placeholder:text-muted-foreground dark:text-muted-foreground/30 dark:placeholder:text-white/20"
+              className="pl-9 h-10 w-full rounded-2xl border-border dark:border-brand-green/30 bg-card dark:bg-black/40 text-foreground dark:text-white font-bold text-sm focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-themesoft placeholder:text-muted-foreground dark:text-muted-foreground/30 dark:placeholder:text-white/20"
             />
           </div>
         </div>
@@ -166,7 +166,7 @@ function ScoutContent() {
               className={cn(
                 "cursor-pointer uppercase font-black text-[9px] px-3 py-1 rounded-lg transition-all border",
                 selectedCategoryIds.length === 0
-                  ? "bg-muted dark:bg-black border-primary dark:border-brand-green text-foreground dark:text-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)]"
+                  ? "bg-muted dark:bg-black border-primary dark:border-brand-green text-foreground dark:text-brand-green shadow-sm dark:shadow-theme"
                   : "bg-card dark:bg-black/40 border-border dark:border-white/10 text-muted-foreground"
               )}
               onClick={() => setSelectedCategoryIds([])}
@@ -214,7 +214,7 @@ function ScoutContent() {
         ) : (
           <>
             {visiblePlayers.map((player) => (
-              <Card key={player.id} className="overflow-hidden border border-border dark:border-brand-green/30 bg-card dark:bg-black/40 backdrop-blur-sm shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.1)] rounded-3xl transition-all group hover:opacity-90">
+              <Card key={player.id} className="overflow-hidden border border-border dark:border-brand-green/30 bg-card dark:bg-black/40 backdrop-blur-sm shadow-sm dark:shadow-theme rounded-3xl transition-all group hover:opacity-90">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col">

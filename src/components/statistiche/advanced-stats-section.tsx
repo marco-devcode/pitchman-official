@@ -170,7 +170,7 @@ export function AdvancedStatsSection() {
                 {/* 1. BEST DEFENSE (Pair or Trio) */}
                 <Card 
                     onClick={() => setSelectedRanking('defense')}
-                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-brand-green/50 hover:shadow-[0_0_20px_rgba(172,229,4,0.1)] group relative"
+                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-brand-green/50 hover:shadow-theme group relative"
                 >
                     <CardHeader className="pb-1 flex flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-muted-foreground group-hover:text-brand-green transition-colors">
@@ -220,7 +220,7 @@ export function AdvancedStatsSection() {
                 {/* 2. BEST G/A PER STARTER */}
                 <Card 
                     onClick={() => setSelectedRanking('efficiency')}
-                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-primary/50 dark:hover:border-brand-green/50 hover:shadow-[0_0_20px_rgba(172,229,4,0.1)] group"
+                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-primary/50 dark:hover:border-brand-green/50 hover:shadow-theme group"
                 >
                     <CardHeader className="pb-1">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-muted-foreground group-hover:text-primary dark:group-hover:text-brand-green transition-colors">
@@ -248,7 +248,7 @@ export function AdvancedStatsSection() {
                 {/* 3. MOST DECISIVE GOALS */}
                 <Card 
                     onClick={() => setSelectedRanking('decisive')}
-                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-primary/50 dark:hover:border-brand-green/50 hover:shadow-[0_0_20px_rgba(172,229,4,0.1)] group"
+                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-primary/50 dark:hover:border-brand-green/50 hover:shadow-theme group"
                 >
                     <CardHeader className="pb-1">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-muted-foreground group-hover:text-primary dark:group-hover:text-brand-green transition-colors">
@@ -276,7 +276,7 @@ export function AdvancedStatsSection() {
                 {/* 4. LOWEST LOSS RATE */}
                 <Card 
                     onClick={() => setSelectedRanking('amulet')}
-                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-primary/50 dark:hover:border-brand-green/50 hover:shadow-[0_0_20px_rgba(172,229,4,0.1)] group"
+                    className="cursor-pointer bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm rounded-3xl overflow-hidden transition-all hover:border-primary/50 dark:hover:border-brand-green/50 hover:shadow-theme group"
                 >
                     <CardHeader className="pb-1">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-muted-foreground group-hover:text-primary dark:group-hover:text-brand-green transition-colors">

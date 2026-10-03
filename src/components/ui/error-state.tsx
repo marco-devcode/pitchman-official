@@ -32,7 +32,7 @@ const ERROR_COLORS: Record<AppErrorType, { icon: string; border: string; bg: str
     icon: "text-primary dark:text-brand-green",
     border: "border-primary/30 dark:border-brand-green/30",
     bg: "bg-primary/5 dark:bg-brand-green/5",
-    glow: "dark:shadow-[0_0_30px_rgba(172,229,4,0.08)]",
+    glow: "dark:shadow-theme",
   },
   "not-found": {
     icon: "text-orange-400",

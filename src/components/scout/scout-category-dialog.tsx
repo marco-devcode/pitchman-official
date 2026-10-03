@@ -67,7 +67,7 @@ export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] md:max-w-md rounded-3xl p-0 overflow-hidden bg-background dark:bg-black border border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] transition-colors duration-300">
+      <DialogContent className="max-w-[95vw] md:max-w-md rounded-3xl p-0 overflow-hidden bg-background dark:bg-black border border-border dark:border-brand-green/30 shadow-sm dark:shadow-theme transition-colors duration-300">
         <DialogHeader className="p-6 bg-card dark:bg-black border-b border-border dark:border-brand-green/30 text-foreground dark:text-white shrink-0">
           <DialogTitle className="text-xl font-black uppercase tracking-tight">
             Gestisci Etichette
@@ -88,7 +88,7 @@ export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCat
                 />
                 <Button 
                   size="sm" 
-                  className="bg-primary border border-primary text-white hover:bg-primary/90 hover:text-white dark:bg-black dark:border-brand-green dark:text-brand-green dark:hover:bg-brand-green dark:hover:text-black shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] h-10 rounded-xl font-black uppercase px-4 transition-all"
+                  className="bg-primary border border-primary text-white hover:bg-primary/90 hover:text-white dark:bg-black dark:border-brand-green dark:text-brand-green dark:hover:bg-brand-green dark:hover:text-black shadow-sm dark:shadow-theme h-10 rounded-xl font-black uppercase px-4 transition-all"
                   onClick={handleAddCategory}
                   disabled={loading || !newCatName.trim()}
                 >
@@ -145,7 +145,7 @@ export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCat
         </div>
 
         <DialogFooter className="p-6 pt-0">
-          <Button className="w-full rounded-xl font-black uppercase text-xs h-12 bg-primary dark:bg-black border border-primary/30 dark:border-brand-green/30 text-white hover:opacity-90 dark:hover:bg-black/80 hover:border-primary dark:hover:border-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)] transition-all" onClick={() => onOpenChange(false)}>
+          <Button className="w-full rounded-xl font-black uppercase text-xs h-12 bg-primary dark:bg-black border border-primary/30 dark:border-brand-green/30 text-white hover:opacity-90 dark:hover:bg-black/80 hover:border-primary dark:hover:border-brand-green shadow-sm dark:shadow-theme transition-all" onClick={() => onOpenChange(false)}>
             Chiudi
           </Button>
         </DialogFooter>

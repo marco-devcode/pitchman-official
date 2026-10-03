@@ -169,7 +169,7 @@ const roleLabel: Record<string, string> = {
 const roleBg: Record<string, string> = {
   Portiere: "bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-500 border-amber-200 dark:border-amber-500/30 shadow-sm dark:shadow-[0_0_10px_rgba(245,158,11,0.1)]",
   Difensore: "bg-slate-100 dark:bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-500/30",
-  Centrocampista: "bg-blue-100 dark:bg-brand-green/10 text-blue-700 dark:text-brand-green border-blue-200 dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]",
+  Centrocampista: "bg-blue-100 dark:bg-brand-green/10 text-blue-700 dark:text-brand-green border-blue-200 dark:border-brand-green/30 shadow-sm dark:shadow-theme",
   Attaccante: "bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-500 border-red-200 dark:border-red-500/30 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.1)]",
 };
 
@@ -182,7 +182,7 @@ function StatCard({ icon: Icon, label, value, sub, color = "text-primary dark:te
   color?: string;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 bg-card dark:bg-black/40 backdrop-blur-sm border border-border dark:border-brand-green/20 rounded-2xl p-4 text-center shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] hover:border-primary/50 dark:hover:border-brand-green/40 transition-all">
+    <div className="flex flex-col items-center justify-center gap-1 bg-card dark:bg-black/40 backdrop-blur-sm border border-border dark:border-brand-green/20 rounded-2xl p-4 text-center shadow-sm dark:shadow-themesoft hover:border-primary/50 dark:hover:border-brand-green/40 transition-all">
       <Icon className={`h-5 w-5 ${color} mb-1 opacity-80`} />
       <span className="text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground dark:text-white/30">{label}</span>
       <span className={`text-2xl font-black text-foreground dark:text-white`}>{value}</span>
@@ -230,7 +230,7 @@ function TrainingHeatmap({ records }: { records: TrainingRecord[] }) {
       <div className="flex items-center gap-3">
         <div className="flex-1 bg-muted dark:bg-black/40 rounded-full h-2.5 overflow-hidden border border-border dark:border-white/5">
           <div
-            className="h-full bg-primary dark:bg-brand-green rounded-full transition-all duration-700 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.5)]"
+            className="h-full bg-primary dark:bg-brand-green rounded-full transition-all duration-700 shadow-sm dark:shadow-theme-bright"
             style={{ width: `${percentuale}%` }}
           />
         </div>
@@ -308,7 +308,7 @@ function MatchHeatmap({ records }: { records: MatchRecord[] }) {
       <div className="flex items-center gap-3">
         <div className="flex-1 bg-muted dark:bg-black/40 rounded-full h-2.5 overflow-hidden border border-border dark:border-white/5">
           <div
-            className="h-full bg-primary dark:bg-brand-green rounded-full transition-all duration-700 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.5)]"
+            className="h-full bg-primary dark:bg-brand-green rounded-full transition-all duration-700 shadow-sm dark:shadow-theme-bright"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -682,7 +682,7 @@ export default function PlayerDetailPage() {
   if (!player && !loadingData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
-        <div className="h-24 w-24 rounded-full bg-primary/10 dark:bg-brand-green/10 flex items-center justify-center mb-2 border border-primary/20 dark:border-brand-green/20 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] relative">
+        <div className="h-24 w-24 rounded-full bg-primary/10 dark:bg-brand-green/10 flex items-center justify-center mb-2 border border-primary/20 dark:border-brand-green/20 shadow-sm dark:shadow-theme relative">
           <User className="h-12 w-12 text-primary dark:text-brand-green opacity-80" />
           <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-primary dark:bg-brand-green"></div>
         </div>
@@ -694,7 +694,7 @@ export default function PlayerDetailPage() {
         </p>
         <Button 
           onClick={() => router.push("/membri")} 
-          className="mt-6 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green/80 text-white dark:text-white hover:opacity-90 dark:hover:bg-brand-green/10 font-black tracking-wider uppercase rounded-2xl px-8 h-14 shadow-md dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] transition-all"
+          className="mt-6 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green/80 text-white dark:text-white hover:opacity-90 dark:hover:bg-brand-green/10 font-black tracking-wider uppercase rounded-2xl px-8 h-14 shadow-md dark:shadow-theme-strong transition-all"
         >
           <ArrowLeft className="h-5 w-5 mr-3" /> Ritorna alla Rosa
         </Button>
@@ -857,7 +857,7 @@ export default function PlayerDetailPage() {
       {/* Grafici rendimento */}
       <div className="grid md:grid-cols-2 gap-4">
         {/* Radar */}
-        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border-border dark:border-brand-green/20 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.05)] overflow-hidden">
+        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border-border dark:border-brand-green/20 shadow-sm dark:shadow-themesoft overflow-hidden">
           <CardHeader className="pb-0 px-6 pt-6">
             <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-white/30 flex items-center gap-2">
               <TrendingUp className="h-3.5 w-3.5 text-primary dark:text-brand-green" /> Profilo Tecnico
@@ -869,7 +869,7 @@ export default function PlayerDetailPage() {
         </Card>
 
         {/* Barchart W/D/L */}
-        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border-border dark:border-brand-green/20 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.05)] overflow-hidden">
+        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border-border dark:border-brand-green/20 shadow-sm dark:shadow-themesoft overflow-hidden">
           <CardHeader className="pb-0 px-6 pt-6">
             <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-white/30 flex items-center gap-2">
               <Sword className="h-3.5 w-3.5 text-primary dark:text-brand-green" /> Risultati Personali
@@ -890,7 +890,7 @@ export default function PlayerDetailPage() {
 
       {/* Heatmap presenze */}
       <div className="grid md:grid-cols-2 gap-4">
-        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border border-border dark:border-brand-green/20 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.05)] overflow-hidden">
+        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border border-border dark:border-brand-green/20 shadow-sm dark:shadow-themesoft overflow-hidden">
           <CardHeader className="pb-0 px-6 pt-6">
             <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-white/30 flex items-center gap-2">
               <Sword className="h-3.5 w-3.5 text-primary dark:text-brand-green" /> Storico Presenze Partite
@@ -908,7 +908,7 @@ export default function PlayerDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border border-border dark:border-brand-green/20 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.05)] overflow-hidden">
+        <Card className="rounded-3xl bg-card dark:bg-black/40 backdrop-blur-sm border border-border dark:border-brand-green/20 shadow-sm dark:shadow-themesoft overflow-hidden">
           <CardHeader className="pb-0 px-6 pt-6">
             <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground dark:text-white/30 flex items-center gap-2">
               <Calendar className="h-3.5 w-3.5 text-primary dark:text-brand-green" /> Storico Presenze Allenamenti

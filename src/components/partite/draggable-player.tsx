@@ -259,7 +259,7 @@ export function DraggablePlayer({
           player
             ? isPOR
               ? "bg-amber-600 border-amber-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]"
-              : "bg-primary/90 dark:bg-brand-green/90 border-primary dark:border-brand-green text-white dark:text-black shadow-[0_0_15px_rgba(172,229,4,0.3)]"
+              : "bg-primary/90 dark:bg-brand-green/90 border-primary dark:border-brand-green text-white dark:text-black shadow-theme-strong"
             : "bg-neutral-800/50 border-neutral-700 text-neutral-500 border-dashed"
         )}
       >

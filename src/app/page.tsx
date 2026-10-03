@@ -146,7 +146,7 @@ export default function HomePage() {
 
           <Card
             onClick={() => router.push(`/calendario/${nextMatch.id}?s=${nextMatch.seasonId}`)}
-            className="bg-primary/20 dark:bg-brand-green/10 border-2 border-primary/50 dark:border-brand-green shadow-xl dark:shadow-[0_0_25px_rgba(172,229,4,0.15)] rounded-3xl cursor-pointer hover:bg-primary/30 dark:hover:bg-brand-green/20 transition-all overflow-hidden relative group"
+            className="bg-primary/20 dark:bg-brand-green/10 border-theme shadow-xl dark:shadow-theme rounded-3xl cursor-pointer hover:bg-primary/30 dark:hover:bg-brand-green/20 transition-all overflow-hidden relative group" style={{ borderWidth: 2 }}
           >
             <div className="absolute -right-4 -bottom-4 opacity-5">
               {nextMatch.isHome ? <Home className="w-32 h-32" /> : <Plane className="w-32 h-32" />}
@@ -181,7 +181,7 @@ export default function HomePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
         <Button
           onClick={() => nextMatch ? router.push(`/calendario/${nextMatch.id}?s=${nextMatch.seasonId}&tab=formazione`) : router.push('/calendario')}
-          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border border-border dark:border-white/10 hover:bg-muted dark:hover:bg-white/10 hover:border-primary dark:hover:border-brand-green/50 text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2"
+          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border-theme hover:bg-muted dark:hover:bg-white/10 hover:shadow-theme text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2" style={{ borderWidth: 2 }}
         >
           <Shield className="h-5 w-5 text-primary dark:text-brand-green" />
           <span className="text-[10px] font-black uppercase text-center leading-tight">Prossima<br />Formazione</span>
@@ -189,7 +189,7 @@ export default function HomePage() {
 
         <Button
           onClick={() => nextTraining ? router.push(`/allenamento/${nextTraining.id}`) : router.push('/allenamento')}
-          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border border-border dark:border-white/10 hover:bg-muted dark:hover:bg-white/10 hover:border-primary dark:hover:border-brand-green/50 text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2"
+          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border-theme hover:bg-muted dark:hover:bg-white/10 hover:shadow-theme text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2" style={{ borderWidth: 2 }}
         >
           <PiTrafficCone className="h-5 w-5 text-primary dark:text-brand-green" />
           <span className="text-xs font-black uppercase text-center leading-tight">
@@ -199,7 +199,7 @@ export default function HomePage() {
 
         <Button
           onClick={() => router.push('/allenamento/libreria')}
-          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border border-border dark:border-white/10 hover:bg-muted dark:hover:bg-white/10 hover:border-primary dark:hover:border-brand-green/50 text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2"
+          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border-theme hover:bg-muted dark:hover:bg-white/10 hover:shadow-theme text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2" style={{ borderWidth: 2 }}
         >
           <Search className="h-5 w-5 text-primary dark:text-brand-green" />
           <span className="text-xs font-black uppercase text-center leading-tight">Libreria<br />Esercizi</span>
@@ -207,7 +207,7 @@ export default function HomePage() {
 
         <Button
           onClick={() => router.push('/scout?new=true')}
-          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border border-border dark:border-white/10 hover:bg-muted dark:hover:bg-white/10 hover:border-primary dark:hover:border-brand-green/50 text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2"
+          className="h-auto flex-col items-center justify-center p-3 bg-card dark:bg-white/5 border-theme hover:bg-muted dark:hover:bg-white/10 hover:shadow-theme text-foreground dark:text-white rounded-2xl transition-all shadow-sm gap-2" style={{ borderWidth: 2 }}
         >
           <PlusCircle className="h-5 w-5 text-primary dark:text-brand-green" />
           <span className="text-xs font-black uppercase text-center leading-tight">Nuovo<br />Osservato</span>
@@ -217,7 +217,7 @@ export default function HomePage() {
       {/* 4. Roster Status */}
       <div
         onClick={() => router.push('/membri')}
-        className="flex flex-wrap items-center justify-between p-3 px-4 bg-card dark:bg-black border border-border dark:border-brand-green/30 rounded-2xl cursor-pointer hover:bg-muted dark:hover:bg-white/5 transition-all shadow-sm group mt-4"
+        className="flex flex-wrap items-center justify-between p-3 px-4 bg-card dark:bg-black border-theme rounded-2xl cursor-pointer hover:bg-muted dark:hover:bg-white/5 transition-all shadow-sm group mt-4" style={{ borderWidth: 2 }}
       >
         <div className="flex items-center gap-2 mb-2 sm:mb-0">
           <Users className="h-5 w-5 text-primary dark:text-brand-green group-hover:scale-110 transition-transform" />

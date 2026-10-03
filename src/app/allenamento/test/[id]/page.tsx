@@ -260,7 +260,7 @@ function TestDetail({
                   <TabsTrigger
                     key={num}
                     value={String(num)}
-                    className="flex-1 text-[10px] font-black uppercase rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white dark:data-[state=active]:bg-brand-green/20 dark:data-[state=active]:text-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-[0_0_10px_rgba(172,229,4,0.15)] text-muted-foreground transition-all"
+                    className="flex-1 text-[10px] font-black uppercase rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white dark:data-[state=active]:bg-brand-green/20 dark:data-[state=active]:text-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-theme text-muted-foreground transition-all"
                   >
                     SET {num}
                   </TabsTrigger>

@@ -197,7 +197,7 @@ export default function TrainingDetailPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-xl bg-muted dark:bg-black/40 border border-border dark:border-brand-green/30 hover:bg-muted/80 dark:hover:bg-black/60 shadow-none dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] transition-all">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-xl bg-muted dark:bg-black/40 border border-border dark:border-brand-green/30 hover:bg-muted/80 dark:hover:bg-black/60 shadow-none dark:shadow-themesoft transition-all">
           <ArrowLeft className="h-5 w-5 text-primary dark:text-brand-green" />
         </Button>
         <div className="flex flex-col">
@@ -219,7 +219,7 @@ export default function TrainingDetailPage() {
             </div>
             <div className="h-3 w-full bg-muted dark:bg-zinc-900 rounded-full overflow-hidden border border-border dark:border-brand-green/10 relative">
               <div 
-                className="h-full transition-all duration-500 rounded-full shadow-[0_0_10px_rgba(172,229,4,0.4)] bg-primary dark:bg-brand-green"
+                className="h-full transition-all duration-500 rounded-full shadow-theme-bright bg-primary dark:bg-brand-green"
                 style={{ width: `${players.length > 0 ? (presentCount / players.length) * 100 : 0}%` }}
               />
               {lateCount > 0 && (
@@ -248,17 +248,17 @@ export default function TrainingDetailPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-muted dark:bg-black/40 p-1 rounded-2xl border border-border dark:border-brand-green/30 shadow-none dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
-          <TabsTrigger value="programma" className="flex items-center gap-2 text-[10px] font-black uppercase rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:border data-[state=active]:border-primary/30 dark:data-[state=active]:border-brand-green data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:shadow-[0_0_10px_rgba(172,229,4,0.15)] transition-all">
+        <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-muted dark:bg-black/40 p-1 rounded-2xl border border-border dark:border-brand-green/30 shadow-none dark:shadow-theme">
+          <TabsTrigger value="programma" className="flex items-center gap-2 text-[10px] font-black uppercase rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:border data-[state=active]:border-primary/30 dark:data-[state=active]:border-brand-green data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:shadow-theme transition-all">
             <ClipboardList className="h-4 w-4 text-primary dark:text-brand-green" /> Programma
           </TabsTrigger>
-          <TabsTrigger value="presenze" className="flex items-center gap-2 text-[10px] font-black uppercase rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:border data-[state=active]:border-primary/30 dark:data-[state=active]:border-brand-green data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:shadow-[0_0_10px_rgba(172,229,4,0.15)] transition-all">
+          <TabsTrigger value="presenze" className="flex items-center gap-2 text-[10px] font-black uppercase rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:border data-[state=active]:border-primary/30 dark:data-[state=active]:border-brand-green data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:shadow-theme transition-all">
             <Users className="h-4 w-4 text-primary dark:text-brand-green" /> Presenze
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="programma" className="space-y-4 outline-none">
-          <Card className="rounded-3xl border border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.1)] overflow-hidden">
+          <Card className="rounded-3xl border border-border dark:border-brand-green/30 shadow-sm dark:shadow-theme overflow-hidden">
             <CardHeader className="bg-muted dark:bg-black/60 border-b border-border dark:border-brand-green/30 p-6 pb-8">
               <CardTitle className="text-lg font-black uppercase tracking-tight text-foreground">Esercitazioni e Obiettivi</CardTitle>
               <CardDescription className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Definisci il piano tecnico della seduta.</CardDescription>
@@ -289,7 +289,7 @@ export default function TrainingDetailPage() {
                 </div>
                 <Input 
                   placeholder="Es. Tecnico, Tattico, Fisico..."
-                  className="h-11 rounded-xl bg-background dark:bg-black border border-primary/50 dark:border-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] text-foreground font-bold text-sm focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green"
+                  className="h-11 rounded-xl bg-background dark:bg-black border border-primary/50 dark:border-brand-green shadow-sm dark:shadow-theme text-foreground font-bold text-sm focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green"
                   value={focus}
                   onChange={(e) => setFocus(e.target.value)}
                 />
@@ -300,7 +300,7 @@ export default function TrainingDetailPage() {
                       onClick={() => setFocus(f)}
                       className={cn(
                         "px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all",
-                        focus === f ? "bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)]" : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border border-transparent"
+                        focus === f ? "bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-sm dark:shadow-theme" : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border border-transparent"
                       )}
                     >
                       {f}
@@ -393,14 +393,14 @@ export default function TrainingDetailPage() {
                 </div>
                 <Textarea 
                   placeholder="Inserisci qui gli esercizi aggiuntivi o dettagli sul programma (es. Riscaldamento tecnico, Partitella finale...)"
-                  className="min-h-[400px] text-sm leading-relaxed bg-background dark:bg-black/40 border border-border dark:border-brand-green/30 rounded-2xl p-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green resize-none shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] text-foreground dark:text-white"
+                  className="min-h-[400px] text-sm leading-relaxed bg-background dark:bg-black/40 border border-border dark:border-brand-green/30 rounded-2xl p-4 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green resize-none shadow-sm dark:shadow-themesoft text-foreground dark:text-white"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
               <div className="pt-6 border-t border-border dark:border-brand-green/20 mt-6">
                 <Button 
-                  className="w-full h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white rounded-2xl font-black uppercase text-xs shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] hover:opacity-90 dark:hover:bg-black/80 transition-all"
+                  className="w-full h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white rounded-2xl font-black uppercase text-xs shadow-sm dark:shadow-theme hover:opacity-90 dark:hover:bg-black/80 transition-all"
                   onClick={handleSaveNotes}
                   disabled={saving}
                 >
@@ -417,7 +417,7 @@ export default function TrainingDetailPage() {
              <h3 className="text-[12px] font-black uppercase text-foreground/80 tracking-widest pl-2">Lista Convocati</h3>
              <Button 
                size="sm" 
-               className="h-9 rounded-xl font-black uppercase text-[10px] bg-primary dark:bg-black border border-primary dark:border-brand-green text-white hover:opacity-90 dark:hover:bg-black/80 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] hover:scale-105 transition-all"
+               className="h-9 rounded-xl font-black uppercase text-[10px] bg-primary dark:bg-black border border-primary dark:border-brand-green text-white hover:opacity-90 dark:hover:bg-black/80 shadow-sm dark:shadow-theme hover:scale-105 transition-all"
                onClick={markAllAsPresent}
                disabled={saving || players.length === 0}
              >
@@ -430,7 +430,7 @@ export default function TrainingDetailPage() {
               const currentStatus = attendance.find(a => a.playerId === player.id)?.status;
               
               return (
-                <Card key={player.id} className="rounded-2xl border border-border dark:border-brand-green/20 overflow-hidden bg-card dark:bg-card/40 backdrop-blur-sm shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)]">
+                <Card key={player.id} className="rounded-2xl border border-border dark:border-brand-green/20 overflow-hidden bg-card dark:bg-card/40 backdrop-blur-sm shadow-sm dark:shadow-themesoft">
                   <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
                     <div className="flex flex-col justify-center sm:pl-2 flex-1">
                       <span className="text-[15px] font-black uppercase tracking-tight text-foreground">{displayPlayerName(player)}</span>

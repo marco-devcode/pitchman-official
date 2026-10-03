@@ -39,7 +39,7 @@ function NavLink({ href, label, icon: Icon }: { href: string; label: string; ico
     >
       <div className={cn(
         "transition-all duration-300 p-1.5 rounded-xl",
-        isActive && "text-primary dark:text-brand-green shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:shadow-none dark:drop-shadow-[0_0_6px_rgba(172,229,4,0.8)] scale-110"
+        isActive && "text-primary dark:text-brand-green shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:shadow-none dark:drop-shadow-theme-bright scale-110"
       )}>
         <Icon className="h-6 w-6" />
       </div>

@@ -119,7 +119,7 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[95vw] md:max-w-md rounded-3xl p-0 overflow-hidden bg-background dark:bg-black border border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] transition-colors duration-300">
+        <DialogContent className="max-w-[95vw] md:max-w-md rounded-3xl p-0 overflow-hidden bg-background dark:bg-black border border-border dark:border-brand-green/30 shadow-sm dark:shadow-theme transition-colors duration-300">
           <DialogHeader className="p-6 bg-card dark:bg-black border-b border-border dark:border-brand-green/30 text-foreground dark:text-white shrink-0">
             <DialogTitle className="text-xl font-black uppercase tracking-tight">
               {player ? "Modifica Osservato" : "Nuovo Osservato"}
@@ -233,11 +233,11 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
           </ScrollArea>
 
           <DialogFooter className="p-6 pt-2 flex-row gap-2">
-            <Button className="flex-1 rounded-xl font-black uppercase text-xs h-12 bg-muted dark:bg-black/40 border border-border dark:border-brand-green/30 text-foreground dark:text-white hover:bg-muted/80 dark:hover:bg-black/60 shadow-none dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] transition-all" onClick={() => onOpenChange(false)}>
+            <Button className="flex-1 rounded-xl font-black uppercase text-xs h-12 bg-muted dark:bg-black/40 border border-border dark:border-brand-green/30 text-foreground dark:text-white hover:bg-muted/80 dark:hover:bg-black/60 shadow-none dark:shadow-themesoft transition-all" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
             <Button
-              className="flex-1 rounded-xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white font-black uppercase text-xs h-12 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] hover:opacity-90 dark:hover:bg-black/80 hover:scale-105 transition-all"
+              className="flex-1 rounded-xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white font-black uppercase text-xs h-12 shadow-sm dark:shadow-theme hover:opacity-90 dark:hover:bg-black/80 hover:scale-105 transition-all"
               onClick={handleSave}
               disabled={loading || !formData.name}
             >
@@ -249,7 +249,7 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
 
       {/* Roles selector dialog */}
       <Dialog open={isRolesDialogOpen} onOpenChange={setIsRolesDialogOpen}>
-        <DialogContent className="sm:max-w-[360px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_25px_rgba(172,229,4,0.05)] p-6 overflow-hidden">
+        <DialogContent className="sm:max-w-[360px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-themesoft p-6 overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground dark:text-white font-black uppercase text-lg tracking-tight">
               Seleziona Ruoli
@@ -273,7 +273,7 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
             <Button
               type="button"
               onClick={() => handleRolesSave(formData.roles)}
-              className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-11 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all"
+              className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-11 shadow-sm dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all"
             >
               Conferma
             </Button>

@@ -309,8 +309,28 @@
   border-color: color-mix(in srgb, var(--a1) 35%, transparent);
 }
 
+/*
+ * Aloni a gradiente-free, derivati dal colore del tema.
+ *
+ * Esistevano 173 ombre con il verde neon scritto a mano nella classe Tailwind
+ * (`shadow-[0_0_10px_rgba(172,229,4,0.15)]`), su 12 intensita' diverse: era la
+ * ragione per cui il tema non arrivava quasi da nessuna parte — bastava
+ * cambiare colore e gli aloni restavano verdi.
+ *
+ * Quattro livelli invece di dodici: sono glow, non ombre, e la differenza fra
+ * 0.05 e 0.08 non si vede. Il raggio tiene conto del livello.
+ */
+.shadow-theme-soft {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--a1) 6%, transparent);
+}
 .shadow-theme {
-  box-shadow: 0 0 10px color-mix(in srgb, var(--a1) 20%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--a1) 15%, transparent);
+}
+.shadow-theme-strong {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--a1) 28%, transparent);
+}
+.shadow-theme-bright {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--a1) 48%, transparent);
 }
 
 .text-theme {

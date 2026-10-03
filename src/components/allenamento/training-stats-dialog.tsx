@@ -118,13 +118,13 @@ export function TrainingStatsDialog({ open, onOpenChange, currentWeekStart }: Tr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] h-[90vh] md:max-w-2xl rounded-3xl p-0 overflow-hidden flex flex-col border border-border dark:border-brand-green/30 shadow-md dark:shadow-[0_0_25px_rgba(172,229,4,0.15)] [&>button]:hidden">
+      <DialogContent className="max-w-[95vw] h-[90vh] md:max-w-2xl rounded-3xl p-0 overflow-hidden flex flex-col border border-border dark:border-brand-green/30 shadow-md dark:shadow-theme [&>button]:hidden">
         <DialogHeader className="p-6 bg-card dark:bg-black border-b border-border dark:border-brand-green/30 text-foreground flex-row items-center gap-4 space-y-0 shrink-0 transition-colors">
           <Button variant="ghost" size="icon" className="text-primary dark:text-brand-green hover:bg-muted dark:hover:bg-black/60 h-8 w-8 transition-colors" onClick={() => onOpenChange(false)}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-muted dark:bg-black border border-border dark:border-brand-green/30 rounded-xl shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)] transition-all">
+            <div className="p-2 bg-muted dark:bg-black border border-border dark:border-brand-green/30 rounded-xl shadow-sm dark:shadow-theme transition-all">
               <ClipboardCheck className="h-5 w-5 text-primary dark:text-brand-green" />
             </div>
             <div>
@@ -190,7 +190,7 @@ export function TrainingStatsDialog({ open, onOpenChange, currentWeekStart }: Tr
           <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground dark:text-muted-foreground/40">Dati riferiti alla settimana attuale</span>
           <div className="flex items-center justify-center gap-6">
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-primary dark:bg-brand-green shadow-sm dark:shadow-[0_0_6px_rgba(172,229,4,0.5)]" />
+              <div className="w-2 h-2 rounded-full bg-primary dark:bg-brand-green shadow-sm dark:shadow-theme-bright" />
               <span className="text-[8px] font-black text-muted-foreground dark:text-white/40 uppercase">Sett (P): Presenze</span>
             </div>
             <div className="flex items-center gap-1.5">

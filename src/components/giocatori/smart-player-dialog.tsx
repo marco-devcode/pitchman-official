@@ -67,7 +67,7 @@ export function SmartPlayerDialog({ open, onOpenChange, onSave }: SmartPlayerDia
       <DialogContent className="max-w-[95vw] md:max-w-xl rounded-[32px] p-0 overflow-hidden border border-border dark:border-brand-green/30 shadow-2xl flex flex-col max-h-[90vh] bg-card dark:bg-black">
         <DialogHeader className="p-8 bg-card dark:bg-black text-foreground dark:text-white shrink-0 shadow-sm border-b border-border dark:border-brand-green/20">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-muted dark:bg-brand-green/10 rounded-2xl shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.1)]">
+            <div className="p-3 bg-muted dark:bg-brand-green/10 rounded-2xl shadow-sm dark:shadow-theme">
               <Sparkles className="h-7 w-7 text-primary dark:text-brand-green" />
             </div>
             <div>
@@ -81,7 +81,7 @@ export function SmartPlayerDialog({ open, onOpenChange, onSave }: SmartPlayerDia
 
         <ScrollArea className="flex-1 bg-background dark:bg-black transition-colors">
           <div className="p-8 space-y-8">
-            <Alert className="bg-muted dark:bg-black/40 border-primary/20 dark:border-brand-green/20 rounded-[24px] p-5 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] transition-all">
+            <Alert className="bg-muted dark:bg-black/40 border-primary/20 dark:border-brand-green/20 rounded-[24px] p-5 shadow-sm dark:shadow-themesoft transition-all">
               <Info className="h-5 w-5 text-primary dark:text-brand-green" />
               <div className="ml-2">
                 <AlertTitle className="text-[11px] font-black uppercase text-foreground dark:text-white tracking-widest mb-1.5 flex items-center gap-2">
@@ -131,7 +131,7 @@ export function SmartPlayerDialog({ open, onOpenChange, onSave }: SmartPlayerDia
           </Button>
           <Button 
             onClick={handleSmartImport} 
-            className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-black/80 rounded-2xl font-black uppercase text-[10px] tracking-widest h-14 shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all" 
+            className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-black/80 rounded-2xl font-black uppercase text-[10px] tracking-widest h-14 shadow-lg dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all" 
             disabled={isAnalyzing || !rawText.trim()}
           >
             {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Importa Giocatori"}

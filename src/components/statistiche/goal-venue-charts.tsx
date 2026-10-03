@@ -74,7 +74,7 @@ export function GoalVenueCharts() {
     );
 
     return (
-        <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm">
+        <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm">
             <CardHeader className="pb-2">
                 <CardTitle className="font-black uppercase tracking-tight text-base dark:text-white flex items-center gap-2">
                     <GiSoccerBall className="h-4 w-4" />

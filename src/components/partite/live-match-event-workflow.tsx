@@ -317,7 +317,7 @@ export function LiveMatchEventWorkflow({
 
                 <div className="space-y-3">
                   <Button 
-                    className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-[0_0_20px_rgba(172,229,4,0.3)] transition-all"
+                    className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-theme-strong transition-all"
                     onClick={() => {
                         if (eventType === 'substitution') {
                             setStep('sub_in');
@@ -357,7 +357,7 @@ export function LiveMatchEventWorkflow({
             </div>
 
             <Button 
-              className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-[0_0_20px_rgba(172,229,4,0.2)]"
+              className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-theme-strong"
               onClick={handleGoalTypeConfirm}
             >
               Continua all'Assist
@@ -397,7 +397,7 @@ export function LiveMatchEventWorkflow({
 
                 <div className="space-y-3">
                   <Button 
-                    className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-[0_0_20px_rgba(172,229,4,0.3)] transition-all"
+                    className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-theme-strong transition-all"
                     onClick={() => {
                       const finalAssistName = customAssistName.trim() || opponentName || "Avversario";
                       const mainPlayer = allPlayers.find(p => p.id === selectedPlayerId);
@@ -441,7 +441,7 @@ export function LiveMatchEventWorkflow({
 
                 <div className="space-y-3">
                   <Button 
-                    className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-[0_0_20px_rgba(172,229,4,0.3)] transition-all"
+                    className="w-full h-14 bg-brand-green text-black font-black uppercase tracking-widest rounded-2xl hover:bg-brand-green/80 shadow-theme-strong transition-all"
                     onClick={() => {
                       const finalSubInName = customPlayerName.trim() || opponentName || "Avversario";
                       const finalSubOutName = customSubOutName.trim() || opponentName || "Avversario";

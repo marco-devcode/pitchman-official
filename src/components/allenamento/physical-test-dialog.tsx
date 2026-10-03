@@ -214,7 +214,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_25px_rgba(172,229,4,0.05)] p-6 overflow-hidden">
+      <DialogContent className="sm:max-w-[425px] rounded-[28px] bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-xl dark:shadow-themesoft p-6 overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-foreground dark:text-white font-black uppercase text-xl tracking-tight">
             {test ? (step === 1 ? 'Modifica Test' : 'Risultati') : (step === 1 ? 'Nuovo Test' : 'Risultati')}
@@ -369,7 +369,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
               <Button
                 type="button"
                 disabled={saving || !canAdvance}
-                className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100"
+                className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100"
                 onClick={() => setStep(2)}
               >
                 Avanti
@@ -389,7 +389,7 @@ export function PhysicalTestDialog({ open, onOpenChange, onCreated, players, tes
               <Button
                 type="button"
                 disabled={saving}
-                className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100"
+                className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100"
                 onClick={handleSave}
               >
                 {saving ? (

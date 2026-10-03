@@ -10,7 +10,7 @@ export function SplashScreen() {
           <div className="absolute -inset-6 bg-primary/10 dark:bg-brand-green/10 rounded-full blur-3xl animate-pulse" />
           <div className="absolute -inset-2 bg-primary/5 dark:bg-brand-green/5 rounded-full blur-xl" />
           <img src="/favicon-16x16_light.png" alt="App Logo" className="h-24 w-24 object-contain relative drop-shadow-[0_0_20px_rgba(0,128,255,0.3)] dark:hidden" />
-          <img src="/favicon-16x16.png" alt="App Logo" className="h-24 w-24 object-contain relative drop-shadow-[0_0_20px_rgba(172,229,4,0.5)] hidden dark:block" />
+          <img src="/favicon-16x16.png" alt="App Logo" className="h-24 w-24 object-contain relative drop-shadow-theme-bright hidden dark:block" />
         </div>
 
         <div className="flex flex-col items-center gap-2">
@@ -20,7 +20,7 @@ export function SplashScreen() {
 
         {/* Barra progresso adattiva */}
         <div className="w-48 h-[3px] bg-muted dark:bg-white/5 rounded-full overflow-hidden mt-4">
-          <div className="h-full bg-primary dark:bg-brand-green shadow-[0_0_8px_rgba(0,128,255,0.4)] dark:shadow-[0_0_8px_rgba(172,229,4,0.8)] animate-progress-loading w-full origin-left rounded-full" />
+          <div className="h-full bg-primary dark:bg-brand-green shadow-[0_0_8px_rgba(0,128,255,0.4)] dark:shadow-theme-bright animate-progress-loading w-full origin-left rounded-full" />
         </div>
       </div>
 

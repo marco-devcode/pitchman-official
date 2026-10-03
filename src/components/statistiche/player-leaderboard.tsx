@@ -92,10 +92,10 @@ export function PlayerLeaderboard() {
   }
 
   return (
-    <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
+    <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-card dark:bg-black border border-primary/30 dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)]">
+          <div className="h-10 w-10 rounded-2xl bg-card dark:bg-black border border-primary/30 dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme">
             <Info className="h-5 w-5 text-primary dark:text-brand-green" />
           </div>
           <div>

@@ -46,14 +46,14 @@ export function GuideDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <button
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-white dark:bg-black font-black text-xs text-foreground dark:text-white shadow-sm transition-all hover:bg-muted dark:hover:bg-brand-green/10 dark:border-brand-green/30 dark:shadow-[0_0_12px_rgba(172,229,4,0.15)] group shrink-0"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-white dark:bg-black font-black text-xs text-foreground dark:text-white shadow-sm transition-all hover:bg-muted dark:hover:bg-brand-green/10 dark:border-brand-green/30 dark:shadow-theme group shrink-0"
           title="FAQ & Guida"
         >
           <span className="group-hover:scale-110 transition-transform">?</span>
         </button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-2xl max-h-[85vh] p-0 overflow-hidden border-border dark:border-brand-green/30 dark:shadow-[0_0_20px_rgba(172,229,4,0.1)]">
+      <DialogContent className="max-w-2xl max-h-[85vh] p-0 overflow-hidden border-border dark:border-brand-green/30 dark:shadow-theme">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2 text-2xl font-black italic uppercase tracking-tighter">
             <Trophy className="h-6 w-6 text-brand-green" />

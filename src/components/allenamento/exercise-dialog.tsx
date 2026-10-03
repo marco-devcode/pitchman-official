@@ -405,7 +405,7 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
             <X className="h-3.5 w-3.5 mr-2" /> Esci
           </Button>
           <Button 
-            className="flex-[2] h-12 rounded-xl bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-xs shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.1)] hover:scale-[1.01] transition-all"
+            className="flex-[2] h-12 rounded-xl bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-xs shadow-xl dark:shadow-theme hover:scale-[1.01] transition-all"
             onClick={handleSave}
             disabled={loading || !name || uploadLoading}
           >

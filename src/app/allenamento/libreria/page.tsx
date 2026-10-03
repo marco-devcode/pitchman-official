@@ -80,7 +80,7 @@ export default function ExerciseLibraryPage() {
           variant="ghost" 
           size="icon" 
           onClick={() => router.push('/allenamento')} 
-          className="h-10 w-10 rounded-xl bg-card dark:bg-black/40 border border-border dark:border-brand-green/30 hover:bg-muted dark:hover:bg-brand-green/10 shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] text-primary dark:text-brand-green transition-all"
+          className="h-10 w-10 rounded-xl bg-card dark:bg-black/40 border border-border dark:border-brand-green/30 hover:bg-muted dark:hover:bg-brand-green/10 shadow-sm dark:shadow-themesoft text-primary dark:text-brand-green transition-all"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -109,7 +109,7 @@ export default function ExerciseLibraryPage() {
             onClick={() => setIsFilterDialogOpen(true)}
             className={cn(
               "h-11 px-4 rounded-2xl gap-2 border-border dark:border-brand-green/20 bg-card dark:bg-black/40 transition-all hover:bg-primary/10 dark:hover:bg-brand-green/10",
-              activeFiltersCount > 0 && "border-primary dark:border-brand-green shadow-[0_0_10px_rgba(172,229,4,0.1)]"
+              activeFiltersCount > 0 && "border-primary dark:border-brand-green shadow-theme"
             )}
           >
             <Filter className={cn("h-4 w-4", activeFiltersCount > 0 ? "text-primary dark:text-brand-green" : "text-muted-foreground")} />
@@ -121,7 +121,7 @@ export default function ExerciseLibraryPage() {
         <div className="flex items-center gap-2">
           <Button
             onClick={handleAdd}
-            className="h-11 px-6 rounded-2xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase tracking-widest text-[10px] shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:scale-[1.02] active:scale-95 transition-all gap-2"
+            className="h-11 px-6 rounded-2xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase tracking-widest text-[10px] shadow-lg dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all gap-2"
           >
             <Plus className="h-4 w-4" /> Nuovo Esercizio
           </Button>

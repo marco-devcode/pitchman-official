@@ -24,7 +24,7 @@ export function TeamRecord() {
         <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
                 {/* Card Record Partite */}
-                <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
+                <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base font-black uppercase tracking-tight flex items-center gap-2 text-primary dark:text-white">
                             <Swords className="h-4 w-4" />
@@ -60,7 +60,7 @@ export function TeamRecord() {
                 </Card>
 
                 {/* Card Bilancio Reti */}
-                <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.05)] rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
+                <Card className="bg-card dark:bg-black/40 border-border dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm transition-colors">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base font-black uppercase tracking-tight flex items-center gap-2 text-primary dark:text-white">
                             <GiSoccerBall className="h-4 w-4" />
@@ -74,7 +74,7 @@ export function TeamRecord() {
                                     <span className={`text-4xl font-black ${goalDifference > 0 ? 'text-primary dark:text-brand-green' : goalDifference < 0 ? 'text-rose-500' : 'text-foreground dark:text-white'}`}>
                                         {goalDifference > 0 ? `+${goalDifference}` : goalDifference}
                                     </span>
-                                    {goalDifference > 0 ? <TrendingUp className="h-7 w-7 text-primary dark:text-brand-green drop-shadow-[0_0_8px_rgba(172,229,4,0.4)]" /> : goalDifference < 0 ? <TrendingDown className="h-7 w-7 text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.4)]" /> : null}
+                                    {goalDifference > 0 ? <TrendingUp className="h-7 w-7 text-primary dark:text-brand-green drop-shadow-theme-bright" /> : goalDifference < 0 ? <TrendingDown className="h-7 w-7 text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.4)]" /> : null}
                                 </div>
                             </div>
                         </div>

@@ -44,7 +44,7 @@ export function MatchTypeFilters({ context, loadingContext, filter, onFilterChan
             onClick={() => onFilterChange(type)}
             className={`flex items-center justify-center gap-1.5 text-[10px] font-black uppercase rounded-xl transition-all ${
               active
-                ? 'bg-primary text-white dark:bg-brand-green/20 dark:text-brand-green border border-primary/60 dark:border-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)]'
+                ? 'bg-primary text-white dark:bg-brand-green/20 dark:text-brand-green border border-primary/60 dark:border-brand-green shadow-sm dark:shadow-theme'
                 : 'text-muted-foreground hover:bg-primary/5 dark:hover:bg-brand-green/5 border border-transparent'
             }`}
           >

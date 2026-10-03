@@ -145,7 +145,7 @@ export function SmartLineupDialog({ open, onOpenChange }: SmartLineupDialogProps
           </Button>
           <Button 
             onClick={handleSmartAnalyze} 
-            className="flex-1 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-white hover:opacity-90 dark:hover:bg-brand-green/10 rounded-2xl font-black uppercase text-[10px] h-12 shadow-md dark:shadow-[0_0_15px_rgba(172,229,4,0.1)] transition-all" 
+            className="flex-1 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-white hover:opacity-90 dark:hover:bg-brand-green/10 rounded-2xl font-black uppercase text-[10px] h-12 shadow-md dark:shadow-theme transition-all" 
             disabled={isAnalyzing || !rawList.trim()}
           >
             {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Inserisci Formazione"}

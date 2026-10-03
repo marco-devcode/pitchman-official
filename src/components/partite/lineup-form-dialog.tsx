@@ -223,7 +223,7 @@ export function LineupFormDialog({ open, onOpenChange }: LineupFormDialogProps) 
 
         <div className="p-6 bg-background dark:bg-black border-t border-border dark:border-white/10 shrink-0">
           <Button
-            className="w-full bg-primary dark:bg-brand-green text-white dark:text-black hover:opacity-90 font-black uppercase text-sm h-14 rounded-2xl shadow-lg dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] transition-all"
+            className="w-full bg-primary dark:bg-brand-green text-white dark:text-black hover:opacity-90 font-black uppercase text-sm h-14 rounded-2xl shadow-lg dark:shadow-theme transition-all"
             onClick={handleSave}
             disabled={isSaving}
           >

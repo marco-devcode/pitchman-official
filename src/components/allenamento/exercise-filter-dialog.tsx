@@ -77,7 +77,7 @@ export function ExerciseFilterDialog({
                   className={cn(
                     "h-10 rounded-xl text-[10px] font-black uppercase border transition-all",
                     !focusFilter 
-                      ? "bg-primary dark:bg-black border-primary dark:border-brand-green text-white dark:text-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.2)]" 
+                      ? "bg-primary dark:bg-black border-primary dark:border-brand-green text-white dark:text-brand-green shadow-sm dark:shadow-theme-strong" 
                       : "bg-muted/10 dark:bg-black/20 border-transparent text-muted-foreground hover:bg-muted/20"
                   )}
                 >
@@ -90,7 +90,7 @@ export function ExerciseFilterDialog({
                     className={cn(
                       "h-10 rounded-xl text-[10px] font-black uppercase border transition-all whitespace-nowrap overflow-hidden text-ellipsis px-2",
                       focusFilter === f 
-                        ? "bg-primary dark:bg-black border-primary dark:border-brand-green text-white dark:text-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.2)]" 
+                        ? "bg-primary dark:bg-black border-primary dark:border-brand-green text-white dark:text-brand-green shadow-sm dark:shadow-theme-strong" 
                         : "bg-muted/10 dark:bg-black/20 border-transparent text-muted-foreground hover:bg-muted/20"
                     )}
                   >
@@ -144,7 +144,7 @@ export function ExerciseFilterDialog({
                      className={cn(
                        "h-10 w-full rounded-lg text-xs font-black border transition-all flex items-center justify-center",
                        playerCountFilter.includes(c) 
-                         ? "bg-primary dark:bg-black border-primary dark:border-brand-green text-white dark:text-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.3)] scale-105 z-10" 
+                         ? "bg-primary dark:bg-black border-primary dark:border-brand-green text-white dark:text-brand-green shadow-sm dark:shadow-theme-strong scale-105 z-10" 
                          : "bg-background dark:bg-zinc-900 border-border dark:border-brand-green/5 text-muted-foreground hover:border-border"
                      )}
                    >
@@ -161,7 +161,7 @@ export function ExerciseFilterDialog({
 
         <DialogFooter className="mt-4 pt-4 border-t border-border dark:border-white/5">
           <Button 
-            className="w-full h-12 rounded-2xl bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-xs shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.1)] hover:scale-[1.02] active:scale-95 transition-all"
+            className="w-full h-12 rounded-2xl bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-xs shadow-xl dark:shadow-theme hover:scale-[1.02] active:scale-95 transition-all"
             onClick={() => onOpenChange(false)}
           >
             Applica Filtri <Filter className="h-4 w-4 ml-2" />

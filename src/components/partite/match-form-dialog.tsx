@@ -132,7 +132,7 @@ export function MatchFormDialog({ open, onOpenChange, onSave, match }: MatchForm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-              <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto rounded-3xl bg-card dark:bg-background border border-primary/30 dark:border-brand-green/30 shadow-[0_0_25px_rgba(172,229,4,0.15)]">
+              <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto rounded-3xl bg-card dark:bg-background border border-primary/30 dark:border-brand-green/30 shadow-theme">
         <DialogHeader>
           <DialogTitle className="font-black uppercase text-foreground">
             {match ? "Modifica Gara" : "Nuova Gara"}
@@ -282,7 +282,7 @@ export function MatchFormDialog({ open, onOpenChange, onSave, match }: MatchForm
               <Button 
                 type="submit" 
                 disabled={isSaving}
-                className="flex-1 h-12 rounded-xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white font-black uppercase text-xs shadow-[0_0_10px_rgba(172,229,4,0.2)] hover:opacity-90 dark:hover:bg-black/80 hover:scale-[1.02] transition-all"
+                className="flex-1 h-12 rounded-xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white font-black uppercase text-xs shadow-theme-strong hover:opacity-90 dark:hover:bg-black/80 hover:scale-[1.02] transition-all"
               >
                 {isSaving ? (
                   <>

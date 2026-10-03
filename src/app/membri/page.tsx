@@ -222,7 +222,7 @@ export default function RosaPage() {
                 <Input
                   type="text"
                   placeholder="Cerca"
-                  className="w-full h-12 pl-12 pr-4 rounded-full bg-background dark:bg-black border border-primary/30 dark:border-brand-green/30 text-foreground placeholder:text-muted-foreground dark:text-muted-foreground/50 font-medium text-lg focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)]"
+                  className="w-full h-12 pl-12 pr-4 rounded-full bg-background dark:bg-black border border-primary/30 dark:border-brand-green/30 text-foreground placeholder:text-muted-foreground dark:text-muted-foreground/50 font-medium text-lg focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-themesoft"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />

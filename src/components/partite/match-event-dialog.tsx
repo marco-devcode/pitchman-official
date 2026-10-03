@@ -288,7 +288,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-sm bg-card dark:bg-black border border-border dark:border-brand-green/30 text-foreground p-6 rounded-[28px] shadow-2xl dark:shadow-[0_0_20px_rgba(172,229,4,0.05)]">
+      <DialogContent className="max-w-[95vw] sm:max-w-sm bg-card dark:bg-black border border-border dark:border-brand-green/30 text-foreground p-6 rounded-[28px] shadow-2xl dark:shadow-themesoft">
         <DialogHeader className="mb-4">
           <DialogTitle className="text-2xl font-black uppercase text-center text-foreground dark:text-white tracking-widest leading-none">
             Evento
@@ -687,7 +687,7 @@ export function MatchEventDialog({ open, onOpenChange, eventToEdit }: MatchEvent
               Annulla
             </Button>
             <Button
-              className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-md dark:shadow-[0_0_15px_rgba(172,229,4,0.1)] hover:scale-[1.02] active:scale-95 transition-all"
+              className="flex-1 bg-primary dark:bg-black border-2 border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-md dark:shadow-theme hover:scale-[1.02] active:scale-95 transition-all"
               onClick={handleSave}
               disabled={isSaving}
             >

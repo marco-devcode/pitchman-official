@@ -75,7 +75,7 @@ function MatchDetailContent() {
             <ArrowLeft className="h-4 w-4 mr-2" /> Torna Indietro
           </Button>
           <Button
-            className="flex-1 font-black uppercase text-xs tracking-wider rounded-xl bg-primary dark:bg-black border-2 border-transparent dark:border-brand-green/80 text-white dark:text-white hover:opacity-90 dark:hover:bg-brand-green/10 h-12 shadow-md dark:shadow-[0_0_15px_rgba(172,229,4,0.3)] transition-all"
+            className="flex-1 font-black uppercase text-xs tracking-wider rounded-xl bg-primary dark:bg-black border-2 border-transparent dark:border-brand-green/80 text-white dark:text-white hover:opacity-90 dark:hover:bg-brand-green/10 h-12 shadow-md dark:shadow-theme-strong transition-all"
             onClick={() => load(id, urlSeasonId || undefined)}
           >
             Riprova
@@ -107,7 +107,7 @@ function MatchDetailContent() {
           backAction={() => router.push('/calendario')}
         />
 
-        <Card className="bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] overflow-hidden rounded-3xl text-foreground">
+        <Card className="bg-card dark:bg-black border border-border dark:border-brand-green/30 shadow-sm dark:shadow-theme overflow-hidden rounded-3xl text-foreground">
           <CardContent className="p-5 md:p-8">
             <div className="flex flex-col items-center justify-center space-y-6">
               <div className="flex items-center justify-between w-full gap-2 md:gap-4">
@@ -147,13 +147,13 @@ function MatchDetailContent() {
 
       <Tabs defaultValue={searchParams.get('tab') || "eventi"} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4 h-12 bg-muted/50 dark:bg-black/40 border border-border dark:border-brand-green/20 p-1 rounded-xl">
-          <TabsTrigger value="eventi" className="flex items-center gap-1.5 text-[9px] font-black uppercase rounded-lg data-[state=active]:bg-muted dark:data-[state=active]:bg-black data-[state=active]:text-foreground dark:data-[state=active]:text-brand-green data-[state=active]:border data-[state=active]:border-primary dark:data-[state=active]:border-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-[0_0_10px_rgba(172,229,4,0.15)] text-muted-foreground transition-all">
+          <TabsTrigger value="eventi" className="flex items-center gap-1.5 text-[9px] font-black uppercase rounded-lg data-[state=active]:bg-muted dark:data-[state=active]:bg-black data-[state=active]:text-foreground dark:data-[state=active]:text-brand-green data-[state=active]:border data-[state=active]:border-primary dark:data-[state=active]:border-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-theme text-muted-foreground transition-all">
             <Zap className="h-3.5 w-3.5" /> Cronaca
           </TabsTrigger>
-          <TabsTrigger value="formazione" className="flex items-center gap-1.5 text-[9px] font-black uppercase rounded-lg data-[state=active]:bg-muted dark:data-[state=active]:bg-black data-[state=active]:text-foreground dark:data-[state=active]:text-brand-green data-[state=active]:border data-[state=active]:border-primary dark:data-[state=active]:border-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-[0_0_10px_rgba(172,229,4,0.15)] text-muted-foreground transition-all">
+          <TabsTrigger value="formazione" className="flex items-center gap-1.5 text-[9px] font-black uppercase rounded-lg data-[state=active]:bg-muted dark:data-[state=active]:bg-black data-[state=active]:text-foreground dark:data-[state=active]:text-brand-green data-[state=active]:border data-[state=active]:border-primary dark:data-[state=active]:border-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-theme text-muted-foreground transition-all">
             <Users className="h-3.5 w-3.5" /> Formazione
           </TabsTrigger>
-          <TabsTrigger value="note" className="flex items-center gap-1.5 text-[9px] font-black uppercase rounded-lg data-[state=active]:bg-muted dark:data-[state=active]:bg-black data-[state=active]:text-foreground dark:data-[state=active]:text-brand-green data-[state=active]:border data-[state=active]:border-primary dark:data-[state=active]:border-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-[0_0_10px_rgba(172,229,4,0.15)] text-muted-foreground transition-all">
+          <TabsTrigger value="note" className="flex items-center gap-1.5 text-[9px] font-black uppercase rounded-lg data-[state=active]:bg-muted dark:data-[state=active]:bg-black data-[state=active]:text-foreground dark:data-[state=active]:text-brand-green data-[state=active]:border data-[state=active]:border-primary dark:data-[state=active]:border-brand-green data-[state=active]:shadow-sm dark:data-[state=active]:shadow-theme text-muted-foreground transition-all">
             <FileText className="h-3.5 w-3.5" /> Note
           </TabsTrigger>
         </TabsList>

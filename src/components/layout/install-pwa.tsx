@@ -55,7 +55,7 @@ export function InstallPWA() {
             <Sheet open={showIOSSheet} onOpenChange={(open) => !open && dismissIOSSheet()}>
                 <SheetContent
                     side="bottom"
-                    className="rounded-t-3xl bg-card dark:bg-black border-t border-border dark:border-brand-orange/30 shadow-2xl dark:shadow-[0_0_40px_rgba(172,229,4,0.1)] pb-10"
+                    className="rounded-t-3xl bg-card dark:bg-black border-t border-border dark:border-brand-orange/30 shadow-2xl dark:shadow-theme pb-10"
                 >
                     <SheetHeader className="mb-6">
                         <div className="flex items-center gap-3 mb-1">
@@ -111,7 +111,7 @@ export function InstallPWA() {
 
                     <Button
                         onClick={dismissIOSSheet}
-                        className="w-full h-12 rounded-2xl font-black uppercase text-sm bg-primary dark:bg-black border border-primary dark:border-brand-orange text-white dark:text-brand-orange hover:opacity-90 dark:hover:bg-brand-orange/10 shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.25)] transition-all"
+                        className="w-full h-12 rounded-2xl font-black uppercase text-sm bg-primary dark:bg-black border border-primary dark:border-brand-orange text-white dark:text-brand-orange hover:opacity-90 dark:hover:bg-brand-orange/10 shadow-lg dark:shadow-theme-strong transition-all"
                     >
                         Ho capito
                     </Button>

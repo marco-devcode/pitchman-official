@@ -273,8 +273,8 @@ export default function AllenamentoPage() {
                     weekday: "text-muted-foreground dark:text-muted-foreground/30 rounded-md w-9 font-black text-[0.6rem] uppercase tracking-tighter text-center",
                     caption_label: "text-sm font-black uppercase tracking-[0.2em] text-foreground dark:text-white",
                     day: "h-10 w-10 p-0 m-0 flex items-center justify-center relative",
-                    day_button: "text-foreground/80 dark:text-white/60 hover:bg-muted dark:hover:bg-black hover:text-foreground dark:hover:text-white hover:border hover:border-primary/30 dark:hover:border-brand-green/30 hover:shadow-sm dark:hover:shadow-[0_0_15px_rgba(172,229,4,0.4)] rounded-xl h-10 w-10 flex items-center justify-center p-0 font-black transition-all cursor-pointer relative z-10",
-                    selected: "!bg-transparent border-2 border-primary dark:border-brand-green text-primary dark:text-brand-green shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:!bg-muted dark:hover:!bg-black hover:!text-foreground dark:hover:!text-white rounded-xl",
+                    day_button: "text-foreground/80 dark:text-white/60 hover:bg-muted dark:hover:bg-black hover:text-foreground dark:hover:text-white hover:border hover:border-primary/30 dark:hover:border-brand-green/30 hover:shadow-sm dark:hover:shadow-theme-bright rounded-xl h-10 w-10 flex items-center justify-center p-0 font-black transition-all cursor-pointer relative z-10",
+                    selected: "!bg-transparent border-2 border-primary dark:border-brand-green text-primary dark:text-brand-green shadow-sm dark:shadow-theme-strong hover:!bg-muted dark:hover:!bg-black hover:!text-foreground dark:hover:!text-white rounded-xl",
                     today: "bg-muted/50 dark:bg-white/5 text-foreground/50 dark:text-white/40 rounded-xl",
                     button_previous: "hover:bg-primary/10 dark:hover:bg-brand-green/10 hover:text-primary dark:hover:text-brand-green rounded-lg transition-colors p-1 text-foreground/50 dark:text-white/50",
                     button_next: "hover:bg-primary/10 dark:hover:bg-brand-green/10 hover:text-primary dark:hover:text-brand-green rounded-lg transition-colors p-1 text-foreground/50 dark:text-white/50",
@@ -365,7 +365,7 @@ export default function AllenamentoPage() {
                             return (
                               <>
                                 <div
-                                  className="h-full transition-all duration-500 rounded-full shadow-[0_0_8px_rgba(172,229,4,0.35)] bg-primary dark:bg-brand-green"
+                                  className="h-full transition-all duration-500 rounded-full shadow-theme-strong bg-primary dark:bg-brand-green"
                                   style={{ width: `${presentPct}%` }}
                                 />
                                 {late > 0 && (

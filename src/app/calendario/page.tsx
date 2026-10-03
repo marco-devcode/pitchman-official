@@ -263,7 +263,7 @@ export default function CalendarioPage() {
             </Button>
             <Button
               variant="outline"
-              className="bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-black/80 hover:scale-105 transition-all h-9 px-3 rounded-xl shadow-md dark:shadow-[0_0_15px_rgba(172,229,4,0.15)] flex items-center gap-1.5 flex-1"
+              className="bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-black/80 hover:scale-105 transition-all h-9 px-3 rounded-xl shadow-md dark:shadow-theme flex items-center gap-1.5 flex-1"
               onClick={() => setIsMatchFormOpen(true)}
               title="Nuova Partita"
             >
@@ -301,7 +301,7 @@ export default function CalendarioPage() {
 
           <Card
             onClick={() => router.push(`/calendario/${nextMatch.id}`)}
-            className="relative overflow-hidden border-2 border-primary/50 dark:border-brand-green bg-primary/10 dark:bg-brand-green/5 rounded-3xl cursor-pointer group hover:bg-primary/20 dark:hover:bg-brand-green/10 transition-all shadow-lg dark:shadow-[0_0_20px_rgba(172,229,4,0.1)]"
+            className="relative overflow-hidden border-2 border-primary/50 dark:border-brand-green bg-primary/10 dark:bg-brand-green/5 rounded-3xl cursor-pointer group hover:bg-primary/20 dark:hover:bg-brand-green/10 transition-all shadow-lg dark:shadow-theme"
           >
             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
               {nextMatch.isHome ? <Home className="w-16 h-16" /> : <Plane className="w-16 h-16" />}

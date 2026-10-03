@@ -58,8 +58,8 @@ export function InjuryFormDialog({
         weekday: "text-muted-foreground dark:text-muted-foreground/30 rounded-md w-9 font-black text-[0.6rem] uppercase tracking-tighter text-center",
         caption_label: "text-sm font-black uppercase tracking-[0.2em] text-foreground dark:text-white",
         day: "h-10 w-10 p-0 m-0 flex items-center justify-center relative",
-        day_button: "text-foreground/80 dark:text-white/60 hover:bg-muted dark:hover:bg-black hover:text-foreground dark:hover:text-white hover:border hover:border-primary/30 dark:hover:border-brand-green/30 hover:shadow-sm dark:hover:shadow-[0_0_15px_rgba(172,229,4,0.4)] rounded-xl h-10 w-10 flex items-center justify-center p-0 font-black transition-all cursor-pointer relative z-10",
-        selected: "!bg-transparent border-2 border-primary dark:border-brand-green text-primary dark:text-brand-green shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.2)] hover:!bg-muted dark:hover:!bg-black hover:!text-foreground dark:hover:!text-white rounded-xl",
+        day_button: "text-foreground/80 dark:text-white/60 hover:bg-muted dark:hover:bg-black hover:text-foreground dark:hover:text-white hover:border hover:border-primary/30 dark:hover:border-brand-green/30 hover:shadow-sm dark:hover:shadow-theme-bright rounded-xl h-10 w-10 flex items-center justify-center p-0 font-black transition-all cursor-pointer relative z-10",
+        selected: "!bg-transparent border-2 border-primary dark:border-brand-green text-primary dark:text-brand-green shadow-sm dark:shadow-theme-strong hover:!bg-muted dark:hover:!bg-black hover:!text-foreground dark:hover:!text-white rounded-xl",
         today: "bg-muted/50 dark:bg-white/5 text-foreground/50 dark:text-white/40 rounded-xl",
         button_previous: "hover:bg-primary/10 dark:hover:bg-brand-green/10 hover:text-primary dark:hover:text-brand-green rounded-lg transition-colors p-1 text-foreground/50 dark:text-white/50",
         button_next: "hover:bg-primary/10 dark:hover:bg-brand-green/10 hover:text-primary dark:hover:text-brand-green rounded-lg transition-colors p-1 text-foreground/50 dark:text-white/50",
@@ -74,7 +74,7 @@ export function InjuryFormDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] rounded-[28px] bg-card dark:bg-black border border-primary/30 dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_25px_rgba(172,229,4,0.15)] p-6 overflow-hidden">
+            <DialogContent className="sm:max-w-[500px] rounded-[28px] bg-card dark:bg-black border border-primary/30 dark:border-brand-green/30 shadow-xl dark:shadow-theme p-6 overflow-hidden">
                 <DialogHeader className="space-y-1">
                     <div className="mx-auto bg-primary/10 dark:bg-brand-green/10 p-3 rounded-full mb-2 border border-primary/20 dark:border-brand-green/20">
                         <Hospital className="h-6 w-6 text-primary dark:text-brand-green" />
@@ -231,7 +231,7 @@ export function InjuryFormDialog({
                                 type="button" 
                                 onClick={handleSave}
                                 disabled={!selectedPlayerId || !startDate || !endDate}
-                                className="flex-1 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-[0_0_15px_rgba(172,229,4,0.3)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                className="flex-1 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase text-[10px] tracking-widest h-12 shadow-sm dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                             >
                                 Registra
                             </Button>

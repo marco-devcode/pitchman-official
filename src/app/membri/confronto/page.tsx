@@ -9,6 +9,7 @@ import { ArrowLeft, User, Shield, Sword, Zap, Clock, AlertTriangle, Target, Cale
 import { usePlayersStore } from "@/store/usePlayersStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { readThemeChartPalette } from "@/lib/design-tokens";
 import { aggregationRepository } from "@/lib/repositories/aggregation-repository";
 import { getMatchUsage } from "@/lib/player-usage";
 import { cn, displayPlayerName } from "@/lib/utils";
@@ -31,9 +32,10 @@ const RadarChart = dynamic(
       const gridColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
       const axisColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.4)";
       const tooltipBg = isDark ? "black" : "white";
-      const tooltipBorder = isDark ? "rgba(172,229,4,0.3)" : "rgba(37,99,235,0.2)";
+      const palette = readThemeChartPalette(isDark);
+      const tooltipBorder = palette.tooltipBorder;
       const tooltipText = isDark ? "white" : "black";
-      const cursorFill = isDark ? "rgba(172, 229, 4, 0.05)" : "rgba(37, 99, 235, 0.05)";
+      const cursorFill = palette.cursorFill;
 
       return (
         <ResponsiveContainer width="100%" height={280}>
@@ -266,7 +268,7 @@ function ConfrontoContent() {
 
       {/* Selectors */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-card dark:bg-black/40 backdrop-blur-sm border-border dark:border-brand-green/30 rounded-3xl shadow-sm dark:shadow-[0_0_20px_rgba(172,229,4,0.05)] transition-colors">
+        <Card className="bg-card dark:bg-black/40 backdrop-blur-sm border-border dark:border-brand-green/30 rounded-3xl shadow-sm dark:shadow-themesoft transition-colors">
           <CardContent className="p-5 flex flex-col items-center text-center gap-1">
             <div className="p-3 bg-primary/10 dark:bg-brand-green/10 rounded-2xl mb-2">
               <User className="h-6 w-6 text-primary dark:text-brand-green" />
@@ -353,7 +355,7 @@ function ConfrontoContent() {
                     <div className={cn(
                       "text-center font-black transition-all",
                       is1Better 
-                        ? "text-primary dark:text-brand-green text-xl shadow-[inset_0_-2px_0_rgba(37,99,235,0.4)] dark:shadow-[inset_0_-2px_0_rgba(172,229,4,0.4)]" 
+                        ? "text-primary dark:text-brand-green text-xl shadow-[inset_0_-2px_0_rgba(37,99,235,0.4)] dark:shadow-theme-bright" 
                         : "text-muted-foreground dark:text-muted-foreground/20 dark:text-white/20 text-sm"
                     )}>{row.val1}</div>
                     <div className="text-center text-[9px] font-black text-muted-foreground dark:text-muted-foreground/40 dark:text-white/40 uppercase tracking-widest group-hover:text-primary dark:group-hover:text-brand-green transition-colors">{row.label}</div>

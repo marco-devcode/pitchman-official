@@ -41,7 +41,7 @@ export function PresenceAlert() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); markWarned(); } }}>
-      <DialogContent className="max-w-[92vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground">
+      <DialogContent className="max-w-[92vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-11 h-11 rounded-2xl bg-primary/15 dark:bg-brand-green/15 border border-primary/40 dark:border-brand-green/40 flex items-center justify-center">

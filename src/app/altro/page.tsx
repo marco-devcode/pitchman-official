@@ -371,9 +371,9 @@ export default function AltroPage() {
         {/* Profilo Allenatore */}
         <div
           onClick={() => setIsAccountOpen(true)}
-          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] active:scale-[0.98]"
+          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-themesoft active:scale-[0.98]"
         >
-          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
+          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme">
             <User className="h-6 w-6 text-primary dark:text-brand-green" />
           </div>
           <div className="flex flex-col flex-1">
@@ -385,9 +385,9 @@ export default function AltroPage() {
         {/* Gestione Squadra */}
         <div
           onClick={() => setIsSquadraOpen(true)}
-          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] active:scale-[0.98]"
+          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-themesoft active:scale-[0.98]"
         >
-          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
+          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme">
             <Shirt className="h-6 w-6 text-primary dark:text-brand-green" />
           </div>
           <div className="flex flex-col flex-1">
@@ -399,9 +399,9 @@ export default function AltroPage() {
         {/* Notifiche */}
         <div
           onClick={() => setIsNotificheOpen(true)}
-          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] active:scale-[0.98]"
+          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-themesoft active:scale-[0.98]"
         >
-          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
+          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme">
             <Bell className="h-6 w-6 text-primary dark:text-brand-green" />
           </div>
           <div className="flex flex-col flex-1">
@@ -413,9 +413,9 @@ export default function AltroPage() {
         {/* Tema: apre il selettore dei due colori */}
         <div
           onClick={() => setIsColorsOpen(true)}
-          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] active:scale-[0.98]"
+          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-themesoft active:scale-[0.98]"
         >
-          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
+          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme">
             <Moon className="h-6 w-6 text-primary dark:text-brand-green" />
           </div>
           <div className="flex flex-col flex-1">
@@ -433,7 +433,7 @@ export default function AltroPage() {
               <Sun className="h-4 w-4" />
             </div>
             <div
-              className={cn("px-4 py-1.5 rounded-full flex items-center justify-center font-bold text-sm cursor-pointer transition-all", theme === 'dark' ? "bg-black border border-brand-green text-white shadow-[0_0_10px_rgba(172,229,4,0.15)]" : "text-foreground/50")}
+              className={cn("px-4 py-1.5 rounded-full flex items-center justify-center font-bold text-sm cursor-pointer transition-all", theme === 'dark' ? "bg-black border border-brand-green text-white shadow-theme" : "text-foreground/50")}
               onClick={() => theme !== 'dark' && toggleTheme()}
             >
               Scuro
@@ -444,9 +444,9 @@ export default function AltroPage() {
         {/* Privacy & Sicurezza */}
         <div
           onClick={() => setIsPrivacyOpen(true)}
-          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] active:scale-[0.98]"
+          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-themesoft active:scale-[0.98]"
         >
-          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]">
+          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme">
             <Shield className="h-6 w-6 text-primary dark:text-brand-green" />
           </div>
           <div className="flex flex-col flex-1">
@@ -461,13 +461,13 @@ export default function AltroPage() {
 
       {/* Account Dialog */}
       <Dialog open={isAccountOpen} onOpenChange={setIsAccountOpen}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground">
+        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground">Profilo Allenatore</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 dark:bg-card/20 hover:bg-muted/50 dark:hover:bg-card/30">
-              <div className="h-12 w-12 rounded-full bg-background dark:bg-black border border-border dark:border-brand-green flex items-center justify-center text-primary dark:text-brand-green font-black uppercase text-xl shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.15)]">
+              <div className="h-12 w-12 rounded-full bg-background dark:bg-black border border-border dark:border-brand-green flex items-center justify-center text-primary dark:text-brand-green font-black uppercase text-xl shadow-sm dark:shadow-theme">
                 {user?.username.charAt(0)}
               </div>
               <div className="flex flex-col">
@@ -493,7 +493,7 @@ export default function AltroPage() {
       <ThemeColorDialog open={isColorsOpen} onOpenChange={setIsColorsOpen} />
 
       <Dialog open={isSquadraOpen} onOpenChange={setIsSquadraOpen}>
-        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="max-w-[95vw] sm:max-w-lg rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground max-h-[90vh] overflow-y-auto">
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="max-w-[95vw] sm:max-w-lg rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground">Gestione Squadra</DialogTitle>
             <DialogDescription className="text-muted-foreground">Configura archivio stagioni e frequenza allenamento.</DialogDescription>
@@ -560,7 +560,7 @@ export default function AltroPage() {
                         className={cn(
                           "w-10 h-10 rounded-xl flex items-center justify-center font-black transition-all",
                           isSelected
-                            ? "bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-md dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] scale-110"
+                            ? "bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-md dark:shadow-theme scale-110"
                             : "bg-muted dark:bg-black/20 text-muted-foreground hover:bg-muted-foreground/10 dark:hover:bg-black/40"
                         )}
                       >
@@ -609,7 +609,7 @@ export default function AltroPage() {
 
             <Button 
                 onClick={handleSaveSettings}
-                className="w-full bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-brand-green/10 h-12 rounded-2xl font-black uppercase shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)]"
+                className="w-full bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-brand-green/10 h-12 rounded-2xl font-black uppercase shadow-lg dark:shadow-theme-strong"
             >
                 Salva Modifiche
             </Button>
@@ -631,7 +631,7 @@ export default function AltroPage() {
                   onChange={(e) => setNewSeasonName(e.target.value)}
                   className="font-bold uppercase text-xs bg-background dark:bg-black border border-border dark:border-brand-green/30 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green h-10 rounded-xl text-foreground"
                 />
-                <Button onClick={handleAddSeason} disabled={isAddingSeason} className="bg-primary dark:bg-black border border-primary dark:border-brand-green text-white hover:opacity-90 dark:hover:bg-black/80 shadow-md dark:shadow-[0_0_10px_rgba(172,229,4,0.15)] transition-all h-10 rounded-xl font-black uppercase">
+                <Button onClick={handleAddSeason} disabled={isAddingSeason} className="bg-primary dark:bg-black border border-primary dark:border-brand-green text-white hover:opacity-90 dark:hover:bg-black/80 shadow-md dark:shadow-theme transition-all h-10 rounded-xl font-black uppercase">
                   {isAddingSeason ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1 text-white dark:text-brand-green" />} Crea
                 </Button>
               </div>
@@ -642,7 +642,7 @@ export default function AltroPage() {
                     key={s.id}
                     className={cn(
                       "flex items-center justify-between p-3 rounded-2xl border transition-all",
-                      s.isActive ? "bg-background dark:bg-black border-primary dark:border-brand-green shadow-md dark:shadow-[0_0_10px_rgba(172,229,4,0.1)]" : "bg-muted/30 dark:bg-card/20 border-transparent cursor-pointer hover:bg-muted/50 dark:hover:bg-card/50"
+                      s.isActive ? "bg-background dark:bg-black border-primary dark:border-brand-green shadow-md dark:shadow-theme" : "bg-muted/30 dark:bg-card/20 border-transparent cursor-pointer hover:bg-muted/50 dark:hover:bg-card/50"
                     )}
                     onClick={() => !s.isActive && handleSwitchSeason(s.id)}
                   >
@@ -653,7 +653,7 @@ export default function AltroPage() {
                         </span>
                       </div>
                       {s.isActive && (
-                        <Badge className="text-[9px] bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.1)] font-black uppercase py-0.5 px-2">Attiva</Badge>
+                        <Badge className="text-[9px] bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-sm dark:shadow-theme font-black uppercase py-0.5 px-2">Attiva</Badge>
                       )}
                       {s.ownerId !== user?.id && (
                         <Badge variant="outline" className="text-[8px] border-blue-500/50 text-blue-500 font-black uppercase py-0.5 px-1.5 ml-1">Invitato</Badge>
@@ -713,7 +713,7 @@ export default function AltroPage() {
 
       {/* Notifiche Dialog */}
       <Dialog open={isNotificheOpen} onOpenChange={setIsNotificheOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-lg rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground">Notifiche Push</DialogTitle>
             <DialogDescription className="text-muted-foreground">Configura gli avvisi pre-gara e pre-allenamento.</DialogDescription>
@@ -778,7 +778,7 @@ export default function AltroPage() {
 
             <Button 
                 onClick={handleSaveNotifications}
-                className="w-full bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-brand-green/10 h-12 rounded-2xl font-black uppercase shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)]"
+                className="w-full bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-brand-green/10 h-12 rounded-2xl font-black uppercase shadow-lg dark:shadow-theme-strong"
             >
                 Salva Notifiche
             </Button>
@@ -788,7 +788,7 @@ export default function AltroPage() {
 
       {/* Privacy & Sicurezza Dialog */}
       <Dialog open={isPrivacyOpen} onOpenChange={setIsPrivacyOpen}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground">
+        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground">Privacy & Dati</DialogTitle>
             <DialogDescription className="text-muted-foreground">Esporta i tuoi dati o formatta l'account.</DialogDescription>
@@ -796,7 +796,7 @@ export default function AltroPage() {
           <div className="space-y-6 pt-2">
 
             <div className="space-y-2">
-              <Button onClick={handleExport} disabled={isExporting} className="w-full font-black uppercase text-xs h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green/30 text-white dark:text-white hover:opacity-90 dark:hover:bg-black/80 hover:border-primary dark:hover:border-brand-green shadow-sm dark:shadow-[0_0_10px_rgba(172,229,4,0.05)] transition-all rounded-xl">
+              <Button onClick={handleExport} disabled={isExporting} className="w-full font-black uppercase text-xs h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green/30 text-white dark:text-white hover:opacity-90 dark:hover:bg-black/80 hover:border-primary dark:hover:border-brand-green shadow-sm dark:shadow-themesoft transition-all rounded-xl">
                 <Download className="mr-2 h-4 w-4 text-white dark:text-brand-green" />
                 {isExporting ? "Esportazione..." : "Esporta tutto (CSV)"}
               </Button>
@@ -816,7 +816,7 @@ export default function AltroPage() {
                     <RefreshCw className="mr-2 h-4 w-4" /> Reset Stagione
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-2xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground max-w-[90vw]">
+                <AlertDialogContent className="rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-2xl dark:shadow-theme text-foreground max-w-[90vw]">
                   <AlertDialogHeader>
                     <AlertDialogTitle className="uppercase font-black text-destructive">Resettare la stagione?</AlertDialogTitle>
                     <AlertDialogDescription className="text-xs leading-relaxed text-muted-foreground font-bold">
@@ -838,7 +838,7 @@ export default function AltroPage() {
 
       {/* Join Season Dialog */}
       <Dialog open={isJoinDialogOpen} onOpenChange={setIsJoinDialogOpen}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground">
+        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">Partecipa a una Stagione</DialogTitle>
             <DialogDescription className="text-xs font-bold text-muted-foreground uppercase">Inserisci il codice condiviso dal tuo collega Mister.</DialogDescription>
@@ -853,7 +853,7 @@ export default function AltroPage() {
             <Button
               onClick={handleJoinSeason}
               disabled={isJoining || !joinCode}
-              className="w-full rounded-2xl font-black uppercase h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)]"
+              className="w-full rounded-2xl font-black uppercase h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-lg dark:shadow-theme-strong"
             >
               {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : "Unisciti alla Squadra"}
             </Button>
@@ -863,7 +863,7 @@ export default function AltroPage() {
 
       {/* Share Season Dialog */}
       <Dialog open={!!seasonToShare} onOpenChange={(open) => !open && setSeasonToShare(null)}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground text-center">
+        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground text-center">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight mx-auto">Condividi Stagione</DialogTitle>
           </DialogHeader>
@@ -888,7 +888,7 @@ export default function AltroPage() {
 
       {/* Season Deletion Confirmation — OUTSIDE the Dialog */}
       <AlertDialog open={!!seasonToDelete} onOpenChange={(open) => { if (!open && !isDeletingSeason) setSeasonToDelete(null); }}>
-        <AlertDialogContent className="rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-2xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground max-w-[90vw]">
+        <AlertDialogContent className="rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-2xl dark:shadow-theme text-foreground max-w-[90vw]">
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase font-black text-destructive">Elimina Stagione?</AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground font-bold">
@@ -906,7 +906,7 @@ export default function AltroPage() {
 
       {/* Season Rename Dialog */}
       <Dialog open={!!seasonToRename} onOpenChange={(open) => !open && setSeasonToRename(null)}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-[0_0_20px_rgba(172,229,4,0.15)] text-foreground">
+        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight">Rinomina Stagione</DialogTitle>
             <DialogDescription className="text-xs font-bold text-muted-foreground uppercase">Inserisci il nuovo nome per la stagione.</DialogDescription>
@@ -929,7 +929,7 @@ export default function AltroPage() {
               <Button
                 onClick={handleRenameSeason}
                 disabled={isRenaming || !renamedName.trim()}
-                className="flex-1 rounded-xl font-black uppercase h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-lg dark:shadow-[0_0_15px_rgba(172,229,4,0.2)]"
+                className="flex-1 rounded-xl font-black uppercase h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green text-white shadow-lg dark:shadow-theme-strong"
               >
                 {isRenaming ? <Loader2 className="h-5 w-5 animate-spin" /> : "Salva Nome"}
               </Button>
