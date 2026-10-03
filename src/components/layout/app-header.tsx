@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Shield } from 'lucide-react';
 import { GuideDialog } from './guide-dialog';
 import { InstallPWA } from './install-pwa';
 
@@ -56,6 +57,25 @@ export function AppHeader() {
             );
           })}
         </nav>
+
+        {/* Pannello ruoli. NON sta in `navItems` perche' quella lista e' del
+            menu principale ed e' condivisa con il bottom-nav da 5 voci:
+            aggiungerlo li' avrebbe fatto comparire "Account" anche a tutti gli
+            allenatori. Qui va una voce a se', visibile solo agli sviluppatori. */}
+        {user?.role === 'developer' && (
+          <Link
+            href="/admin/users"
+            className={cn(
+              "hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+              pathname.startsWith('/admin/users')
+                ? "bg-primary/5 dark:bg-black text-primary dark:text-brand-green border-primary/50 dark:border-brand-green shadow-sm dark:shadow-theme-strong"
+                : "text-muted-foreground dark:text-white/40 border-transparent hover:text-foreground dark:hover:text-white hover:bg-muted dark:hover:bg-white/5"
+            )}
+          >
+            <Shield className="h-3 w-3" />
+            Account
+          </Link>
+        )}
       </div>
 
       {user && (

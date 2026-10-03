@@ -38,8 +38,25 @@ export async function POST(request: Request) {
     // 2. Aggiorna Firestore
     const userDocRef = adminDb.collection('users').doc(targetUid);
     const userDoc = await userDocRef.get();
+    const now = new Date().toISOString();
+
     if (userDoc.exists) {
-      await userDocRef.update({ role: newRole, updatedAt: new Date().toISOString() });
+      await userDocRef.update({ role: newRole, updatedAt: now });
+    } else {
+      // Prima il documento non veniva creato se mancava: un account che non
+      // aveva ancora fatto login restava senza profilo, quindi `init-user` al
+      // login successivo leggeva il claim e creava il documento col ruolo
+      // giusto — ma nel frattempo il pannello non lo mostrava, e sembrava che
+      // l'assegnazione non avesse funzionato.
+      const target = await adminAuth.getUser(targetUid);
+      await userDocRef.set({
+        uid: targetUid,
+        email: target.email ?? '',
+        displayName: target.displayName ?? '',
+        role: newRole,
+        createdAt: now,
+        updatedAt: now,
+      });
     }
 
     return NextResponse.json({ success: true, message: `Ruolo aggiornato a ${newRole} per l'utente ${targetUid}` });

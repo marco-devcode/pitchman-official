@@ -24,7 +24,13 @@ export async function POST(request: Request) {
     if (!role) {
       // Impostazione del ruolo di default
       role = 'coach';
-      await adminAuth.setCustomUserClaims(uid, { ...decodedToken, role });
+      // NON passare `...decodedToken`: `setCustomUserClaims` ACCETTA SOLO
+      // custom claims, e `decodedToken` e' il payload del token (uid, email,
+      // picture, iat, exp, ...). Firebase lo accetta in silenzio, ma quei
+      // campi finiscono nel token come se fossero custom claims e finiscono
+      // anche dentro `request.auth.token`, dove Firestore rules li leggono.
+      // Qui si mette solo il ruolo.
+      await adminAuth.setCustomUserClaims(uid, { role });
     }
 
     // Controlliamo se esiste il profilo Firestore
