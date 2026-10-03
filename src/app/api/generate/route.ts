@@ -38,8 +38,10 @@ export async function POST(request: Request) {
   // Nessun controllo prima: chiunque poteva far generare esercizi e quindi
   // consumare crediti Gemini. Coach e developer possono, come dice
   // `canCreateGlobalExercises` in `hooks/usePermissions.ts`.
-  const auth = await requireAuth(request, ['coach', 'director', 'developer']);
-  if (!auth) return;
+  // `return denied` e non `return`: la risposta va restituita, altrimenti Next
+  // risponde "No response is returned from route handler" e la route e' rotta.
+  const denied = await requireAuth(request, ['coach', 'director', 'developer']);
+  if (denied) return denied;
 
   let prompt = '';
 

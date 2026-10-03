@@ -13,7 +13,7 @@
  * Non serve `jest.setup.js` qui: niente DOM, quindi niente matchMedia e
  * niente Testing Library.
  */
-import { requireAuth } from './api-auth';
+import { requireAuth, requireAuthOr } from './api-auth';
 import { adminAuth, adminDb } from './firebase-admin';
 
 jest.mock('./firebase-admin', () => ({
@@ -59,48 +59,55 @@ describe('requireAuth', () => {
         utenteConRuolo('developer');
     });
 
-    it('senza header Authorization restituisce null (401)', async () => {
-        await expect(requireAuth(req(), ['developer'])).resolves.toBeNull();
+    it('senza header Authorization RESTITUISCE LA RISPOSTA 401', async () => {
+        // Non basta `toBeNull()`: il bug che ha rotto le tre route era
+        // `if (!auth) return;`, che mandava `undefined` a Next. Qui si verifica
+        // che il valore restituito sia una NextResponse con status 401.
+        const denied = await requireAuth(req(), ['developer']);
+        expect(denied).not.toBeNull();
+        expect(denied).not.toBeUndefined();
+        expect(denied!.status).toBe(401);
         expect(mockAuth.verifyIdToken).not.toHaveBeenCalled();
     });
 
-    it('header senza prefisso Bearer restituisce null (401)', async () => {
+    it('header senza prefisso Bearer restituisce 401', async () => {
         const r = new Request('http://x', { headers: { Authorization: 'token' } });
-        await expect(requireAuth(r, ['developer'])).resolves.toBeNull();
+        const denied = await requireAuth(r, ['developer']);
+        expect(denied?.status).toBe(401);
     });
 
-    it('token non verificabile restituisce null (401)', async () => {
+    it('token non verificabile restituisce 401', async () => {
         mockAuth.verifyIdToken.mockRejectedValueOnce(new Error('token scaduto'));
-        await expect(requireAuth(req('cattivo'), ['developer'])).resolves.toBeNull();
+        const denied = await requireAuth(req('cattivo'), ['developer']);
+        expect(denied?.status).toBe(401);
     });
 
-    it('ruolo non ammesso su Firestore restituisce null (403)', async () => {
+    it('ruolo non ammesso su Firestore restituisce 403', async () => {
         utenteConRuolo('coach');
-        await expect(requireAuth(req('buono'), ['developer'])).resolves.toBeNull();
+        const denied = await requireAuth(req('buono'), ['developer']);
+        expect(denied?.status).toBe(403);
     });
 
-    it('ruolo ammesso restituisce uid e ruolo', async () => {
-        await expect(requireAuth(req('buono'), ['developer'])).resolves.toEqual({
-            uid: 'u1',
-            role: 'developer',
-        });
+    it('ruolo ammesso: nessuna risposta di rifiuto', async () => {
+        await expect(requireAuth(req('buono'), ['developer'])).resolves.toBeNull();
     });
 
     it("uno dei ruoli ammessi basta: coach passa dove c'e coach", async () => {
         utenteConRuolo('coach');
         await expect(
             requireAuth(req('buono'), ['coach', 'director', 'developer']),
-        ).resolves.toEqual({ uid: 'u1', role: 'coach' });
+        ).resolves.toBeNull();
     });
 
     it('senza lista di ruoli ammette chiunque sia autenticato', async () => {
         utenteConRuolo('player');
-        await expect(requireAuth(req('buono'))).resolves.toEqual({ uid: 'u1', role: 'player' });
+        await expect(requireAuth(req('buono'))).resolves.toBeNull();
     });
 
     it("documento utente senza ruolo non entra dove serve un ruolo", async () => {
         utenteConRuolo(undefined);
-        await expect(requireAuth(req('buono'), ['developer'])).resolves.toBeNull();
+        const denied = await requireAuth(req('buono'), ['developer']);
+        expect(denied?.status).toBe(403);
     });
 
     it('se la lettura del ruolo fallisce si nega, non si lascia passare', async () => {
@@ -109,19 +116,31 @@ describe('requireAuth', () => {
         mockDb.collection.mockReturnValue({
             doc: () => ({ get: jest.fn().mockRejectedValue(new Error('Firestore giù')) }),
         });
-        await expect(requireAuth(req('buono'), ['developer'])).resolves.toBeNull();
+        const denied = await requireAuth(req('buono'), ['developer']);
+        expect(denied?.status).toBe(403);
+    });
+
+    it('requireAuthOr: rifiutato porta la risposta pronta', async () => {
+        // E' l'API che le route dovrebbero usare: `ok` e `response` sono due
+        // campi distinti, quindi non si puo' finire col `return undefined`.
+        utenteConRuolo('coach');
+        const esito = await requireAuthOr(req('buono'), ['developer']);
+        expect(esito.ok).toBe(false);
+        if (!esito.ok) expect(esito.response.status).toBe(403);
+    });
+
+    it('requireAuthOr: accettato porta uid e ruolo', async () => {
+        const esito = await requireAuthOr(req('buono'), ['developer']);
+        expect(esito).toEqual({ ok: true, uid: 'u1', role: 'developer' });
     });
 
     it('il ruolo viene letto da Firestore, non dai custom claims', async () => {
         // Il token porta `role: 'player'` mentre il documento dice 'developer'.
         // Se il codice leggesse i custom claims, un developer autentico
         // verrebbe respinto: e i claim in questo progetto non vengono neanche
-        // scritti, perche' manca FIREBASE_SERVICE_ACCOUNT.
+        // scritti quando manca FIREBASE_SERVICE_ACCOUNT.
         mockAuth.verifyIdToken.mockResolvedValue({ uid: 'u1', role: 'player' });
         utenteConRuolo('developer');
-        await expect(requireAuth(req('buono'), ['developer'])).resolves.toEqual({
-            uid: 'u1',
-            role: 'developer',
-        });
+        await expect(requireAuth(req('buono'), ['developer'])).resolves.toBeNull();
     });
 });

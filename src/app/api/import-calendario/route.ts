@@ -5,8 +5,9 @@ import { requireAuth } from '@/lib/api-auth';
 export async function POST(request: Request) {
   // Nessun controllo prima: chiunque poteva far scrivere un calendario.
   // Coach e developer possono.
-  const auth = await requireAuth(request, ['coach', 'director', 'developer']);
-  if (!auth) return;
+  // `return denied`: senza la risposta esplicita Next non ritorna nulla.
+  const denied = await requireAuth(request, ['coach', 'director', 'developer']);
+  if (denied) return denied;
 
   try {
     const { calendarUrl } = await request.json();

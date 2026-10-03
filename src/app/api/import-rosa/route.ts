@@ -6,8 +6,9 @@ export async function POST(request: Request) {
   // Prima non c'era nessun controllo: la route accettava richieste senza token,
   // quindi chiunque poteva far scrivere una rosa a piacere. Coach e developer
   // possono, come dice `canEditRoster` in `hooks/usePermissions.ts`.
-  const auth = await requireAuth(request, ['coach', 'director', 'developer']);
-  if (!auth) return;
+  // `return denied`: senza la risposta esplicita Next non ritorna nulla.
+  const denied = await requireAuth(request, ['coach', 'director', 'developer']);
+  if (denied) return denied;
 
   try {
     const { squadraUrl } = await request.json();
