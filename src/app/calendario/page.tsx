@@ -134,9 +134,13 @@ export default function CalendarioPage() {
       let label = '-';
       let color = 'bg-muted text-muted-foreground';
 
-      if (isWin) { label = 'V'; color = 'bg-brand-green/20 text-brand-green border border-brand-green/30'; }
-      else if (isLoss) { label = 'P'; color = 'bg-rose-500/20 text-rose-500 border border-rose-500/30'; }
-      else if (isDraw) { label = 'N'; color = 'bg-amber-500/20 text-amber-500 border border-amber-500/30'; }
+      // Esiti, non tema: il V sta sul verde fisso `--win`, lo stesso del box
+      // del punteggio in vittoria. Con `text-brand-green` seguiva il tema e
+      // diventava rosa con un tema rosso: un esito non e' un colore che
+      // l'utente sceglie, e un V che cambia colore non si legge come vittoria.
+      if (isWin) { label = 'V'; color = 'bg-[hsl(var(--win)/0.2)] text-[hsl(var(--win))] border border-[hsl(var(--win)/0.3)]'; }
+      else if (isLoss) { label = 'P'; color = 'bg-[hsl(var(--loss)/0.2)] text-[hsl(var(--loss))] border border-[hsl(var(--loss)/0.3)]'; }
+      else if (isDraw) { label = 'N'; color = 'bg-[hsl(var(--draw)/0.2)] text-[hsl(var(--draw))] border border-[hsl(var(--draw)/0.3)]'; }
 
       return { label, color };
     });

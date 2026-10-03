@@ -91,17 +91,37 @@ export function ThemeColorPanel() {
         </span>
       </div>
 
-      {/* Come verranno usati davvero: testo colorato e riempimento mescolato.
-          Serve a vedere subito un testo illeggibile invece di scoprirlo in
-          una card della partita. */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-theme-fill rounded-2xl border border-border p-3 flex flex-col gap-1">
-          <span className="text-theme text-xs font-black uppercase">Numero giornata</span>
-          <span className="text-[10px] text-foreground/70">testo sopra riempimento</span>
+      {/*
+        Come verranno usati davvero.
+
+        Prima qui c'era una riga "Numero giornata" mostrata come testo sopra un
+        riempimento: non e' cosi' da nessuna parte. Il numero giornata e' un
+        quadrato con il bordo a gradiente (`src/components/calendario/
+        round-badge.tsx`), quindi l'anteprima mostrava uno stile che l'utente
+        non avrebbe mai visto e non poteva giudicare. Le anteprime devono
+        essere repliche, non esempi inventati: se sbagliano non aiutano.
+
+        Qui sotto ci sono i due usi che esistono davvero: il badge della
+        giornata (quadrato, bordo a gradiente) e il badge PROGRAMMATA
+        (riempimento mescolato, testo --t1).
+      */}
+      <div className="flex items-end gap-3">
+        <div className="flex flex-col items-center gap-1">
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center
+                       border-theme bg-theme-fill-soft text-theme
+                       text-[10px] font-black shadow-theme"
+            style={{ borderWidth: 2 }}
+          >
+            7
+          </div>
+          <span className="text-[9px] uppercase tracking-widest text-foreground/60">giornata</span>
         </div>
-        <div className="border-theme rounded-2xl p-3 flex flex-col gap-1">
-          <span className="text-theme text-xs font-black uppercase">Programmata</span>
-          <span className="text-[10px] text-foreground/70">bordo a gradiente</span>
+        <div className="px-3 py-1.5 rounded-xl bg-theme-fill text-theme text-[10px] font-black uppercase tracking-widest">
+          Programmata
+        </div>
+        <div className="px-3 py-1.5 rounded-xl border-theme text-theme text-[10px] font-black uppercase tracking-widest" style={{ borderWidth: 2 }}>
+          bordo
         </div>
       </div>
 

@@ -410,34 +410,68 @@ export default function AltroPage() {
           </div>
         </div>
 
-        {/* Tema: apre il selettore dei due colori */}
-        <div
-          onClick={() => setIsColorsOpen(true)}
-          className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 cursor-pointer hover:bg-muted/50 dark:hover:bg-black/60 transition-all shadow-sm dark:shadow-themesoft active:scale-[0.98]"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme">
-            <Moon className="h-6 w-6 text-primary dark:text-brand-green" />
+        {/*
+          Tema: tre stati invece di due.
+
+          Il terzo, "scegli", e' l'unico che apre il menu dei colori. Prima la
+          riga intera era cliccabile e bastava un tocco qualsiasi per aprire il
+          selettore: si apriva per sbaglio passando per cambiare il tema
+          chiaro/scuro, che e' un'azione diversa e di cui non si sapeva nulla.
+
+          I due icona-sola e icona-luna commutano solo il tema. Nessuno dei tre
+          e' un testo: l'icona dice gia' cosa fa, e "scegli" con una parola dice
+          che apre altro.
+        */}
+        <div className="flex items-center gap-4 bg-card border border-border dark:bg-black/40 dark:border-brand-green/30 rounded-3xl p-3 transition-all shadow-sm dark:shadow-themesoft">
+          <div
+            className="w-14 h-14 rounded-2xl bg-muted dark:bg-black border border-border dark:border-brand-green flex items-center justify-center shadow-sm dark:shadow-theme"
+          >
+            {theme === 'dark'
+              ? <Moon className="h-6 w-6 text-primary dark:text-brand-green" />
+              : <Sun className="h-6 w-6 text-primary dark:text-brand-green" />}
           </div>
           <div className="flex flex-col flex-1">
             <span className="text-foreground font-black text-lg tracking-wide uppercase">Tema</span>
             <span className="text-foreground/40 text-[10px] font-bold uppercase tracking-widest">
-              Chiaro/Scuro &amp; colori
+              {theme === 'dark' ? 'Scuro' : 'Chiaro'}
             </span>
           </div>
           <div className="bg-muted/80 rounded-full flex items-center p-1 mr-2 shadow-inner border border-white/10">
-            {/* Un toggle visivo custom che mimi quello nel mockup */}
-            <div
-              className={cn("px-4 py-1.5 rounded-full flex items-center justify-center cursor-pointer transition-all", theme !== 'dark' ? "bg-card/40 hover:bg-card/50 text-foreground" : "text-foreground/50")}
-              onClick={() => theme === 'dark' && toggleTheme()}
+            <button
+              type="button"
+              aria-label="Tema chiaro"
+              aria-pressed={theme !== 'dark'}
+              onClick={() => theme !== 'dark' && toggleTheme()}
+              className={cn(
+                "p-2 rounded-full flex items-center justify-center cursor-pointer transition-all",
+                theme !== 'dark' ? "bg-card/40 text-foreground" : "text-foreground/50 hover:text-foreground/80"
+              )}
             >
               <Sun className="h-4 w-4" />
-            </div>
-            <div
-              className={cn("px-4 py-1.5 rounded-full flex items-center justify-center font-bold text-sm cursor-pointer transition-all", theme === 'dark' ? "bg-black border border-brand-green text-white shadow-theme" : "text-foreground/50")}
-              onClick={() => theme !== 'dark' && toggleTheme()}
+            </button>
+            <button
+              type="button"
+              aria-label="Tema scuro"
+              aria-pressed={theme === 'dark'}
+              onClick={() => theme === 'dark' && toggleTheme()}
+              className={cn(
+                "p-2 rounded-full flex items-center justify-center cursor-pointer transition-all",
+                theme === 'dark' ? "bg-black border border-brand-green text-white shadow-theme" : "text-foreground/50 hover:text-foreground/80"
+              )}
             >
-              Scuro
-            </div>
+              <Moon className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsColorsOpen(true)}
+              className="px-3 py-1.5 rounded-full flex items-center justify-center cursor-pointer
+                         text-[10px] font-black uppercase tracking-widest transition-all
+                         border-theme text-theme bg-theme-fill-soft hover:bg-theme-fill
+                         shadow-theme active:scale-95"
+              style={{ borderWidth: 2 }}
+            >
+              scegli
+            </button>
           </div>
         </div>
 
