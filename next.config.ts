@@ -17,6 +17,14 @@ const withPWA = nextPwa({
 
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
+  // La root del workspace DEVE essere questa cartella. Senza, Next la
+  // inferisce dal lockfile piu' vicino e, con un package-lock.json anche in
+  // `~`, finisce fuori dal progetto: i path `@/*` di tsconfig vengono
+  // risolti relativi a `~` e diventano percorsi tipo
+  // `../../../../../src/lib/...` che non esistono. In Jest e' un errore
+  // "Cannot find module"; nel build e' lo stesso alias, che regge per
+  // un motivo diverso.
+  outputFileTracingRoot: __dirname,
   // Genkit / OpenTelemetry pull in optional exporters (jaeger, zipkin, etc.)
   // that are never used at runtime. Keep them external on the server so Next
   // doesn't try to bundle them, and ignore them in the client/build graph to

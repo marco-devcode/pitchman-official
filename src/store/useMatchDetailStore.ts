@@ -249,6 +249,14 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                 const daCompletare = match.status === 'scheduled' && partitaGiaPassata;
 
                 if (diversoDaSalvato || daCompletare) {
+                    // `load` e' un lettore, ma qui SCRIVE: corregge un
+                    // risultato stantio e può completare una partita già
+                    // passata. Entrambe le cose cambiano il record, quindi gli
+                    // aggregati in memoria vanno considerati sporchi. Senza
+                    // questo, la dashboard mostrerebbe il record precedente
+                    // finche' non si entra in /statistiche — che è il buco
+                    // originale.
+                    useStatsStore.getState().markStatsDirty();
                     matchRepository.update(matchId, targetSeasonId, {
                         ...(diversoDaSalvato ? { result: resultFinale } : {}),
                         ...(daCompletare ? { status: 'completed' as const } : {}),
@@ -268,6 +276,13 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const { match, lineup, events, matchId, allPlayers } = get();
         const user = useAuthStore.getState().user;
         if (!match || !matchId || !user) return;
+
+        // Punto unico di invalidazione degli aggregati: ogni percorso che
+        // cambia eventi, formazione o statistiche passa di qui (tranne
+        // updateMatch, che segnala a parte). Cosi' il flag non puo' dimenticare
+        // un caso: se domani un nuovo tipo di scrittura, e' dentro questo
+        // metodo o dentro updateMatch.
+        useStatsStore.getState().markStatsDirty();
 
         const duration = match.duration || 90;
         const halfTime = Math.floor(duration / 2);
@@ -318,6 +333,11 @@ export const useMatchDetailStore = create<MatchDetailState>()(
 
         set({ stats: newStats });
 
+        // Aggregati in memoria non piu' attendibili: la dashboard legge la
+        // leaderboard, che loadSummaryStats NON ricalcola. Il refresh avviene
+        // al prossimo arrivo sulla dashboard (refreshIfDirty), non qui.
+        useStatsStore.getState().markStatsDirty();
+
         // Scritture asincrone
         newStats.forEach(stat => {
             statsRepository.upsert(matchId, match.seasonId, stat.playerId, stat, user.id);
@@ -332,6 +352,10 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const { matchId, match } = get();
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
+
+        // saveAllStats scrive le stats senza passare da syncAndPersistMinutes:
+        // senza questo la dashboard mostrerebbe le stats precedenti.
+        useStatsStore.getState().markStatsDirty();
 
         set({ stats: newStats });
 
@@ -363,6 +387,14 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const { matchId, match, events: currentEvents } = get();
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
+
+        // La dashboard mostra la leaderboard, che loadSummaryStats NON
+        // ricalcola: ogni scrittura qui la rende stale fino a
+        // /statistiche. Si marca il contesto sporco e si lascia il
+        // refresh alla dashboard (refreshIfDirty). Viene fatto PRIMA
+        // del ramo offline, che pure torna qui senza passare da
+        // syncAndPersistMinutes.
+        useStatsStore.getState().markStatsDirty();
 
         // Id temporaneo UNICO per evento. Date.now() non basta: ha risoluzione
         // di un millisecondo, e aggiungendo piu' eventi in sequenza stretta
@@ -423,6 +455,14 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const { matchId, match, events: currentEvents } = get();
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
+
+        // La dashboard mostra la leaderboard, che loadSummaryStats NON
+        // ricalcola: ogni scrittura qui la rende stale fino a
+        // /statistiche. Si marca il contesto sporco e si lascia il
+        // refresh alla dashboard (refreshIfDirty). Viene fatto PRIMA
+        // del ramo offline, che pure torna qui senza passare da
+        // syncAndPersistMinutes.
+        useStatsStore.getState().markStatsDirty();
 
         // Salva tutti gli eventi e ASPETTA: senza attendere, le scritture
         // partono in parallelo e l'ultima ad arrivare sul risultato vince con
@@ -487,6 +527,14 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
 
+        // La dashboard mostra la leaderboard, che loadSummaryStats NON
+        // ricalcola: ogni scrittura qui la rende stale fino a
+        // /statistiche. Si marca il contesto sporco e si lascia il
+        // refresh alla dashboard (refreshIfDirty). Viene fatto PRIMA
+        // del ramo offline, che pure torna qui senza passare da
+        // syncAndPersistMinutes.
+        useStatsStore.getState().markStatsDirty();
+
         const updatedEvents = currentEvents.map(e => 
           e.id === eventId ? { ...e, ...eventData } : e
         ).sort((a, b) => {
@@ -534,6 +582,14 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
 
+        // La dashboard mostra la leaderboard, che loadSummaryStats NON
+        // ricalcola: ogni scrittura qui la rende stale fino a
+        // /statistiche. Si marca il contesto sporco e si lascia il
+        // refresh alla dashboard (refreshIfDirty). Viene fatto PRIMA
+        // del ramo offline, che pure torna qui senza passare da
+        // syncAndPersistMinutes.
+        useStatsStore.getState().markStatsDirty();
+
         const updatedEvents = currentEvents.filter(e => e.id !== eventId);
         const { home: homeGoals, away: awayGoals } = countGoals(updatedEvents);
         // Cancellare l'evento 'stoppage' deve cancellare anche il recupero:
@@ -577,6 +633,11 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const { matchId, match } = get();
         if (!matchId || !match) return;
 
+        // Un update della partita tocca quasi sempre il riepilogo o la
+        // leaderboard (result, status completed, durata), e NON passa da
+        // syncAndPersistMinutes quando non cambiano durata/recupero/stato.
+        useStatsStore.getState().markStatsDirty();
+
         let updates: Partial<Match> = { ...data };
         // Se la partita viene segnata come completata ma non c'è un risultato, lo inizializziamo a 0-0
         if (updates.status === 'completed' && !match.result && !updates.result) {
@@ -602,6 +663,14 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         const { matchId, match } = get();
         const user = useAuthStore.getState().user;
         if (!matchId || !match || !user) return;
+
+        // La dashboard mostra la leaderboard, che loadSummaryStats NON
+        // ricalcola: ogni scrittura qui la rende stale fino a
+        // /statistiche. Si marca il contesto sporco e si lascia il
+        // refresh alla dashboard (refreshIfDirty). Viene fatto PRIMA
+        // del ramo offline, che pure torna qui senza passare da
+        // syncAndPersistMinutes.
+        useStatsStore.getState().markStatsDirty();
 
         // Optimistic local update (works online and offline)
         set({ lineup: { ...lineupData, matchId } });

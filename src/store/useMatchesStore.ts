@@ -6,6 +6,7 @@ import type { Match } from '@/lib/types';
 import type { MatchCreateData } from '@/lib/repositories/match-repository';
 import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
+import { useStatsStore } from './useStatsStore';
 import { getErrorMessage } from '@/lib/error-utils';
 import { enqueueMutation, isOffline } from '@/lib/sync-queue';
 import { collection, query, onSnapshot } from 'firebase/firestore';
@@ -56,6 +57,10 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
             return undefined;
         }
 
+        // Una partita aggiunta, rimossa o aggiornata cambia record e
+        // leaderboard: la dashboard li deve rivedere al ritorno.
+        useStatsStore.getState().markStatsDirty();
+
         const newMatch = await matchRepository.add({
             ...data,
             userId: user.id,
@@ -70,12 +75,20 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         const activeSeason = useSeasonsStore.getState().activeSeason;
         if (!activeSeason || !user) return;
 
+        // Una partita aggiunta, rimossa o aggiornata cambia record e
+        // leaderboard: la dashboard li deve rivedere al ritorno.
+        useStatsStore.getState().markStatsDirty();
+
         await matchRepository.bulkAdd(matchesData, user.id, activeSeason.id);
         await get().fetchAll(activeSeason.id);
     },
     update: async (id, updates) => {
         const activeSeason = useSeasonsStore.getState().activeSeason;
         if (!activeSeason) return;
+
+        // Una partita aggiunta, rimossa o aggiornata cambia record e
+        // leaderboard: la dashboard li deve rivedere al ritorno.
+        useStatsStore.getState().markStatsDirty();
 
         if (isOffline()) {
           await enqueueMutation({ collection: 'matches', docId: id, action: 'update', seasonId: activeSeason.id, payload: updates });
@@ -92,6 +105,10 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         const activeSeason = useSeasonsStore.getState().activeSeason;
         if (!activeSeason) return;
 
+        // Una partita aggiunta, rimossa o aggiornata cambia record e
+        // leaderboard: la dashboard li deve rivedere al ritorno.
+        useStatsStore.getState().markStatsDirty();
+
         await matchRepository.delete(id, activeSeason.id);
         await get().fetchAll(activeSeason.id);
     },
@@ -99,6 +116,10 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         const user = useAuthStore.getState().user;
         const activeSeason = useSeasonsStore.getState().activeSeason;
         if (!activeSeason || !user) return;
+
+        // Una partita aggiunta, rimossa o aggiornata cambia record e
+        // leaderboard: la dashboard li deve rivedere al ritorno.
+        useStatsStore.getState().markStatsDirty();
 
         await matchRepository.deleteAll(user.id, activeSeason.id);
         await get().fetchAll(activeSeason.id);

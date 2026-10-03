@@ -18,6 +18,13 @@
         "name": "next"
       }
     ],
+    // baseUrl non e' opzionale con `paths`: senza, next/jest trasforma
+    // l'alias `@/*` in un percorso RELATIVO rispetto alla root che Next
+    // inferisce (che, con un package-lock.json anche in `~`, finisce fuori
+    // dal progetto) e produce richieste tipo "../../../../../src/lib/..." che
+    // non esistono: "Cannot find module". Con baseUrl esplicito l'alias
+    // torna a essere un path assoluto.
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

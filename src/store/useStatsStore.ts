@@ -62,6 +62,30 @@ interface StatsState {
     /** true se l'utente ha scelto la tab a mano: la preferenza salvata non la sovrascrive */
     matchFilterFromUser: boolean;
     detailedContext: SeasonDataContext | null;
+    /**
+     * true se qualcosa ha scritto dopo l'ultimo loadDetailedStats riuscito.
+     *
+     * Il riepilogo e la leaderboard sono due viste diverse dello stesso dato:
+     * `loadSummaryStats` ricalcola il record ma NON la leaderboard, quindi
+     * chiamarlo dopo una scrittura rende la dashboard (che legge la
+     * leaderboard) stale fino alla prossima pagina /statistiche. Qui si
+     * marca invece il contesto come sporco e si lascia decidere a chi
+     * visualizza la dashboard quanto ricaricare: il refresh completo costa 3
+     * query per partita completata, e va pagato solo quando serve vederlo.
+     */
+    statsDirty: boolean;
+    /**
+     * Stagione per cui `detailedContext` e gli aggregati sono validi.
+     *
+     * Serve a coprire il cambio stagione, che non e' una "scrittura": il flag
+     * puo' essere pulito mentre il contesto in memoria appartiene ancora alla
+     * stagione precedente, e la dashboard mostrerebbe i numeri dell'altra.
+     */
+    loadedSeasonId: string | null;
+    /** Segnala che gli aggregati in memoria non riflettono piu' Firestore */
+    markStatsDirty: () => void;
+    /** Ricarica gli aggregati se sporchi o di un'altra stagione: ritorna true se ha ricaricato */
+    refreshIfDirty: (seasonId?: string) => Promise<boolean>;
     loadSummaryStats: (seasonId?: string) => Promise<void>;
     loadDetailedStats: (seasonId?: string) => Promise<void>;
     setMatchFilter: (filter: FilterType) => void;
@@ -104,6 +128,35 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     matchFilter: 'all',
     matchFilterFromUser: false,
     detailedContext: null,
+    statsDirty: false,
+    loadedSeasonId: null,
+
+    // Idempotente sul valore: se e' gia' sporco non si crea un nuovo stato
+    // (e quindi non si forza un rerender) per ogni scrittura in sequenza.
+    markStatsDirty: () => { if (!get().statsDirty) set({ statsDirty: true }); },
+
+    refreshIfDirty: async (seasonId?: string) => {
+        const target = seasonId ?? useSeasonsStore.getState().activeSeason?.id;
+
+        // Senza stagione non c'e' niente da ricaricare. Va detto PRIMA del
+        // confronto: `loadedSeasonId` (null) === target (undefined) e' falso,
+        // quindi senza questo controllo si entrava in loadDetailedStats, che
+        // usciva subito, e refreshIfDirty ritornava true mentendo: il
+        // chiamante credeva i numeri freschi mentre erano quelli di prima.
+        if (!target) return false;
+
+        const state = get();
+
+        // Niente da fare se il contesto e' pulito E gia' della stagione
+        // richiesta: e' il caso normale al primo arrivo sulla dashboard, e
+        // ricaricare li' costerebbe 3 query per partita completata senza
+        // motivo. Il cambio stagione ricarica perche' loadedSeasonId non
+        // combacia, anche con il flag pulito.
+        if (!state.statsDirty && state.loadedSeasonId === target) return false;
+
+        await state.loadDetailedStats(target);
+        return true;
+    },
 
     loadSummaryStats: async (seasonId?: string) => {
         const user = useAuthStore.getState().user;
@@ -156,6 +209,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
             set({
                 detailedContext: context,
                 matchFilter: currentFilter,
+                statsDirty: false,
+                loadedSeasonId: activeSeasonId,
                 ...agg,
                 loading: false,
                 error: null,

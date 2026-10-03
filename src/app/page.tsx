@@ -49,11 +49,22 @@ export default function HomePage() {
   const { players } = usePlayersStore();
   const { matches, add: addMatch } = useMatchesStore();
   const { sessions } = useTrainingStore();
-  const { playerLeaderboard, matchFilter, setMatchFilter, detailedContext } = useStatsStore();
+  const { playerLeaderboard, matchFilter, setMatchFilter, detailedContext, refreshIfDirty } = useStatsStore();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Ricarica gli aggregati SOLO se sono sporchi: chi ha appena registrato un
+  // gol e torna sulla dashboard deve vedere il numero nuovo, ma il ricarico
+  // completo costa 3 query per partita completata e va pagato solo se serve.
+  // Prima stava solo su /statistiche, quindi qui i numeri restavano indietro
+  // finche' non ci passavi.
+  useEffect(() => {
+    if (!activeSeason?.id) return;
+    refreshIfDirty(activeSeason.id);
+    // Solo all'ingresso in pagina e al cambio stagione: non su ogni render.
+  }, [activeSeason?.id, refreshIfDirty]);
 
   const userName = user?.username || user?.email?.split('@')[0] || "Mister";
 

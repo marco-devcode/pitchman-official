@@ -74,6 +74,7 @@ export const usePlayersStore = create<PlayerState>()(
           
           await mutate(getPlayersSWRKey(user.id, activeSeason.id));
           await get().fetchAll(activeSeason.id);
+          useStatsStore.getState().markStatsDirty();
           useStatsStore.getState().loadSummaryStats();
           return newPlayer;
       },
@@ -94,6 +95,7 @@ export const usePlayersStore = create<PlayerState>()(
           
           await mutate(getPlayersSWRKey(user.id, activeSeason.id));
           await get().fetchAll(activeSeason.id);
+          useStatsStore.getState().markStatsDirty();
           useStatsStore.getState().loadSummaryStats();
       },
       update: async (id, updates) => {
@@ -111,6 +113,7 @@ export const usePlayersStore = create<PlayerState>()(
           if (updatedPlayer) {
               await mutate(getPlayersSWRKey(user.id, activeSeason.id));
               await get().fetchAll(activeSeason.id);
+              useStatsStore.getState().markStatsDirty();
               useStatsStore.getState().loadSummaryStats();
           }
       },
@@ -122,6 +125,7 @@ export const usePlayersStore = create<PlayerState>()(
           await playerRepository.delete(id, activeSeason.id);
           await mutate(getPlayersSWRKey(user.id, activeSeason.id));
           await get().fetchAll(activeSeason.id);
+          useStatsStore.getState().markStatsDirty();
           useStatsStore.getState().loadSummaryStats();
       },
       removeAll: async () => {
@@ -132,6 +136,7 @@ export const usePlayersStore = create<PlayerState>()(
           await playerRepository.deleteAll(user.id, activeSeason.id);
           await mutate(getPlayersSWRKey(user.id, activeSeason.id));
           await get().fetchAll(activeSeason.id);
+          useStatsStore.getState().markStatsDirty();
           useStatsStore.getState().loadSummaryStats();
       },
       subscribe: (userId: string, seasonId: string) => {
