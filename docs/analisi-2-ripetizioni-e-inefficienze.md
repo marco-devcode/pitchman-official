@@ -38,54 +38,79 @@ Pericolosità: è il caso in cui un file che sembra una guardia d'accesso è in
 realtà un documento. Se domani un ruolo in più, l'unico posto che lo controlla
 è `RoleGuard`, e il resto dell'app non chiede.
 
-## 2. `npm test` non esegue quasi niente, e la riga di riepilogo sembra un successo
+## 2. Le suite non partivano per sei cause diverse, e una era un difetto di codice
 
 `package.json:14` — `"test": "jest --passWithNoTests"`
 
-Misurato:
+Stato iniziale misurato su CI (ubuntu, run `37024456028`), che è l'unico
+ambiente dove la misura è valida:
 
 ```
-Test Suites: 11 failed, 2 passed, 13 total
-Tests:       31 passed, 31 total
+Test Suites: 6 failed, 7 passed, 13 total
+Tests:       4 failed, 69 passed, 73 total
 ```
 
-**Undici suite su tredici non partono.** La riga `Tests: 31 passed` è l'ultima
-e sembra un verde: chi scorre l'output vede un test che passa. In realtà quei 31
-test sono tutti nelle due suite sopravvissute, e il repository di aggregazione —
-presenze, minuti, record, quello che ho modificato quattro volte in questi giorni
-— non è fra le due.
+**Correzione: la versione di questo rilievo che avevo scritto prima era
+sbagliata in due punti, entrambi per una misura fatta sulla macchina sbagliata.**
 
-La causa è una sola e la riproduco:
+1. Avevo scritto "11 suite su 13 non partono". Era il conteggio di Termux, dove
+   `@next/swc-android-arm64` non è installabile e i worker muoiono con `Jest
+   worker encountered 4 child process exceptions`. Su CI le suite girano: erano
+   6 fallite, non 11 non eseguite.
+2. Avevo scritto che la causa era l'alias `@/` non risolto da Jest. **Falso.**
+   `jest.config.js` ha già `moduleNameMapper: {'^@/(.*)$': '<rootDir>/src/$1'}` e
+   `--showConfig` lo conferma. L'ho smentito con una sonda: un file di test
+   che importa `@/services/stats-advanced-service` fallisce con `Cannot find
+   module '../../../../../../../.././src/services/...'`. Quel percorso con
+   otto `../` è il *risultato* del mapper applicato da un resolver che non lo
+   sta usando, non l'assenza del mapper. Su CI, dove il binario SWC c'è, le
+   stesse suite passano.
+
+Le sei cause reali, una per suite:
+
+| Suite | Errore | Causa | Tipo |
+|---|---|---|---|
+| `useAsyncAction.test.ts`, `async-feedback.test.tsx` | `Cannot find module '@testing-library/dom'` | `@testing-library/react@16` ha `@testing-library/dom` come **peerDependency**, non dichiarata in `package.json` | dipendenza mancante |
+| `async-feedback.test.tsx` | `SyntaxError: Cannot use import statement outside a module` su `lucide-react.js` | `lucide-react` è ESM-only e Jest non trasforma `node_modules` per default | config |
+| `e2e/smoke.spec.ts` | `Class extends value undefined is not a constructor` | **Jest eseguiva il test E2E.** `playwright/test` non è un modulo Jest; gli E2E hanno un runner e un comando propri | config |
+| `player-repository.test.ts` | `Cannot read properties of undefined (reading 'toUpperCase')` | Il test chiamava `add()` senza `firstName`/`lastName`, obbligatori in `PlayerCreateData` (`types.ts:344`) | test datato |
+| `season-repository.test.ts` (2) | `(0, _firestore.or) is not a function` | Il mock elencava a mano le funzioni di `firebase/firestore` e **`or` non era nella lista**, pur essendo usata a `season-repository.ts:29` | test fragile |
+| `stats-advanced-service.test.ts` | `expect(stats.bestCbPair.length).toBe(1)` — ricevuto 0 | Il test passava lineup da 3 titolari; in un 4-4-2 i centrali sono ai posti 2 e 3, quindi la coppia non poteva formarsi | test datato |
+
+Nota sul `jest.config.js`: **`next/jest` restituisce una funzione, non un
+oggetto**, e i suoi `transformIgnorePatterns` vengono *prima* di quelli
+custom (Jest usa il primo che matcha). Quindi `transformIgnorePatterns:
+['/node_modules/(?!(lucide-react)/)']` nella config custom non ha nessun
+effetto — l'ho verificato con `--showConfig` prima e dopo. Serve riscrivere
+l'array **dopo** aver risolto la config.
+
+Nota sul metodo, due volte. La prima volta ho scritto "il test passa, quindi il
+repository risulta coperto" senza aver misurato. La seconda ho attribuito la
+causa all'alias misurando su Termux invece che su CI, dove l'alias è
+configurato e funziona. Un'analisi con una conclusione sbagliata in testa è
+peggio di un'analisi senza conclusioni, quindi lascio dentro entrambe le
+correzioni invece di cancellarle.
+
+### Stato dopo la sistemazione
 
 ```
-Cannot find module '../../../../../../../../.././src/ai/flows/chatbot-flow'
-  from 'src/services/ai.service.ts'
+Test Suites: 12 passed, 12 total
+Tests:       89 passed, 89 total
 ```
 
-`src/services/ai.service.ts:3` importa `@/ai/flows/chatbot-flow`, che Jest
-risolve come percorso relativo e non come alias. Tutte le suite che transitano
-per quel modulo muoiono lì. Il path con otto `../` è il sintomo: è un alias
-scritto a mano che regge solo finché la profondità delle cartelle non cambia.
+`aggregation-repository.test.ts` non era più recuperabile come era: conteneva
+`expect(true).toBe(true)` con un TODO su `dexie-mock-extended`, una dipendenza
+che il repository non usa. Le funzioni che contano presenze, minuti e record
+(`getTeamRecordFromContext`, `getPlayersAggregatedStatsFromContext`) sono
+**pure**: prendono un `SeasonDataContext` già costruito e non toccano
+Firestore. Non servono mock, quindi il file è stato riscritto con 9 test
+veri, fra cui il caso che storicamente è stato sbagliato in quattro
+implementazioni diverse: **il subentrato all'ultimo minuto di recupero ha 0
+minuti ma ha giocato**, e **chi resta in panchina non ha presenze**.
 
-`src/lib/repositories/aggregation-repository.test.ts` è una delle suite che
-non parte. Dentro è anche un test che verifica che `true` sia `true`:
-
-```ts
-it('should have tests', () => {
-    // TODO: Re-enable tests once dependency issue is resolved.
-    expect(true).toBe(true);
-});
-```
-
-Quindi due problemi distinti, e vanno risolti in ordine: **prima** l'alias, che
-è un modulo mancante (`moduleNameMapper` in `jest.config`, o l'import relativo),
-**poi** la copia vuota, che comunque non verifica niente e va cancellata finché
-non si rimette.
-
-Nota sul metodo: avevo scritto qui che "il test passa, quindi il repository
-risulta coperto". È falso, e l'ho scritto prima di misurare. Il caso reale è
-più grave, perché il test non parte. Mi correggo perché un'analisi con una
-conclusione sbagliata in testa è peggio di un'analisi senza conclusioni.
+Restano due warning di `next lint` (`<img>` in `app-header.tsx` e
+`splash-screen.tsx`, più due dipendenze di hook in `allenamento/`), presenti
+prima di questo lavoro e non introdotti qui.
 
 ## 3. Un campo deprecato è ancora quello mostrato all'utente
 
@@ -210,11 +235,16 @@ chiamata, i tre wrapper locali no.
 
 ## In sintesi
 
-**Il più serio è il 2.** Undici suite su tredici non si eseguono, e la riga di
-riepilogo dice `31 passed`, che sembra un verde. Il repository di aggregazione non
-è fra le due che girano, e nessuno se ne accorge perché il comando non fallisce
-in modo che si noti. Il secondo è il **1**: sei permessi scritti e mai applicati,
-con un sistema parallelo che funziona e che nessuno documenta.
+**Il più serio è il 2.** Sei suite su tredici non passavano, per sei cause
+diverse: una peer dependency non dichiarata, un pacchetto ESM-only non
+trasformato, un test E2E che Jest eseguiva per sbaglio, due test datati e un
+mock di Firestore scritto a mano che si rompe a ogni funzione nuova. La riga
+di riepilogo diceva `4 failed, 69 passed` e non rendeva chiaro che il
+repository di aggregazione — presenze, minuti, record, quello modificato
+quattro volte in questi giorni — non avesse un solo test che lo coprisse.
+Ora è sistemato: 12 suite, 89 test, tutti verdi. Il secondo è il **1**: sei
+permessi scritti e mai applicati, con un sistema parallelo che funziona e che
+nessuno documenta.
 
 **Il 3 e il 10 sono difetti che l'utente può vedere**: due schermate che
 dicono ruoli diversi sullo stesso giocatore, e grafici con il colore del tema

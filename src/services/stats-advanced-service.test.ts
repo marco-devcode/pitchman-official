@@ -44,11 +44,23 @@ describe('Advanced Stats Service', () => {
         } as Match,
     ];
 
+    // NOTA: le lineup devono avere 11 titolari, non 3. Il test precedente ne
+    // passava 3 ('P1','P2','P3') e il risultato era ZERO coppie DC, non un
+    // bug di computeBestDefenseStats ma un test che non descriveva una partita:
+    // in un 4-4-2 i centrali sono ai posti 2 e 3 (POR,TS,DC,DC,TD,...), quindi
+    // con 3 elementi la seconda coppia non esiste e veniva scartata.
+    // Verificato con una sonda: 11 titolari -> coppia in uscita, 3 -> lista
+    // vuota.
+    //
+    // M4 mette P1 accanto a un altro centrale (DC3, non un giocatore reale):
+    // e' il caso che tiene la coppia P1|P2 a 3 partite, come le asserzioni
+    // qui sotto richiedono, e copre il fatto che la coppia si contesta solo
+    // quando quei due sono davvero in campo insieme.
     const mockLineups: Record<string, MatchLineup> = {
-        'M1': { matchId: 'M1', starters: ['P1', 'P2', 'P3'], substitutes: [] },
-        'M2': { matchId: 'M2', starters: ['P1', 'P2', 'P4'], substitutes: [] },
-        'M3': { matchId: 'M3', starters: ['P1', 'P2', 'P3'], substitutes: [] },
-        'M4': { matchId: 'M4', starters: ['P1', 'P4'], substitutes: [] },
+        'M1': { matchId: 'M1', formation: '4-4-2', starters: ['POR', 'TS', 'P1', 'P2', 'TD', 'P3', 'CS', 'CD', 'AD', 'AS', 'ATT'], substitutes: [] },
+        'M2': { matchId: 'M2', formation: '4-4-2', starters: ['POR', 'TS', 'P1', 'P2', 'TD', 'P4', 'CS', 'CD', 'AD', 'AS', 'ATT'], substitutes: [] },
+        'M3': { matchId: 'M3', formation: '4-4-2', starters: ['POR', 'TS', 'P1', 'P2', 'TD', 'P3', 'CS', 'CD', 'AD', 'AS', 'ATT'], substitutes: [] },
+        'M4': { matchId: 'M4', formation: '4-4-2', starters: ['POR', 'TS', 'P1', 'DC3', 'TD', 'P4', 'CS', 'CD', 'AD', 'AS', 'ATT'], substitutes: [] },
     };
 
     const mockEvents: Record<string, MatchEvent[]> = {
