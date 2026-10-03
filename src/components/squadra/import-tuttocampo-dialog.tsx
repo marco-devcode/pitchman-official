@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { authHeaders } from '@/lib/api-client';
 import {
   Dialog,
   DialogContent,
@@ -35,9 +36,10 @@ export function ImportTuttocampoDialog({ open, onOpenChange, onSave }: ImportTut
     try {
       const response = await fetch('/api/import-rosa', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        // `authHeaders()` porta l'ID token: la route controlla il ruolo e
+        // risponde 401 senza. Senza, l'import falliva con "Errore durante lo
+        // scraping", che sembrava un problema di scraping.
+        headers: await authHeaders(),
         body: JSON.stringify({ squadraUrl: url.trim() }),
       });
 

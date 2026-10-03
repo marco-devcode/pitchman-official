@@ -26,6 +26,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { authHeaders } from '@/lib/api-client';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -125,7 +126,8 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
     try {
       const risposta = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // L'ID token serve perche' la route controlla il ruolo.
+        headers: await authHeaders(),
         body: JSON.stringify({ prompt: testo }),
       });
 

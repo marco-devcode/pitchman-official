@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { scrapeCalendario } from '@/lib/tuttocampo-scraper';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
+  // Nessun controllo prima: chiunque poteva far scrivere un calendario.
+  // Coach e developer possono.
+  const auth = await requireAuth(request, ['coach', 'director', 'developer']);
+  if (!auth) return;
+
   try {
     const { calendarUrl } = await request.json();
 

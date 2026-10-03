@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { authHeaders } from '@/lib/api-client';
 import {
   Dialog,
   DialogContent,
@@ -37,9 +38,8 @@ export function ImportCalendarioScraperDialog({ open, onOpenChange }: ImportCale
     try {
       const response = await fetch('/api/import-calendario', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        // L'ID token serve perche' la route controlla il ruolo.
+        headers: await authHeaders(),
         body: JSON.stringify({ calendarUrl: url.trim() }),
       });
 

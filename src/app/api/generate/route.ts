@@ -26,6 +26,7 @@ import {
   generateDrillVariants,
 } from '@/ai/flows/generate-drill-variants-flow';
 import { repairVariants } from '@/lib/repair-drill';
+import { requireAuth } from '@/lib/api-auth';
 import type { Drill } from '@/lib/drill';
 
 // La generazione chiama un servizio esterno: senza questo limite, un doppio
@@ -34,6 +35,12 @@ import type { Drill } from '@/lib/drill';
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  // Nessun controllo prima: chiunque poteva far generare esercizi e quindi
+  // consumare crediti Gemini. Coach e developer possono, come dice
+  // `canCreateGlobalExercises` in `hooks/usePermissions.ts`.
+  const auth = await requireAuth(request, ['coach', 'director', 'developer']);
+  if (!auth) return;
+
   let prompt = '';
 
   try {

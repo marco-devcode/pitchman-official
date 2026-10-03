@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { scrapeRosa } from '@/lib/tuttocampo-scraper';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
+  // Prima non c'era nessun controllo: la route accettava richieste senza token,
+  // quindi chiunque poteva far scrivere una rosa a piacere. Coach e developer
+  // possono, come dice `canEditRoster` in `hooks/usePermissions.ts`.
+  const auth = await requireAuth(request, ['coach', 'director', 'developer']);
+  if (!auth) return;
+
   try {
     const { squadraUrl } = await request.json();
 
