@@ -14,13 +14,23 @@ import { useLiveTimerStore } from "@/store/useLiveTimerStore";
 import { LiveMatchEventWorkflow } from "./live-match-event-workflow";
 import { MatchEventType } from "@/lib/types";
 
+/**
+ * Il GOL e i bottoni neutri prendono il gradiente: bordo a gradiente e
+ * riempimento mescolato col nero, con testo `--t1`.
+ *
+ * Il testo NON va sul gradiente pieno: su due colori arbitrari nessun bianco
+ * o nero supera 4.5:1 su entrambi gli estremi (vedi regola 6).
+ *
+ * Ammonizione ed espulsione restano gialle e rosse: sono esiti, non tema —
+ * come il badge di vittoria, e valgono la stessa eccezione.
+ */
 const EVENT_BUTTONS = [
-  { type: "goal", label: "GOL", color: "bg-brand-green text-black hover:bg-brand-green/80 border-transparent" },
-  { type: "chance", label: "OCCASIONE", color: "bg-muted/50 text-foreground hover:bg-muted border-border" },
-  { type: "woodwork", label: "PALO / TRAVERSA", color: "bg-muted/50 text-foreground hover:bg-muted border-border" },
+  { type: "goal", label: "GOL", color: "border-theme bg-theme-fill-soft text-theme hover:bg-theme-fill shadow-theme" },
+  { type: "chance", label: "OCCASIONE", color: "border-theme bg-transparent text-foreground hover:bg-theme-fill-soft" },
+  { type: "woodwork", label: "PALO / TRAVERSA", color: "border-theme bg-transparent text-foreground hover:bg-theme-fill-soft" },
   { type: "yellow_card", label: "AMMONIZIONE", color: "bg-brand-card-yellow text-white hover:opacity-90 border-transparent" },
   { type: "red_card", label: "ESPULSIONE", color: "bg-brand-card-red text-white hover:opacity-90 border-transparent" },
-  { type: "substitution", label: "SOSTITUZIONE", color: "bg-muted/50 text-foreground hover:bg-muted border-border" },
+  { type: "substitution", label: "SOSTITUZIONE", color: "border-theme bg-transparent text-foreground hover:bg-theme-fill-soft" },
 ];
 
 export function LiveMatchTracker({ open, onOpenChange }: { open: boolean, onOpenChange: (o: boolean) => void }) {
@@ -138,7 +148,7 @@ export function LiveMatchTracker({ open, onOpenChange }: { open: boolean, onOpen
         </DialogHeader>
 
         {/* Timer Section */}
-        <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border border-border dark:border-brand-green/20 p-5 rounded-2xl mb-6 shadow-inner">
+        <div className="flex items-center justify-between bg-muted/20 dark:bg-black/40 border-theme p-5 rounded-2xl mb-6 shadow-inner" style={{ borderWidth: 2 }}>
            <div className="flex flex-col items-center gap-2">
              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tempo</span>
              <Switch 
@@ -154,7 +164,7 @@ export function LiveMatchTracker({ open, onOpenChange }: { open: boolean, onOpen
            </div>
 
            <div className="flex flex-col gap-2">
-             <Button size="icon" variant="outline" className="h-10 w-10 rounded-full border-primary dark:border-brand-green text-primary dark:text-brand-green hover:bg-primary/10 dark:hover:bg-brand-green/10" onClick={handleStartPause}>
+             <Button size="icon" variant="outline" className="h-10 w-10 rounded-full border-theme text-theme hover:bg-theme-fill-soft shadow-theme" onClick={handleStartPause}>
                {isRunning ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 translate-x-0.5" />}
              </Button>
              <Button size="icon" variant="outline" className="h-10 w-10 rounded-full border-rose-500 text-rose-500 hover:bg-rose-500/10" onClick={handleStop}>
@@ -178,11 +188,11 @@ export function LiveMatchTracker({ open, onOpenChange }: { open: boolean, onOpen
 
         {/* Teams Tabs */}
         <Tabs defaultValue="home" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4 h-14 bg-muted/50 dark:bg-black/40 border border-border dark:border-brand-green/20 p-1.5 rounded-2xl">
-            <TabsTrigger value="home" className="text-xs font-black uppercase tracking-widest rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:text-primary dark:data-[state=active]:text-brand-green data-[state=active]:shadow-sm transition-all overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2 mb-4 h-14 bg-muted/50 dark:bg-black/40 border-theme p-1.5 rounded-2xl" style={{ borderWidth: 2 }}>
+            <TabsTrigger value="home" className="text-xs font-black uppercase tracking-widest rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:text-theme data-[state=active]:shadow-sm transition-all overflow-hidden">
               <span className="truncate w-full block px-2">{homeName}</span>
             </TabsTrigger>
-            <TabsTrigger value="away" className="text-xs font-black uppercase tracking-widest rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:text-primary dark:data-[state=active]:text-brand-green data-[state=active]:shadow-sm transition-all overflow-hidden">
+            <TabsTrigger value="away" className="text-xs font-black uppercase tracking-widest rounded-xl data-[state=active]:bg-card dark:data-[state=active]:bg-black data-[state=active]:text-theme data-[state=active]:shadow-sm transition-all overflow-hidden">
               <span className="truncate w-full block px-2">{awayName}</span>
             </TabsTrigger>
           </TabsList>

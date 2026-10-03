@@ -164,8 +164,8 @@ export function LiveMatchEventWorkflow({
                       "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all cursor-pointer",
                       pid ? (
                         isSelected 
-                        ? "bg-brand-green border-brand-green text-black scale-110 shadow-[0_0_15px_rgba(172,229,4,0.5)]"
-                        : "bg-neutral-800 border-neutral-700 text-white hover:border-brand-green/50"
+                        ? "border-theme bg-theme-fill text-theme scale-110 shadow-theme"
+                        : "bg-neutral-800 border-neutral-700 text-white hover:border-theme"
                       ) : "bg-neutral-900 border-neutral-800 border-dashed"
                     )}>
                       {pid ? <span className="text-[8px] font-black">{acronym}</span> : null}
@@ -193,7 +193,7 @@ export function LiveMatchEventWorkflow({
                   size="sm" 
                   className={cn(
                     "h-8 text-[9px] font-bold uppercase justify-start px-2 rounded-lg border-white/10",
-                    isSelected && "bg-brand-green border-brand-green text-black"
+                    isSelected && "border-theme bg-theme-fill text-theme"
                   )}
                   onClick={() => handlePlayerSelect(pid)}
                 >
@@ -237,7 +237,7 @@ export function LiveMatchEventWorkflow({
                           variant="outline"
                           className={cn(
                             "h-12 justify-start px-4 rounded-xl border-white/5 bg-white/5 hover:bg-white/10 text-white font-bold transition-all",
-                            isSelected && "bg-brand-green/20 border-brand-green text-brand-green"
+                            isSelected && "border-theme bg-theme-fill-soft text-theme"
                           )}
                           onClick={() => handlePlayerSelect(player.id)}
                         >
@@ -272,7 +272,7 @@ export function LiveMatchEventWorkflow({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md bg-black border border-brand-green/30 text-white p-6 rounded-[32px] shadow-2xl">
+      <DialogContent className="max-w-[95vw] sm:max-w-md bg-black border-theme text-white p-6 rounded-[32px] shadow-2xl" style={{ borderWidth: 2 }}>
         <DialogHeader className="mb-4">
           <div className="flex items-center justify-between">
             {step !== 'player' && (
@@ -303,7 +303,7 @@ export function LiveMatchEventWorkflow({
                   <div className="relative">
                     <input 
                       autoFocus
-                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-lg font-black uppercase tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-brand-green/50 transition-all"
+                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-lg font-black uppercase tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-theme transition-all"
                       placeholder={opponentName || "AVVERSARIO"}
                       value={eventType === 'substitution' ? customSubOutName : customPlayerName}
                       onChange={(e) => eventType === 'substitution' ? setCustomSubOutName(e.target.value) : setCustomPlayerName(e.target.value)}
@@ -383,7 +383,7 @@ export function LiveMatchEventWorkflow({
                   <div className="relative">
                     <input 
                       autoFocus
-                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-lg font-black uppercase tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-brand-green/50 transition-all"
+                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-lg font-black uppercase tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-theme transition-all"
                       placeholder={opponentName || "AVVERSARIO"}
                       value={customAssistName}
                       onChange={(e) => setCustomAssistName(e.target.value)}
@@ -427,7 +427,7 @@ export function LiveMatchEventWorkflow({
                   <div className="relative">
                     <input 
                       autoFocus
-                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-lg font-black uppercase tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-brand-green/50 transition-all"
+                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-lg font-black uppercase tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-theme transition-all"
                       placeholder={opponentName || "AVVERSARIO"}
                       value={customPlayerName}
                       onChange={(e) => setCustomPlayerName(e.target.value)}
