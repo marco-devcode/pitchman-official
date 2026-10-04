@@ -132,6 +132,14 @@ service cloud.firestore {
       // richiesta che omette un campo lo CANCELLA, e cancellare `name` non e'
       // la stessa cosa che non scriverlo.
       //
+      // `isActive` NON e' piu' scrivibile. Il campo esiste ancora sui documenti
+      // vecchi ma nessuno lo scrive: la stagione attiva e' una scelta PERSONALE
+      // e vive in `users/{uid}/settings`, perche' il documento della stagione e'
+      // condiviso e due allenatori con la stessa stagione attiva si
+      // sovrascriverebbero. Tenere il campo nella lista dei campi di profilo
+      // sarebbe una porta aperta inutile: nessuno lo usa e nessuno deve poterlo
+      // scrivere.
+      //
       // `playerCount` NON e' piu' scritto dal client. Esisteva per applicare un
       // tetto di giocatori dal lato rules: senza tetto il contatore non serve a
       // nulla e sarebbe solo un numero che puo' sbagliare in due modi
@@ -140,7 +148,7 @@ service cloud.firestore {
       // dato storico, scritto dal server.
       allow update: if signedIn() && isOwner(seasonId) &&
                     request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['name', 'updatedAt', 'isActive']) &&
+                      .hasOnly(['name', 'updatedAt']) &&
                     request.resource.data.diff(resource.data).affectedKeys()
                       .hasAll(['name', 'updatedAt']);
 

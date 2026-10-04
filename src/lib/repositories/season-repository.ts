@@ -16,31 +16,43 @@ import {
 import type { Season } from '@/lib/types';
 import { SeasonSchema } from '@/lib/schemas';
 import { activeSeasonRepository } from '@/lib/repositories/active-season-repository';
+import { authHeaders } from '@/lib/api-client';
 
 export const seasonRepository = {
+    /**
+     * Le stagioni dell'utente, da `GET /api/seasons`.
+     *
+     * PRIMA faceva la query dal client: `where('ownerId','==',uid) OR
+     * where('sharedWith','array-contains',uid)`. Con le regole v2 quella query
+     * non e' piu' utilizzabile perche' le regole non possono valutare un OR su
+     * due campi diverse per ogni documento, e perche' l'appartenenza si legge
+     * ora anche da `members`/`memberUids`. Il server fa tre query e le unisce.
+     *
+     * Nota sul perimetro: il server restituisce anche le stagioni in cui
+     * l'utente e' dentro tramite `sharedWith` (il percorso legacy). Sono
+     * stagioni che l'utente VEDE gia' oggi nell'app: ometterle lo lascerebbe con
+     * una stagione gia' aperta che sparisce dalla lista.
+     */
     async getAll(userId: string) {
         if (!userId) return [];
-        const db = getFirestore();
-        const seasonsRef = collection(db, 'teams');
-        
-        // Fetch seasons where user is owner OR where user is in sharedWith array
-        const q = query(
-          seasonsRef, 
-          or(
-            where('ownerId', '==', userId),
-            where('sharedWith', 'array-contains', userId)
-          )
-        );
-        
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => {
-          const data = { ...doc.data(), id: doc.id };
-          const parsed = SeasonSchema.safeParse(data);
-          if (!parsed.success) {
-            console.error("Schema validation failed for Season:", parsed.error);
-            return data as Season;
-          }
-          return parsed.data as Season;
+
+        const res = await fetch('/api/seasons', { headers: await authHeaders() });
+        if (!res.ok) {
+            console.error('[seasonRepository.getAll] fallita:', res.status);
+            return [];
+        }
+
+        const body = await res.json().catch(() => null);
+        const stagioni = (body?.seasons ?? []) as Array<Record<string, unknown>>;
+
+        return stagioni.map((raw) => {
+            const data = { ...raw, id: raw.id };
+            const parsed = SeasonSchema.safeParse(data);
+            if (!parsed.success) {
+                console.error("Schema validation failed for Season:", parsed.error);
+                return data as Season;
+            }
+            return parsed.data as Season;
         });
     },
 
@@ -64,81 +76,90 @@ export const seasonRepository = {
         return seasons.find(s => s.id === savedId);
     },
 
+    /**
+     * Crea una stagione via `POST /api/seasons`, non col client SDK.
+     *
+     * LA SCELTA E' OBBLIGATA, non una preferenza. Le Security Rules v2 hanno
+     * `allow create: if false` su `teams/{seasonId}`, perche' il documento porta
+     * `members`, `memberUids`, `plan` e `limits`: se il client potesse
+     * scriverli, leggere le regole gli basterebbe per crearsi una stagione con
+     * mille membri o il piano che preferisce. Con `create: false` l'unica via e'
+     * il server.
+     *
+     * E' anche la via giusta per un secondo motivo: l'id della stagione lo
+     * genera il server con `crypto.randomBytes`. Qui era `Math.random()`, che
+     * e' un PRNG: il suo stato si ricava dai suoi output, e quell'id e' cioe'
+     * la chiave che autorizza l'accesso ai dati di una squadra. Predicibile
+     * vuol dire indovinabile.
+     */
     async add(name: string, userId: string) {
-        const db = getFirestore();
-        const shortRandom = Math.random().toString(36).substring(2, 7).toUpperCase();
-        const id = `S-${shortRandom}`;
-        
-        const newSeason: Season = { 
-            id, 
-            userId, 
-            ownerId: userId, 
-            name, 
-            isActive: false,
-            sharedWith: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'teams', id), newSeason);
-        return newSeason;
+        const res = await fetch('/api/seasons', {
+            method: 'POST',
+            headers: await authHeaders(),
+            body: JSON.stringify({ name }),
+        });
+        const body = await res.json().catch(() => null);
+
+        if (!res.ok) {
+            throw Object.assign(
+                new Error(body?.error?.message || 'Non riesco a creare la stagione.'),
+                { userFacing: true },
+            );
+        }
+
+        // Il documento appena creato viene riletto: restituirlo qui senza
+        // rileggerlo lascerebbe fuori `members` e `limits`, che lo store e la
+        // UI si aspettano di trovare.
+        return (await this.getById(body.id)) as Season;
     },
 
+    /**
+     * Entra in una stagione con `POST /api/invites/redeem`.
+     *
+     * LA SCELTA E' OBBLIGATA. Il vecchio percorso scriveva `sharedWith` dal
+     * client, e le regole v2 vietano a un non-proprietario di scrivere il
+     * documento della stagione: solo l'owner puo' toccare i campi di profilo. Il
+     * join quindi deve passare dal server, che verifica codice, scadenza, uso e
+     * tetto membri dentro una transazione.
+     *
+     * E' anche piu' sicuro per l'utente: il server distingue "codice sbagliato"
+     * da "stagione piena" da "gia' dentro", e controlla il tetto membri che il
+     * client non poteva verificare.
+     *
+     * I CODICI ESISTENTI restano validi per 30 giorni dalla migrazione, quindi
+     * chi li ha gia' passato continua a poterli usare.
+     */
     async joinSeason(seasonId: string, userId: string) {
-        const db = getFirestore();
-        const seasonRef = doc(db, 'teams', seasonId);
-        // Errori con testo gia' scritto per l'utente: parseError li lascia
-        // passare invece di sostituirli con "errore imprevisto".
         const userError = (message: string) =>
             Object.assign(new Error(message), { userFacing: true });
 
-        // PASSO 1: verificare che il codice corrisponda a una stagione.
-        // Questa lettura veniva negata dalle regole (si puo' leggere solo la
-        // propria stagione o quelle in cui si e' gia' dentro), quindi il join
-        // falliva subito qui con "Missing or insufficient permissions".
-        let seasonSnap;
-        try {
-            seasonSnap = await getDoc(seasonRef);
-        } catch (e: any) {
-            console.error("[join] lettura stagione fallita:", e);
-            throw userError(
-                `Non riesco a leggere la stagione con il codice "${seasonId}". ` +
-                `Se l'hai creata su un altro account o le regole non sono ancora state pubblicate, ` +
-                `quello che vedi è un problema di permessi, non un codice sbagliato.`
-            );
-        }
+        const res = await fetch('/api/invites/redeem', {
+            method: 'POST',
+            headers: await authHeaders(),
+            body: JSON.stringify({ code: seasonId }),
+        });
+        const body = await res.json().catch(() => null);
 
-        if (!seasonSnap.exists()) {
-            throw userError("Stagione non trovata. Controlla il codice d'invito.");
-        }
+        if (res.ok) return body.seasonId as string;
 
-        const seasonData = seasonSnap.data() as Season;
-        if (seasonData.ownerId === userId) {
-            throw userError("Sei già il proprietario di questa stagione.");
-        }
+        const codice = body?.error?.code as string | undefined;
+        const messaggio = body?.error?.message as string | undefined;
 
-        if (seasonData.sharedWith?.includes(userId)) {
-            throw userError("Hai già partecipato a questa stagione.");
+        switch (codice) {
+            case 'ALREADY_MEMBER':
+                throw userError('Hai gia\' partecipato a questa stagione.');
+            case 'MEMBERS_FULL':
+                throw userError(messaggio ?? 'Questa stagione ha gia\' tutto lo staff che puo\' avere.');
+            case 'INVITE_INVALID':
+                throw userError('Codice non valido o scaduto.');
+            case 'UNAUTHORIZED':
+                throw userError('Devi essere collegato per entrare in una stagione.');
+            case 'RATE_LIMITED':
+                throw userError(messaggio ?? 'Hai provato troppi codici. Riprova fra poco.');
+            default:
+                console.error('[join] riscatto fallito:', codice, messaggio);
+                throw userError(messaggio ?? `Non riesco a entrare nella stagione "${seasonId}".`);
         }
-
-        // PASSO 2: aggiungersi. Scrive solo sharedWith e updatedAt, e la
-        // regola permette a un non-proprietario esattamente questa forma.
-        try {
-            await updateDoc(seasonRef, {
-                sharedWith: arrayUnion(userId),
-                updatedAt: new Date().toISOString()
-            });
-        } catch (e: any) {
-            console.error("[join] iscrizione fallita:", e);
-            const negato = e?.code === 'permission-denied' ||
-                /insufficient permissions/i.test(e?.message ?? '');
-            throw userError(negato
-                ? `Accesso negato: le regole del database non permettono ancora di entrare con il codice. ` +
-                  `Le regole Firestore vanno pubblicate (firebase deploy --only firestore:rules).`
-                : `Non riesco a entrare nella stagione "${seasonId}". Riprova.`
-            );
-        }
-
-        return seasonSnap.id;
     },
 
     async setActive(id: string, userId: string) {
@@ -152,42 +173,36 @@ export const seasonRepository = {
         await activeSeasonRepository.set(userId, id);
     },
 
+    /**
+     * Elimina la stagione con `DELETE /api/seasons/[id]`.
+     *
+     * LE REGOLE v2 hanno `allow delete: if false`: la cancellazione passa dal
+     * server. E serve, perche' la versione client era INCOMPLETA. Elencava a
+     * mano cinque sottocollection — players, matches, sessions, events,
+     * trainings — e non sapeva di `physicalTests`, di `aggregates`, ne' delle
+     * sottocollection dentro `matches` (lineup, events, stats) e dentro
+     * `sessions` (attendance). La cancellazione riusciva e lasciava metà dei
+     * dati di squadra a terra: senza errore, senza avviso, e con quei documenti
+     * che nessuno poteva piu' cancellare perche' la stagione non esisteva piu'.
+     *
+     * `recursiveDelete` con l'Admin SDK copre tutto per costruzione: non c'è un
+     * elenco da tenere aggiornato, quindi non c'è un posto dove possa
+     * dimenticarsi una collection.
+     */
     async delete(id: string) {
-        const db = getFirestore();
-        
-        // Delete all subcollections in parallel
-        const subcollections = ['players', 'matches', 'sessions', 'events', 'trainings'];
-        
-        await Promise.all(subcollections.map(async (sub) => {
-            try {
-                const subRef = collection(db, 'teams', id, sub);
-                const subSnap = await getDocs(subRef);
-                if (subSnap.empty) return;
-                
-                let batch = writeBatch(db);
-                let count = 0;
-                
-                for (const d of subSnap.docs) {
-                    batch.delete(d.ref);
-                    count++;
-                    if (count >= 499) {
-                        await batch.commit();
-                        batch = writeBatch(db);
-                        count = 0;
-                    }
-                }
-                
-                if (count > 0) {
-                    await batch.commit();
-                }
-            } catch (err: any) {
-                console.error(`[seasonRepository.delete] ${sub}: FAILED -`, err?.code, err?.message);
-                throw err;
-            }
-        }));
-        
-        // Delete the season document itself
-        await deleteDoc(doc(db, 'teams', id));
+        const res = await fetch(`/api/seasons/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: await authHeaders(),
+        });
+        const body = await res.json().catch(() => null);
+
+        if (!res.ok) {
+            console.error('[seasonRepository.delete] fallita:', body?.error?.code);
+            throw Object.assign(
+                new Error(body?.error?.message || 'Non riesco a eliminare la stagione.'),
+                { userFacing: true },
+            );
+        }
     },
 
     async rename(id: string, newName: string) {
@@ -243,21 +258,15 @@ export const seasonRepository = {
             return undefined;
         }
 
-        const defaultId = `S-DEFAULT-${userId.substring(0, 6).toUpperCase()}`;
-        const db = getFirestore();
-        
-        const initialSeason: Season = { 
-            id: defaultId, 
-            userId, 
-            ownerId: userId, 
-            name: '2025/26', 
-            isActive: true,
-            sharedWith: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-        
-        await setDoc(doc(db, 'teams', defaultId), initialSeason);
-        return initialSeason;
+        // La stagione di primo accesso si crea dal server, per lo stesso
+        // motivo delle altre: `allow create: if false`. L'id non e' piu' derivato
+        // dall'uid — quello era prevedibile, e l'id e' la chiave che autorizza
+        // l'accesso ai dati.
+        try {
+            return (await this.add('2025/26', userId)) as Season;
+        } catch (e) {
+            console.error('[ensureDefaultSeason] creazione fallita:', e);
+            return undefined;
+        }
     }
 };

@@ -339,3 +339,65 @@ suite('firestore.rules — presence', () => {
     await expectDenied(getDocs(collection(altro, 'teams', id, 'presence')));
   });
 });
+
+suite('firestore.rules — i flussi che il client usa davvero', () => {
+  // I test precedenti verificano le regole in astratto. Questi verificano i
+  // cinque percorsi che l'app esegue davvero, e servono a una cosa precisa:
+  // dopo che `seasonRepository` e' passato alle rotte server, il client non deve
+  // piu' scrivere il documento della stagione. Se qualcuno rimette un `setDoc`
+  // su `teams/{id}`, questi test lo prendono subito.
+  it('il proprietario NON puo piu creare una stagione dal client', async () => {
+    const db = ctx('owner');
+    await expectDenied(setDoc(doc(db, 'teams', 'S-NUOVA'), { ownerId: 'owner' }));
+  });
+
+  it('il proprietario NON puo piu cancellare la stagione dal client', async () => {
+    const { db, id } = await seedMigratedSeason('owner');
+    await expectDenied(deleteDoc(doc(db, 'teams', id)));
+  });
+
+  it('un NON proprietario NON puo piu aggiungersi scrivendo sharedWith', async () => {
+    // Era questo il percorso di `joinSeason`. Con le regole v2 il join passa da
+    // `POST /api/invites/redeem`: se il client tornasse a scrivere `sharedWith`,
+    // l'update verrebbe negato dal vincolo hasOnly sui campi di profilo.
+    const { id } = await seedMigratedSeason('owner');
+    const altro = ctx('nuovo');
+    await expectDenied(updateDoc(doc(altro, 'teams', id), { sharedWith: ['nuovo'] }));
+  });
+
+  it('ma puo rinominare la propria stagione', async () => {
+    const { db, id } = await seedMigratedSeason('owner');
+    await expect(updateDoc(doc(db, 'teams', id), { name: '2026/27', updatedAt: 'x' }))
+      .resolves.toBeUndefined();
+  });
+
+  it('i flussi partita/giocatore restano aperti ai membri', async () => {
+    // Se questi fallissero, la creazione di una partita e l'aggiunta di un
+    // giocatore si romperebbero per tutti gli utenti beta.
+    const { db, id } = await seedMigratedSeason('owner');
+    await expect(setDoc(doc(db, 'teams', id, 'matches', 'm1'), { opponent: 'X' })).resolves.toBeUndefined();
+    await expect(setDoc(doc(db, 'teams', id, 'players', 'p1'), { name: 'Rossi' })).resolves.toBeUndefined();
+  });
+
+  it('gli allenamenti con presenze restano aperti ai membri', async () => {
+    const { db, id } = await seedMigratedSeason('owner');
+    await expect(setDoc(doc(db, 'teams', id, 'sessions', 's1'), { data: 'x' })).resolves.toBeUndefined();
+    await expect(setDoc(doc(db, 'teams', id, 'sessions', 's1', 'attendance', 'p1'), { present: true }))
+      .resolves.toBeUndefined();
+  });
+
+  it('il test fisico di un giocatore resta aperto ai membri', async () => {
+    const { db, id } = await seedMigratedSeason('owner');
+    await expect(setDoc(doc(db, 'teams', id, 'physicalTests', 't1'), { value: 12 })).resolves.toBeUndefined();
+  });
+
+  it('nessuno scrive piu isActive sul documento della stagione', async () => {
+    // La stagione attiva e' una scelta PERSONALE e sta in `users/{uid}/settings`.
+    // Sul documento della stagione il campo e' un relitto: nessuno lo scrive,
+    // e se restasse fra i campi di profilo sarebbe una porta aperta. Nello
+    // stesso modo `playerCount` non e' piu' scrivibile dal client.
+    const { db, id } = await seedMigratedSeason('owner');
+    await expectDenied(updateDoc(doc(db, 'teams', id), { isActive: false }));
+    await expectDenied(updateDoc(doc(db, 'teams', id), { playerCount: 3 }));
+  });
+});
