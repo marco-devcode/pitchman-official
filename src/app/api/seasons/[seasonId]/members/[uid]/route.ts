@@ -111,5 +111,8 @@ export async function GET(request: Request, context: { params: Promise<{ seasonI
     }),
   );
 
-  return NextResponse.json({ members, myRole: member.role });
+  // `mioUid` serve al pannello Staff per il bottone "Esci dalla stagione":
+  // senza, il client dovrebbe indovinare quale membro e' lui guardando la lista,
+  // e potrebbe sbagliare. Viene dal token, quindi non puo' essere contraffatto.
+  return NextResponse.json({ members, myRole: member.role, mioUid: auth.uid });
 }

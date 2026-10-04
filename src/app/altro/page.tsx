@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { authHeaders } from "@/lib/api-client";
+import { StaffPanel } from "@/components/season/staff-panel";
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -60,6 +62,17 @@ export default function AltroPage() {
   // Dialog states
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isSquadraOpen, setIsSquadraOpen] = useState(false);
+
+  // Dialog "Condividi stagione": il codice mostrato qui e' un INVITO creato dal
+  // server, non l'id della stagione. Prima si copiava `season.id`, che funzionava
+  // perche' le regole permettevano a chiunque conoscesse l'id di scriversi in
+  // `sharedWith`. Con le regole v2 l'id non e' piu' un biglietto d'ingresso: chi
+  // lo inserisce riceve "codice non valido", e sembra che il codice sia sbagliato
+  // quando invece e' il meccanismo che e' cambiato.
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [shareScadenza, setShareScadenza] = useState<string | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [isColorsOpen, setIsColorsOpen] = useState(false);
   const [isNotificheOpen, setIsNotificheOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
@@ -236,6 +249,36 @@ export default function AltroPage() {
     toast({ title: "Copiato!", description: "Codice stagione copiato negli appunti." });
   };
 
+
+  /**
+   * Crea un codice invito per la stagione da condividere.
+   *
+   * Un codice per volta, una persona per codice, sette giorni. Non si riusa
+   * l'id della stagione perche' l'id non e' revocabile: chi lo ha puo' usarlo
+   * finche' la stagione esiste. Un invito si puo' revocare, e questo e' il punto.
+   */
+  const creaCodiceInvito = async (seasonId: string) => {
+    setShareBusy(true);
+    setShareError(null);
+    try {
+      const res = await fetch(`/api/seasons/${encodeURIComponent(seasonId)}/invites`, {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ role: 'staff' }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setShareError(body?.error?.message ?? 'Non riesco a creare il codice.');
+        return;
+      }
+      setShareCode(body.code);
+      setShareScadenza(body.expiresAt ?? null);
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'Errore di rete.');
+    } finally {
+      setShareBusy(false);
+    }
+  };
 
   const handleDeleteSeason = async () => {
     if (!seasonToDelete) return;
@@ -741,6 +784,19 @@ export default function AltroPage() {
                 ))}
               </div>
             </div>
+
+            {/* Staff della stagione attiva.
+                Il join passa da `POST /api/invites/redeem`, che richiede un
+                documento in `invites`: nessun client puo' crearlo, quindi senza
+                questo pannello non esiste modo di far entrare qualcuno. */}
+            {activeSeason && (
+              <div className="space-y-3 border-t border-divider pt-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-foreground dark:text-white">
+                  Staff — {activeSeason.name}
+                </h3>
+                <StaffPanel seasonId={activeSeason.id} />
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -896,26 +952,71 @@ export default function AltroPage() {
       </Dialog>
 
       {/* Share Season Dialog */}
-      <Dialog open={!!seasonToShare} onOpenChange={(open) => !open && setSeasonToShare(null)}>
+      <Dialog
+        open={!!seasonToShare}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSeasonToShare(null);
+            setShareCode(null);
+            setShareScadenza(null);
+            setShareError(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground text-center">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight mx-auto">Condividi Stagione</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-4">
-             <div className="p-6 rounded-3xl bg-muted/30 dark:bg-brand-green/5 border border-dashed border-primary/30 dark:border-brand-green/40">
-                <p className="text-[10px] font-black uppercase text-muted-foreground mb-2">Codice d'invito</p>
-                <h2 className="text-3xl font-black tracking-widest text-primary dark:text-brand-green mb-4">{seasonToShare?.id}</h2>
-                <Button 
-                  onClick={() => copyToClipboard(seasonToShare?.id)}
-                  variant="outline" 
-                  className="rounded-xl font-black uppercase text-xs h-10 border-primary/30 dark:border-brand-green/30 text-primary dark:text-brand-green hover:bg-primary/10 dark:hover:bg-brand-green/10"
-                >
-                  <Copy className="h-3.5 w-3.5 mr-2" /> Copia Codice
-                </Button>
-             </div>
-             <p className="text-[10px] font-bold text-muted-foreground leading-relaxed px-4">
-               Invia questo codice al tuo assistente o collega osservatore. Inserendolo nella sezione "Partecipa con Codice", potrà accedere a tutti i dati di questa stagione.
-             </p>
+             {shareError && (
+               <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+                 {shareError}
+               </p>
+             )}
+
+             {shareCode ? (
+               <>
+                 <div className="p-6 rounded-3xl bg-muted/30 dark:bg-brand-green/5 border border-dashed border-primary/30 dark:border-brand-green/40">
+                    <p className="text-[10px] font-black uppercase text-muted-foreground mb-2">Codice d'invito</p>
+                    <h2 className="text-3xl font-black tracking-widest text-primary dark:text-brand-green mb-4">{shareCode}</h2>
+                    <Button
+                      onClick={() => copyToClipboard(shareCode)}
+                      variant="outline"
+                      className="rounded-xl font-black uppercase text-xs h-10 border-primary/30 dark:border-brand-green/30 text-primary dark:text-brand-green hover:bg-primary/10 dark:hover:bg-brand-green/10"
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-2" /> Copia Codice
+                    </Button>
+                    {shareScadenza && (
+                      <p className="mt-3 text-[10px] font-bold text-muted-foreground">
+                        Scade il {new Date(shareScadenza).toLocaleDateString('it-IT')}
+                      </p>
+                    )}
+                 </div>
+                 <p className="text-[10px] font-bold text-muted-foreground leading-relaxed px-4">
+                   Serve per UNA persona. Chi lo usa potrà vedere tutti i dati di questa
+                   stagione. Puoi revocarlo in qualsiasi momento dalla sezione Staff.
+                 </p>
+               </>
+             ) : (
+               <>
+                 <p className="text-sm text-muted-foreground px-2">
+                   Per condividere la squadra serve un codice che val per una persona.
+                   Ogni codice si può revocare.
+                 </p>
+                 <Button
+                   onClick={() => creaCodiceInvito(seasonToShare!.id)}
+                   disabled={shareBusy}
+                   className="w-full h-11 rounded-xl font-black uppercase text-xs bg-primary dark:bg-black text-white dark:text-brand-green border border-primary dark:border-brand-green hover:opacity-90"
+                 >
+                   {shareBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-2" />}
+                   Crea codice invito
+                 </Button>
+                 <p className="text-[10px] font-bold text-muted-foreground leading-relaxed px-4">
+                   Il codice della stagione non funziona più per entrare: chi lo possiede
+                   deve usare questo.
+                 </p>
+               </>
+             )}
           </div>
         </DialogContent>
       </Dialog>
