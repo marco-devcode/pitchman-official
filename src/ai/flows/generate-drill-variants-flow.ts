@@ -133,6 +133,15 @@ export interface GenerateResult {
    * possa sbagliare.
    */
   sources: ('gemini' | 'demo')[];
+  /**
+   * Token consumati dalle chiamate reali al modello.
+   *
+   * Aggregano tutte le varianti e i tentativi, NON solo quello che ha
+   * risposto: un tentativo fallito costa uguale. Senza questo il log dei costi
+   * avrebbe contato una chiamata su tre, e la fattura reale sarebbe stata il
+   * triplo di quella dichiarata.
+   */
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 /**
@@ -285,6 +294,16 @@ export async function generateDrillVariants(
     RUOLI.map((ruolo) => generaUnaVariante(testo, ruolo, avvio)),
   );
 
+  // I token si sommano su tutti gli esiti, compresi quelli caduti sul demo:
+  // il tentativo che ha fallito e' stata una chiamata a pagamento.
+  const usage = esiti.reduce(
+    (acc, e) => ({
+      inputTokens: acc.inputTokens + (e.usage?.inputTokens ?? 0),
+      outputTokens: acc.outputTokens + (e.usage?.outputTokens ?? 0),
+    }),
+    { inputTokens: 0, outputTokens: 0 },
+  );
+
   const drills = esiti.map((e) => e.drill).filter(Boolean) as Drill[];
 
   // Quante varianti sono davvero del modello. Il conteggio si fa sulle
@@ -315,6 +334,7 @@ export async function generateDrillVariants(
       : true,
     source: quanteGemini ? 'gemini' : 'demo',
     sources: esiti.map((e) => e.source),
+    usage,
   };
 }
 
@@ -324,6 +344,8 @@ interface EsitoVariante {
   model: string;
   fallbackUsed: boolean;
   source: 'gemini' | 'demo';
+  /** Token di QUESTA variante, per il log dei costi. */
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 /**
@@ -362,7 +384,7 @@ async function generaUnaVariante(
       if (attesa > 0) await new Promise((r) => setTimeout(r, attesa));
 
       try {
-        const { output } = await withTimeout(
+        const { output, usage } = await withTimeout(
           ai.generate({
             model: modello,
             system: SYSTEM_PROMPT,
@@ -392,6 +414,10 @@ async function generaUnaVariante(
             model: modello,
             fallbackUsed: i > 0,
             source: 'gemini',
+            usage: {
+              inputTokens: Number(usage?.inputTokens ?? 0),
+              outputTokens: Number(usage?.outputTokens ?? 0),
+            },
           };
         }
 

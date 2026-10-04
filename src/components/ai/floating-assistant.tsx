@@ -8,10 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { getPrimaryRole } from "@/lib/types";
-import * as AIService from '@/services/ai.service';
-import type { ChatInput } from '@/ai/flows/chatbot-flow';
-import { useMatchesStore } from "@/store/useMatchesStore";
-import { usePlayersStore } from "@/store/usePlayersStore";
+import { authHeaders } from '@/lib/api-client';
 import { useSeasonsStore } from "@/store/useSeasonsStore";
 import { useAsyncAction } from "@/lib/hooks/useAsyncAction";
 import { AsyncFeedback } from "@/components/ui/async-feedback";
@@ -29,13 +26,40 @@ export function FloatingAssistant() {
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Dati dal client Firebase SDK (già autenticato)
-  const matches = useMatchesStore(state => state.matches);
-  const players = usePlayersStore(state => state.players);
   const activeSeason = useSeasonsStore(state => state.activeSeason);
 
+  // Il contesto squadra NON viene piu' costruito qui e mandato al server: lo
+  // legge il server dalla stagione verificata. Se continuasse a mandare i
+  // dati dei giocatori, il server non potrebbe verificare che sono davvero
+  // quelli di chi chiede, e la risposta si baserebbe su un dato non verificato.
   const { run: runChat, loading: isLoading, error } = useAsyncAction(
-    (input: ChatInput) => AIService.chatbot(input),
+    async (input: { message: string; history: Message[] }) => {
+      const risposta = await fetch('/api/chatbot', {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          seasonId: activeSeason?.id,
+          message: input.message,
+          // Solo gli ultimi 10, e il ruolo 'assistant' diventa 'assistant'
+          // anche nel wire format: la mappa a 'model' la fa il server, che e'
+          // l'unico punto in cui si puo' fidarsi del ruolo.
+          history: input.history.slice(-10).map((m) => ({
+            role: m.role,
+            content: m.content.slice(0, 4000),
+          })),
+        }),
+      });
+
+      const data = await risposta.json().catch(() => null);
+      if (!risposta.ok) {
+        throw new Error(
+          typeof data?.error?.message === 'string'
+            ? data.error.message
+            : 'Errore durante l\'analisi dei dati.',
+        );
+      }
+      return data as { text: string };
+    },
   );
 
   const scrollToBottom = () => {
@@ -53,30 +77,12 @@ export function FloatingAssistant() {
     setInput("");
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
 
-    const teamContext = {
-      seasonName: activeSeason?.name,
-      matches: matches.map(m => ({
-        opponent: m.opponent,
-        date: m.date,
-        isHome: m.isHome,
-        status: m.status,
-        result: m.result ? { home: m.result.home, away: m.result.away } : undefined,
-      })),
-      players: players.map(p => ({
-        name: p.name,
-        role: getPrimaryRole(p),
-        stats: p.stats ? {
-          appearances: p.stats.appearances || 0,
-          goals: p.stats.goals || 0,
-          assists: p.stats.assists || 0,
-          avgMinutes: p.stats.avgMinutes || 0,
-          yellowCards: p.stats.yellowCards || 0,
-          redCards: p.stats.redCards || 0,
-        } : undefined,
-      })),
-    };
+    // Si manda lo stato di `messages` PRIMA dell'aggiunta del messaggio
+    // appena scritto. Quello viene aggiunto in coda anche lui, quindi usarlo
+    // come cronologia lo farebbe comparire due volte nel prompt del modello.
+    const cronologia = messages.slice(-10);
 
-    const response = await runChat({ message: userMessage, teamContext });
+    const response = await runChat({ message: userMessage, history: cronologia });
     if (!response) {
       // Uniform error message instead of a raw console.error
       setMessages(prev => [...prev, { role: "assistant", content: "Scusa coach, ho avuto un problema tecnico nell'analizzare i dati. Riprova tra un momento." }]);

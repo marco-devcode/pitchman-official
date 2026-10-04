@@ -30,8 +30,22 @@ const PlayerDataSchema = z.object({
   }).optional(),
 });
 
+const HistoryMessageSchema = z.object({
+  // Solo 'user' e 'assistant'. NON si accetta 'system': un ruolo che il client
+  // potesse scegliere liberamente diventerebbe un'istruzione con la stessa
+  // autorita' del prompt di sistema, e potrebbe chiedere al modello di
+  // ignorarlo. Lo schema e' una lista chiusa perche' il perimetro dei ruoli
+  // possibili deve essere possibile da enumerare, non da fidarsi.
+  role: z.enum(['user', 'assistant']),
+  content: z.string().max(4000),
+});
+
 const ChatInputSchema = z.object({
   message: z.string(),
+  /** Cronologia ridotta dal server agli ultimi 10 messaggi. */
+  history: z.array(HistoryMessageSchema).max(10).optional(),
+  /** Modulo scelto dall'allenatore, se presente. */
+  formation: z.string().max(120).optional(),
   // Contesto dati dalla sessione client (già autenticata via Firebase Auth)
   teamContext: z.object({
     seasonName: z.string().optional(),
@@ -166,11 +180,27 @@ STILE:
 - Quando analizzi dati, fornisci insight tattici e suggerimenti concreti
 - Quando rispondi a domande sull'app, sii chiaro e guida l'utente passo-passo`;
 
+      // ── Prompt finale: contesto + conversazione + domanda ──
+      //
+      // La cronologia NON passa come messaggi strutturati a Gemini: finisce
+      // dentro il prompt, marcata e delimitata. Il motivo e' che i messaggi
+      // passati a un modello vengono riletti come istruzioni: senza delimitatori,
+      // una risposta precedente dell'assistente che contiene "ignora le regole"
+      // diventerebbe parte del contesto come se l'avesse scritta l'utente.
+      const conversazione = (input.history ?? [])
+        .map((m) => `${m.role === 'user' ? 'ALLENATORE' : 'ASSISTENTE'}: ${m.content}`)
+        .join('\n');
+      const promptCompleto = [
+        conversazione ? `CONVERSAZIONE FINORA:\n${conversazione}` : '',
+        input.formation ? `\nMODULO IN USO: ${input.formation}` : '',
+        `\nDOMANDA: ${input.message}`,
+      ].filter(Boolean).join('\n\n');
+
       // ── Chiamata a Gemini 3.8 Flash con Fallback ──
       try {
         const result = await ai.generate({
           model: 'googleai/gemini-3.8-flash',
-          prompt: input.message,
+          prompt: promptCompleto,
           system: systemPrompt,
         });
 
@@ -188,7 +218,7 @@ STILE:
           
           const fallbackResult = await ai.generate({
             model: 'googleai/gemini-flash-latest',
-            prompt: input.message,
+            prompt: promptCompleto,
             system: systemPrompt,
           });
 

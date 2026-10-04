@@ -49,3 +49,9 @@ firestore-debug.log
 # agent/merge artifacts
 changes.diff
 .modified
+
+# File di prova delle regole, generati per isolare un errore di compilazione.
+# Non vanno nel repo: sono usa-e-getta.
+/min.rules
+/probe-*.rules
+/firebase.json.tmp

@@ -7,7 +7,7 @@
  * applicate): senza, un esercizio sbagliato e' indistinguibile da uno giusto.
  *
  * Risposta:
- *   { drills, drill, fixes, source, engine, model, fallbackUsed }
+ *   { drills, drill, fixes, source, engine, model, fallbackUsed, cacheHit }
  *
  * - `drills`  tutte le varianti riparate e utilizzabili
  * - `drill`   quella attiva, cioe' drills[0]
@@ -16,17 +16,18 @@
  * - `model`   il modello che ha risposto, o 'demo'
  * - `fallbackUsed` se ha risposto il modello di riserva
  *
- * Errori: 400 per una richiesta malformata, 502 quando la generazione fallisce
- * per un errore non recuperabile. MAI una richiesta appesa: il flusso ha un
- * timeout per modello.
+ * Errori: 400 per una richiesta malformata, 401 senza token, 403 senza
+ * appartenenza alla stagione, 429 oltre il limite, 503 con l'app AI spenta,
+ * 502 quando la generazione fallisce per un errore non recuperabile. MAI una
+ * richiesta appesa: il flusso ha un timeout per modello.
  */
 
 import { NextResponse } from 'next/server';
-import {
-  generateDrillVariants,
-} from '@/ai/flows/generate-drill-variants-flow';
+import { generateDrillVariants } from '@/ai/flows/generate-drill-variants-flow';
 import { repairVariants } from '@/lib/repair-drill';
-import { requireAuth } from '@/lib/api-auth';
+import { aiGuardWithBody, generateInputSchema, readJson } from '@/lib/server/ai-guard';
+import { cacheGet, cacheSet, hashKey, logUsage, normalizeForCache } from '@/lib/server/ai-log';
+import { apiError } from '@/lib/server/auth';
 import type { Drill } from '@/lib/drill';
 
 // La generazione chiama un servizio esterno: senza questo limite, un doppio
@@ -34,47 +35,65 @@ import type { Drill } from '@/lib/drill';
 // fare il doppio lavoro per un risultato che il primo getto gia' copre.
 export const maxDuration = 60;
 
+export const runtime = 'nodejs';
+
+interface GeneratePayload {
+  drills: Drill[];
+  drill: Drill;
+  fixes: unknown[];
+  source: string;
+  sources: string[];
+  engine: string;
+  model: string;
+  fallbackUsed: boolean;
+  cacheHit: boolean;
+}
+
 export async function POST(request: Request) {
-  // Nessun controllo prima: chiunque poteva far generare esercizi e quindi
-  // consumare crediti Gemini. Coach e developer possono, come dice
-  // `canCreateGlobalExercises` in `hooks/usePermissions.ts`.
-  // `return denied` e non `return`: la risposta va restituita, altrimenti Next
-  // risponde "No response is returned from route handler" e la route e' rotta.
-  const denied = await requireAuth(request, ['coach', 'director', 'developer']);
-  if (denied) return denied;
+  const json = await readJson(request);
+  if (!json.ok) return json.response;
 
-  let prompt = '';
+  // `seasonId` non viene creduto: serve solo a scegliere QUALE stagione
+  // verificare, e la verifica la fa il guard con l'uid del token. Senza token
+  // la risposta e' 401 PRIMA di guardare il corpo.
+  const guard = await aiGuardWithBody(request, generateInputSchema, json.body, {
+    limit: 'generate',
+    extraDailyLimit: 'generateDaily',
+  });
+  if (!guard.ok) return guard.response;
 
-  try {
-    const body = await request.json();
-    prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
-  } catch {
-    return NextResponse.json(
-      { error: 'Il corpo della richiesta non è JSON valido.' },
-      { status: 400 },
-    );
-  }
-
-  if (!prompt) {
-    return NextResponse.json(
-      { error: "Scrivi una descrizione dell'esercizio." },
-      { status: 400 },
-    );
-  }
-
-  // Limite sul testo: oltre qualche riga il prompt non descrive un esercizio,
-  // descrive un capitolo, e il modello risponde con un muro di passaggi.
-  if (prompt.length > 2000) {
-    return NextResponse.json(
-      { error: 'La descrizione è troppo lunga. Bastano due-tre frasi.' },
-      { status: 400 },
-    );
-  }
+  const promptTesto = guard.data.prompt;
 
   const started = Date.now();
 
+  // Cache su prompt normalizzato + uid. La chiave include l'uid perche' il
+  // risultato dipende dalla squadra a cui si riferisce, non solo dal testo: due
+  // allenatori che scrivono "4-3-3" per due squadre diverse non possono
+  // condividere la stessa risposta.
+  const cacheKey = hashKey('drill', guard.uid, normalizeForCache(promptTesto));
+  const cached = await cacheGet<GeneratePayload>(cacheKey);
+
+  if (cached.hit && cached.value) {
+    // Il costo e' gia' stato pagato da chi ha fatto la cache. Si registra
+    // comunque una riga, con `cached: true` e zero token: senza, il tetto
+    // globale conterebbe una chiamata che non e' avvenuta, e l'utente che ha
+    // fatto la cache vedrebbe il proprio budget consumato da un risultato che
+    // ha gia' ottenuto.
+    await logUsage({
+      uid: guard.uid,
+      seasonId: guard.seasonId,
+      route: 'generate',
+      model: cached.value.model,
+      inputTokens: 0,
+      outputTokens: 0,
+      cached: true,
+      durationMs: Date.now() - started,
+    });
+    return NextResponse.json({ ...cached.value, cacheHit: true });
+  }
+
   try {
-    const result = await generateDrillVariants(prompt);
+    const result = await generateDrillVariants(promptTesto);
 
     // Il repair gira SEMPRE, anche sull'output del modello principale e anche
     // sul demo. Il demo e' gia' pulito e non produrra' correzioni: e' un test
@@ -96,23 +115,60 @@ export async function POST(request: Request) {
       `[api/generate] ${drills.length} varianti da ${result.model} in ${durata}ms, ${fixes.length} correzioni (source=${result.source})`,
     );
 
-    return NextResponse.json({
+    const payload: GeneratePayload = {
       drills,
       drill: drills[0],
       fixes,
       source: result.source,
       // Provenienza per variante: senza, la UI non puo' dire se la scheda che
-      // sta mostrando e' stata generata o e' l'esempio di riserva. Vedi la
-      // nota su `sources` in generate-drill-variants-flow.
+      // sta mostrando e' stata generata o e' l'esempio di riserva.
       sources: result.sources,
       engine: 'genkit',
       model: result.model,
       fallbackUsed: result.fallbackUsed,
+      cacheHit: false,
+    };
+
+    // Il testo del prompt NON entra nel log: solo il conteggio dei token. Il
+    // prompt descrive l'esercizio che l'allenatore sta preparando, e un log di
+    // prompt e' un archivio di dati che nessuno ha dichiarato.
+    await logUsage({
+      uid: guard.uid,
+      seasonId: guard.seasonId,
+      route: 'generate',
+      model: result.model,
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+      cached: false,
+      durationMs: durata,
     });
+
+    // In cache solo le risposte davvero del modello: mettere in cache il demo
+    // continuerebbe a restituire un esempio scritto a mano anche quando il
+    // modello e' tornato disponibile, e l'allenatore non avrebbe modo di
+    // accorgersene.
+    if (result.source === 'gemini') {
+      await cacheSet(cacheKey, payload);
+    }
+
+    return NextResponse.json(payload);
   } catch (error: any) {
     // 502 e non 500: il fallimento e' del servizio AI, non dell'app. La
     // differenza serve a chi legge i log per capire dove guardare.
     console.error('[api/generate] errore:', error?.message || error);
+    await logUsage({
+      uid: guard.uid,
+      seasonId: guard.seasonId,
+      route: 'generate',
+      model: 'unknown',
+      inputTokens: 0,
+      outputTokens: 0,
+      cached: false,
+      durationMs: Date.now() - started,
+    });
+    if (/troppo lunga|vuoto|descrivi/i.test(String(error?.message ?? ''))) {
+      return apiError(400, 'VALIDATION_ERROR', 'Controlla la descrizione e riprova.');
+    }
     return NextResponse.json(
       { error: error?.message || 'Generazione non riuscita. Riprova.' },
       { status: 502 },

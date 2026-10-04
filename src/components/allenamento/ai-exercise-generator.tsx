@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { authHeaders } from '@/lib/api-client';
+import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -73,6 +74,10 @@ interface Props {
 }
 
 export function AiExerciseGenerator({ open, onOpenChange }: Props) {
+  // La stagione attiva serve alla rotta per sapere QUALE stagione verificare:
+  // senza, `requireSeasonMember` non ha niente da controllare e risponde 400.
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+
   const addExercise = useExerciseStore((s) => s.addExercise);
 
   const [prompt, setPrompt] = useState('');
@@ -128,7 +133,10 @@ export function AiExerciseGenerator({ open, onOpenChange }: Props) {
         method: 'POST',
         // L'ID token serve perche' la route controlla il ruolo.
         headers: await authHeaders(),
-        body: JSON.stringify({ prompt: testo }),
+        // `seasonId` NON e' un dato che il server si fida: serve solo a
+        // scegliere quale stagione verificare con `requireSeasonMember`. Senza
+        // questo campo la route risponde 400 e il generatore sembra rotto.
+        body: JSON.stringify({ prompt: testo, seasonId: activeSeason?.id }),
       });
 
       // `json()` va DOPO il controllo di ok, non prima. Se Vercel taglia la

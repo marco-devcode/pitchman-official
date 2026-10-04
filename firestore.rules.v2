@@ -1,0 +1,274 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ═══ Helper ═════════════════════════════════════════════════════════════
+    //
+    // NESSUNA dichiarazione `let` in tutto il file.
+    //
+    // Non e' una scelta di stile: `let x = ...` seguito da un `if` viene
+    // RIFIUTATO dal compilatore delle regole con "L<n>: Unexpected 'if'".
+    // Verificato sull'emulatore con quattro file di prova isolati:
+    //   - `let` + `return`        -> compila
+    //   - `let` + `if` + ritorno  -> NON compila
+    //   - `get()` dentro l'if     -> compila
+    // Quindi il path del documento si scrive direttamente nella condizione.
+    //
+    // Il costo: `get()` ripetuto sulla stessa richiesta viene valutato una volta
+    // sola dal motore delle rules, quindi due letture dello stesso documento
+    // nella stessa espressione non sono due letture fatturate. L'alternativa
+    // (una funzione che restituisca il documento, da confrontare fuori) non e'
+    // possibile: le rules non hanno strutture dati ritornabili.
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function teamPath(seasonId) {
+      return /databases/$(database)/documents/teams/$(seasonId);
+    }
+
+    /**
+     * Due funzioni booleane, non una che ritorna una stringa.
+     *
+     * La prima versione aveva `role(seasonId)` che restituiva 'owner' / 'staff'
+     * / '' e poi `isMember(sid) { return role(sid) != ''; }`. Non compila:
+     * Firestore rules pretende che una funzione usata in `if` produca un
+     * BOOLEANO, e il ternario dentro `role` produceva una stringa che il
+     * compilatore segnalava come "Type error. Received: [string] Expected:
+     * [bool]" — senza indicare quale delle due funzioni fosse il problema.
+     *
+     * Separando i due concetti il tipo e' ovunque booleano e non c'e' piu' un
+     * valore sentinella da ricordare.
+     *
+     * TRE SORGENTI di appartenenza, non una. `members` e' la forma nuova,
+     * scritta dal server con l'Admin SDK. `sharedWith` e' quella vecchia, e
+     * resta letta perche' la migrazione dei dati non puo' essere atomica con la
+     * pubblicazione delle regole: senza questo fallback, nel giorno in cui le
+     * regole nuove sono attive e i documenti sono ancora quelli vecchi, NON
+     * CHIUNQUE vedrebbe piu' la propria squadra — tutti, di colpo, senza un
+     * errore che dica perche'.
+     */
+    function isOwnerOf(seasonId) {
+      return signedIn() && (
+        get(teamPath(seasonId)).data.ownerId == request.auth.uid ||
+        (get(teamPath(seasonId)).data.members is map &&
+         request.auth.uid in get(teamPath(seasonId)).data.members &&
+         get(teamPath(seasonId)).data.members[request.auth.uid] == 'owner')
+      );
+    }
+
+    function isMember(seasonId) {
+      return signedIn() && (
+        get(teamPath(seasonId)).data.ownerId == request.auth.uid ||
+        (get(teamPath(seasonId)).data.members is map &&
+         request.auth.uid in get(teamPath(seasonId)).data.members) ||
+        (get(teamPath(seasonId)).data.sharedWith is list &&
+         request.auth.uid in get(teamPath(seasonId)).data.sharedWith)
+      );
+    }
+
+    function isOwner(seasonId) {
+      return isOwnerOf(seasonId);
+    }
+
+    // ═══ /users/{userId} ═════════════════════════════════════════════════════
+    //
+    // Documenti personali: solo il proprietario. Il ruolo applicativo
+    // (`coach`, `director`, `developer`) vive in `users/{uid}.role` ed e' un
+    // permesso DELL'APP, distinto dal ruolo nella stagione: confonderli faceva
+    // credere che "coach" equivalesse a proprietario dei dati di una squadra.
+
+    match /users/{userId} {
+      allow get:  if signedIn() && request.auth.uid == userId || isAdmin();
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.auth.uid == userId;
+
+      // Nessuno cambia il proprio ruolo. Il ruolo vale come permesso, quindi
+      // auto-promuoversi da `player` a `developer` significherebbe aprire a
+      // chiunque abbia un account il pannello admin e le route di
+      // amministrazione.
+      allow update: if isAdmin() ||
+                    (signedIn() && request.auth.uid == userId &&
+                     !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+      allow delete: if signedIn() && request.auth.uid == userId || isAdmin();
+
+      // ─── Dati storici sotto l'utente ──────────────────────────────────
+      //
+      // Erano privati per costruzione: un ospite della stagione vedeva la
+      // stagione vuota. Sono spostati sotto `teams/{seasonId}`, ma restano aperti
+      // al proprietario perche' qualche documento vecchio puo' essere rimasto
+      // li' e senza questa regola nessuno potrebbe piu' cancellarlo.
+      match /{sub}/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+    }
+
+    // ═══ /teams/{seasonId} ═════════════════════════════════════════════════
+
+    match /teams/{seasonId} {
+      // Creazione e cancellazione SOLO dal server (Admin SDK).
+      //
+      // `create` negato al client perche' il documento porta `members`,
+      // `memberUids`, `plan` e `limits`: chi puo' scriverli puo' crearsi una
+      // stagione con mille membri o il piano che preferisce. L'unica via e'
+      // `POST /api/seasons`.
+      allow create: if false;
+      allow delete: if false;
+
+      // Lettura per i membri. La `list` e' consentita perche' il client cerca
+      // le proprie stagioni con `array-contains`: Firestore valuta la regola una
+      // volta per documento restituito, quindi non serve che il filtro
+      // corrisponda alla query.
+      allow get, list: if isMember(seasonId);
+
+      // Aggiornamento. L'owner cambia i campi di PROFILO; nient'altro.
+      //
+      // `hasOnly` da solo non basta: serve anche `hasAll`, altrimenti una
+      // richiesta che omette un campo lo CANCELLA, e cancellare `name` non e'
+      // la stessa cosa che non scriverlo.
+      //
+      // `playerCount` NON e' piu' scritto dal client. Esisteva per applicare un
+      // tetto di giocatori dal lato rules: senza tetto il contatore non serve a
+      // nulla e sarebbe solo un numero che puo' sbagliare in due modi
+      // opposti (interrompere il browser a meta' dell'aggiunta lo lascia
+      // indietro; una rimozione lo lascia avanti). Resta nel documento come
+      // dato storico, scritto dal server.
+      allow update: if signedIn() && isOwner(seasonId) &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['name', 'updatedAt', 'isActive']) &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                      .hasAll(['name', 'updatedAt']);
+
+      // ─── Giocatori ──────────────────────────────────────────────────────
+      //
+      // NESSUN TETTO. Voluto: durante la beta nessuna stagione deve perdere
+      // funzionalita', e il tetto richiedeva un contatore che il client
+      // aggiornasse in batch — un numero che puo' sbagliare in due modi
+      // opposti. Un tetto sbagliato blocca un allenatore che sta usando l'app
+      // per bene. Il limite che serve davvero si applica lato server, dove la
+      // transazione e' atomica.
+      match /players/{playerId} {
+        allow get, list, create, update, delete: if isMember(seasonId);
+      }
+
+      // ─── Partite ───────────────────────────────────────────────────────
+      //
+      // Ogni collection e' dichiarata una per una, NON con un
+      // `{collectionName}` generico. Il motivo e' tecnico: in Firestore le
+      // regole che coprono lo stesso documento si SOMMANO. Un wildcard sotto
+      // `teams` con "membro: leggi e scrivi" avrebbe coperto anche `players`.
+      // Oggi non ci sarebbe un danno (nessun tetto da perdere), ma se un tetto
+      // tornasse, il wildcard lo annullerebbe senza nessun errore. La regola
+      // esplicita e' quella che permette di aggiungere un vincolo sapendo che
+      // tiene.
+      match /matches/{matchId} {
+        allow get, list, create, update, delete: if isMember(seasonId);
+
+        // Per-corsa: formazione, eventi, statistiche. Servono perche' un gol
+        // appena segnato si salva qui, e senza la regola a tre livelli la
+        // dashboard si aggiornerebbe ma il salvataggio dell'evento fallirebbe.
+        match /lineup/{lineupId} {
+          allow get, list, create, update, delete: if isMember(seasonId);
+        }
+        match /events/{eventId} {
+          allow get, list, create, update, delete: if isMember(seasonId);
+        }
+        match /stats/{statId} {
+          allow get, list, create, update, delete: if isMember(seasonId);
+        }
+      }
+
+      match /sessions/{sessionId} {
+        allow get, list, create, update, delete: if isMember(seasonId);
+
+        // Presenze: un documento per giocatore.
+        match /attendance/{playerId} {
+          allow get, list, create, update, delete: if isMember(seasonId);
+        }
+      }
+
+      match /events/{eventId}        { allow get, list, create, update, delete: if isMember(seasonId); }
+      match /trainings/{trainingId} { allow get, list, create, update, delete: if isMember(seasonId); }
+      match /physicalTests/{testId}  { allow get, list, create, update, delete: if isMember(seasonId); }
+
+      // Aggregati precalcolati: profondita' variabile per costruzione. Qui il
+      // wildcard e' accettabile perche' non c'e' nessun vincolo aggiuntivo che
+      // si possa perdere.
+      match /aggregates/{aggregateId=**} {
+        allow get, list, create, update, delete: if isMember(seasonId);
+      }
+
+      // ─── Presence: chi e' online su questa stagione ────────────────────
+      //
+      // Ogni utente scrive il proprio documento in
+      // `teams/{seasonId}/presence/{uid}` con un battito periodico.
+      //
+      // Il documento contiene SOLO `lastSeen`, e `hasOnly` lo impone: nessuno
+      // puo' nascondere altro dentro una collection letta da chiunque della
+      // squadra. Il delete e' aperto a tutti i membri perche' serve a ripulire
+      // i documenti scaduti, e un documento di presenza non contiene nulla di
+      // riservato.
+      match /presence/{uid} {
+        allow get, list: if isMember(seasonId);
+        allow create, update: if isMember(seasonId)
+                              && request.auth.uid == uid
+                              && request.resource.data.keys().hasOnly(['lastSeen']);
+        allow delete: if isMember(seasonId);
+      }
+    }
+
+    // ═══ Collection solo-server ════════════════════════════════════════════
+    //
+    // Nessun accesso dal client, neanche in lettura. Ogni riga e' una scelta:
+    //
+    // - `invites`: se il client potesse leggerli, potrebbe elencare i codici
+    //     attivi di una stagione di cui non e' membro e usarlo per entrarci.
+    //   Scrivendoli, potrebbe crearsi un codice con `maxUses: 999`.
+    // - `rateLimits`: il client che scrive il proprio contatore lo azzera e
+    //   riparte da capo, e il limite di frequesta non limita piu' niente.
+    // - `aiUsage`: chi ha usato cosa e quando.
+    // - `aiCache`: gli esercizi generati, con la provenienza di chi li ha
+    //   chiesto. Leggerli da un'altra stagione significa leggere il lavoro di
+    //   qualcun altro.
+    // - `feedback`: i messaggi degli utenti.
+
+    match /invites/{code}    { allow read, write: if false; }
+    match /rateLimits/{id}   { allow read, write: if false; }
+    match /aiUsage/{id}      { allow read, write: if false; }
+    match /aiCache/{id}      { allow read, write: if false; }
+    match /feedback/{id}     { allow read, write: if false; }
+
+    // ═══ Esercizi ═════════════════════════════════════════════════════════
+
+    match /exercises/{exerciseId} {
+      allow get, list: if signedIn() && (
+        resource.data.visibility == 'global' ||
+        resource.data.userId == request.auth.uid
+      );
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ═══ Impostazioni per utente ═══════════════════════════════════════════
+
+    match /settings/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // ═══ Catch-all ════════════════════════════════════════════════════════
+    //
+    // Negare. Una catch-all permissiva e' il modo piu' comune in cui
+    // un'applicazione espone dati che nessuno aveva pensato di esporre:
+    // basta dimenticare una collection. Con `false`, una collection nuova e'
+    // negata per impostazione e va dichiarata.
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
