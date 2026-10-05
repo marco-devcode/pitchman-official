@@ -166,7 +166,19 @@ service cloud.firestore {
       // letto il documento della stagione: si ottiene l'accesso scrivendo il
       // proprio uid in sharedWith, che e' l'unico modo per ottenerlo.
       allow get:    if isSignedIn();
-      allow list:   if isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.uid in resource.data.sharedWith);
+      // `get` resta aperto a chiunque autenticato perche' il codice invito
+      // funziona cosi': chi ha il codice deve poter leggere la stagione per
+      // riscattarlo. Non e' una apertura: i documenti FIGLI restano protetti.
+      //
+      // `list` invece e' chiuso, e aggiunge il direttore: senza questa riga il
+      // direttore non potrebbe vedere la lista delle sue stagioni e la sua
+      // schermata sarebbe vuota senza alcun errore. La condizione e' il suo uid
+      // dentro `directorUids`, quindi vede solo quelle.
+      allow list:   if isSignedIn() && (
+                      resource.data.ownerId == request.auth.uid ||
+                      request.auth.uid in resource.data.sharedWith ||
+                      ('directorUids' in resource.data && request.auth.uid in resource.data.directorUids)
+                    );
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isSignedIn() && (
                       (resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == request.auth.uid) ||

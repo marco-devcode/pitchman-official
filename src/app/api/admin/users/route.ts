@@ -39,11 +39,14 @@ export async function GET(request: Request) {
     // I documenti Firestore hanno il ruolo aggiornato; i claim possono essere
     // piu' recenti (l'Admin SDK li scrive subito, Firestore al login
     // successivo). La riga del pannello mostra i due, e segnala la divergenza.
-    const profili = new Map<string, { role?: string; email?: string }>();
+    // `plan` viene letto insieme al ruolo perche' la home del backend mostra
+    // gli account con entrambi: un account senza piano e' un account che il
+    // backend deve poter notare, non uno da ignorare.
+    const profili = new Map<string, { role?: string; email?: string; plan?: string }>();
     const snap = await adminDb.collection('users').get();
     snap.forEach((doc) => {
       const data = doc.data();
-      profili.set(doc.id, { role: data.role, email: data.email });
+      profili.set(doc.id, { role: data.role, email: data.email, plan: data.plan });
     });
 
     const utenti: {
@@ -52,6 +55,8 @@ export async function GET(request: Request) {
       displayName: string;
       claimRole: string | null;
       profiloRole: string | null;
+      /** Piano letto da Firestore; `null` = non assegnato, che in beta vuol dire `beta` */
+      plan: string | null;
       sincronizzato: boolean;
       createdAt: string;
       lastSignedInAt: string | null;
@@ -70,6 +75,7 @@ export async function GET(request: Request) {
           displayName: user.displayName ?? '',
           claimRole,
           profiloRole,
+          plan: profilo?.plan ?? null,
           // Divergono quando i due non coincidono: il claim e' la fonte che
           // Firestore rules e `setAuth` leggono, il profilo quella che mostra
           // l'app. Se non coincidono l'utente vede un ruolo e ne applica

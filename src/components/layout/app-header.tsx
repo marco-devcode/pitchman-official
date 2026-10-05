@@ -18,6 +18,24 @@ const navItems = [
   { href: "/altro", label: "Impostazioni" },
 ];
 
+/**
+ * Navigazione del DEVELOPER: solo backend.
+ *
+ * Il developer non e' un allenatore: non ha una squadra, quindi Dashboard,
+ * Rosa, Calendario e Allenamento gli mostrerebbero una stagione vuota e la
+ * tentazione di creare una stagione dal piu' inutile dei tre, cioe' il caso in
+ * cui il dato si crea per sbaglio. Per questo la nav da allenatore sparisce
+ * del tutto e il suo mondo e' questo.
+ *
+ * `permessi` e `salute` erano due voci separate qui e nel bottom-nav; qui sono
+ * una voce sola perche' la lista sotto e' l'unica che conta. Il nome "Backend"
+ * copre entrambe.
+ */
+const developerNavItems = [
+  { href: "/admin", label: "Backend" },
+  { href: "/admin/plans", label: "Piani" },
+];
+
 export function AppHeader() {
   const user = useAuthStore((state) => state.user);
   const teamName = useSettingsStore((state) => state.teamName);
@@ -37,9 +55,10 @@ export function AppHeader() {
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
+        {/* Desktop Navigation. Il developer vede la sua lista, non quella da
+            allenatore: vedi developerNavItems per perche'. */}
         <nav className="hidden md:flex items-center gap-1.5">
-          {navItems.map((item) => {
+          {(user?.role === 'developer' ? developerNavItems : navItems).map((item) => {
             const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
               <Link
@@ -58,41 +77,6 @@ export function AppHeader() {
           })}
         </nav>
 
-        {/* Pannello ruoli. NON sta in `navItems` perche' quella lista e' del
-            menu principale ed e' condivisa con il bottom-nav da 5 voci:
-            aggiungerlo li' avrebbe fatto comparire "Account" anche a tutti gli
-            allenatori. Qui va una voce a se', visibile solo agli sviluppatori. */}
-        {user?.role === 'developer' && (
-          <Link
-            href="/admin/users"
-            className={cn(
-              "hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-              pathname.startsWith('/admin/users')
-                ? "bg-primary/5 dark:bg-black text-primary dark:text-brand-green border-primary/50 dark:border-brand-green shadow-sm dark:shadow-theme-strong"
-                : "text-muted-foreground dark:text-white/40 border-transparent hover:text-foreground dark:hover:text-white hover:bg-muted dark:hover:bg-white/5"
-            )}
-          >
-            <Shield className="h-3 w-3" />
-            Account
-          </Link>
-        )}
-
-        {/* Stato del backend: permessi, limiti, costi AI e feedback. Vale anche
-            questo solo per gli sviluppatori, e per lo stesso motivo di sopra. */}
-        {user?.role === 'developer' && (
-          <Link
-            href="/admin/health"
-            className={cn(
-              "hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-              pathname.startsWith('/admin/health')
-                ? "bg-primary/5 dark:bg-black text-primary dark:text-brand-green border-primary/50 dark:border-brand-green shadow-sm dark:shadow-theme-strong"
-                : "text-muted-foreground dark:text-white/40 border-transparent hover:text-foreground dark:hover:text-white hover:bg-muted dark:hover:bg-white/5"
-            )}
-          >
-            <Server className="h-3 w-3" />
-            Backend
-          </Link>
-        )}
       </div>
 
       {user && (
