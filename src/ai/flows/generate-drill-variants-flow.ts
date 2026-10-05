@@ -58,9 +58,9 @@ const MODELLO_FALLBACK =
  * Tentativi per modello, con attesa crescente.
  *
  * I 503 "high demand" di Gemini sono spike brevi: si verificano a ondate, non
- * in modo continuo. Su questo progetto, un singolo tentativo sbagliato fa
+ * non in modo continuo. Su questo progetto, un singolo tentativo sbagliato fa
  * fallire la generazione mentre il modello era perfettamente in grado di
- * rispondere un secondo dopo. Il flusso esistente (generate-exercise-flow) ha
+ * rispondere un secondo dopo. La generazione esercitata su questo progetto ha
  * gia' misurato che due tentativi su tre falliscono e il terzo passa: da li'
  * questi valori.
  *

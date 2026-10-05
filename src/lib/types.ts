@@ -97,7 +97,7 @@ export type FormationModule = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-2-1
 //
 // Prima erano due liste indipendenti che divergevano — il 3-4-3 c'era in rosa
 // e non in partita, il 4-3-1-2 il contrario — e in partita la lista era
-// hardcoded in TRE file (match-lineup-tab, lineup-form-dialog,
+// hardcoded in TRE file (match-lineup-tab, un dialog di lineup rimosso,
 // smart-lineup-dialog), quindi bastava dimenticarsi uno per avere un modulo
 // disponibile in meta' dell'app.
 // Riferimento diretto, non una copia: una copia ([...MATCH_FORMATIONS])

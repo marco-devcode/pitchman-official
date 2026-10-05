@@ -4,8 +4,9 @@ import { requireAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
   // Prima non c'era nessun controllo: la route accettava richieste senza token,
-  // quindi chiunque poteva far scrivere una rosa a piacere. Coach e developer
-  // possono, come dice `canEditRoster` in `hooks/usePermissions.ts`.
+  // quindi chiunque poteva far scrivere una rosa a piacere. La lista dei ruoli
+  // qui sotto e' la fonte: `canEditRoster` in `hooks/usePermissions.ts` non
+  // esiste piu', nessun modulo client decide piu' "chi puo' editare la rosa".
   // `return denied`: senza la risposta esplicita Next non ritorna nulla.
   const denied = await requireAuth(request, ['coach', 'director', 'developer']);
   if (denied) return denied;

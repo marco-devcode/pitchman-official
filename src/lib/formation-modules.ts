@@ -9,7 +9,7 @@
  *
  * Prima di questo refactor la lista viveva in quattro posti indipendenti:
  *   - hardcoded in TRE componenti di partita (match-lineup-tab,
- *     lineup-form-dialog, smart-lineup-dialog)
+ *     un dialog di lineup rimosso, smart-lineup-dialog)
  *   - FORMATIONS in types.ts per la rosa
  *   - FORMATION_ROWS in statistiche/squad-formation-view.tsx
  * e le copie divergevano: il 3-4-3 mancava in partita e nelle statistiche, il

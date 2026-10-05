@@ -55,8 +55,8 @@ export const FORMATION_SLOT_ROLES: Record<string, string[]> = {
  * `types.ts` lo stesso nome indicava le COORDINATE: due tavole diverse con lo
  * stesso nome in due moduli, e un `import` sbagliato passava senza errori.
  *
- * Resta per chi lo usa gia' (`lineup-form-dialog`, `squad-formation-view`), ma
- * il nome nuovo dice cosa contiene. Le coordinate di `types.ts` si chiamano
+ * Resta per chi lo usa gia' (`squad-formation-view`), ma il nome nuovo dice
+ * cosa contiene. Le coordinate di `types.ts` si chiamano
  * `FORMATION_SLOT_COORDS`.
  *
  * @deprecated usa FORMATION_SLOT_ROLES
@@ -125,9 +125,9 @@ export const FORMATION_COORDINATES: Record<string, { top: number, left: number }
  * I moduli selezionabili in PARTITA, derivati da FORMATIONS invece che
  * hardcoded.
  *
- * Prima la lista viveva in tre file (match-lineup-tab, lineup-form-dialog,
- * smart-lineup-dialog) con lo stesso array inline. Tre copie = tre posti
- * dove dimenticarsi un modulo, e il risultato e' un modulo disponibile in
+ * Prima la lista viveva in tre file (match-lineup-tab, un dialog di lineup
+ * rimosso, smart-lineup-dialog) con lo stesso array inline. Tre copie = tre
+ * posti dove dimenticarsi un modulo, e il risultato e' un modulo disponibile in
  * meta' dell'app: il 3-4-3 era assente da tutte e tre, quindi irraggiungibile
  * nonostante le sue tabelle esistessero.
  *

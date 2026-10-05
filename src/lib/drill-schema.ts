@@ -2,7 +2,7 @@
  * Schema del contratto Drill, in Zod per Genkit.
  *
  * Due regole non negoziabili, entrambe imparate con chiamate reali a Gemini
- * (vedi generate-exercise-flow.ts per i dettagli):
+ * sul generatore di esercizi:
  *
  *  1. Niente `z.tuple`. Il serializzatore emette un campo "items" annidato e
  *     l'API risponde 400 "Proto field is not repeating, cannot start list".

@@ -77,9 +77,6 @@ export interface TacticalExercise {
   steps: TacticalStep[];
 }
 
-/** Limite di sicurezza: 6 step, come da specifica della guida. */
-export const MAX_STEPS = 6;
-
 /**
  * Il modello NON garantisce che i dati siano coerenti: coordinate fuori
  * 0-100, azioni che puntano a entita' inesistenti, NaN. Il player deve

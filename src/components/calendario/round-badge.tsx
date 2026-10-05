@@ -4,7 +4,7 @@
  * Il numero di giornata.
  *
  * Vive in un file solo perche' esisteva in DUE copie identiche
- * (`app/calendario/page.tsx` e `components/partite/full-calendar-dialog.tsx`)
+ * (`app/calendario/page.tsx` e un dialog di calendario rimosso)
  * che potevano divergere senza che nulla lo segnalasse: la copia del dialogo
  * non aveva nemmeno l'alone. Una copia sola e' l'unica garanzia che restino
  * uguali quando una delle due viene toccata.
