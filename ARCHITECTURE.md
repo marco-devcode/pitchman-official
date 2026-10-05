@@ -17,22 +17,52 @@
 Ogni store è l'unico proprietario della sua collection Firestore e delle sue
 query. Non duplicare query tra store.
 
-| Store | Collection / dati |
+| Store | Path Firestore |
 |---|---|
-| `usePlayersStore` | `players` (rosa) |
-| `useMatchesStore` | `matches` (calendario, cronaca) |
-| `useSeasonsStore` | `seasons` (stagioni) + stagione attiva |
-| `useTrainingStore` | `trainingSessions` + presenze |
-| `useStatsStore` | statistiche aggregate (derivate) |
-| `useSettingsStore` | impostazioni utente |
-| `useTestsStore` | test atletici |
+| `usePlayersStore` | `teams/{seasonId}/players` |
+| `useMatchesStore` | `teams/{seasonId}/matches` (+ `lineup`, `events`, `stats`) |
+| `useMatchDetailStore` | partita aperta: eventi, formazione e minute del singolo match |
+| `useTrainingStore` | `teams/{seasonId}/sessions` (+ `attendance`) |
+| `useStatsStore` | `teams/{seasonId}/aggregates` |
+| `useSettingsStore` | `settings/{uid}` |
+| `useTestsStore` | `teams/{seasonId}/physicalTests` |
+| `useExerciseStore` | `exercises` (libreria esercizi, per utente) |
+| `usePresenceStore` | `teams/{seasonId}/presence` |
 
-### Contesto di squadra trasversale → `useTeamStore`
-`useTeamStore` è la **fonte di verità per lo stato di coordinamento** letto da
-tutti gli altri store: utente autenticato, ruolo (`AccountRole`), stagione
-attiva, flag `teamReady`. I feature-store non devono più pescare stagione/utente
-via `getState()` sparso: leggono da qui (selector `selectActiveSeasonId`,
-`selectUserId`, …). I dati di dominio restano nei rispettivi store.
+Gli **osservati non hanno uno store**: `scout-repository` li legge e scrive
+direttamente nelle schermate che li mostrano (`/scout`, il riepilogo in
+`/rosa`). `teams/{seasonId}/scouts` e `scoutCategories`.
+
+I path non sono qui per documentazione: `src/lib/season-collections.ts` e' il
+registro unico di tutte le collection di stagione, con un test che lo
+confronta con quelle usate nel codice e **fallisce se ne compare una che non e'
+li'**. E' il meccanismo che impedisce a "Elimina account" di promettere una
+cancellazione che non cancella.
+
+### Contesto di squadra trasversale → due store, non uno
+Non esiste un store di contesto unico. Lo stato trasversale e' diviso cosi':
+
+- **`useSeasonsStore`** — la stagione attiva e l'elenco delle stagioni.
+  E' quello che leggono le schermate (102 riferimenti): ogni pagina prende
+  `activeSeason` da qui per decidere QUALE stagione interrogare.
+- **`useAuthStore`** — utente autenticato e `AccountRole`, letto dal claim
+  del token (`tokenResult.claims.role`).
+
+Esisteva anche `useTeamStore`, che centralizzava le due cose in un posto
+solo: non lo importava nessuno ed e' stato rimosso. Un modello di questo
+genere si riconosce da un sintomo preciso — un store documentato come "fonte
+di verita" che nessun file legge — e va verificato con `grep` prima di
+aggiungere il prossimo.
+
+I dati di dominio restano nei rispettivi store.
+
+### Ruoli → `useUserRole` (non `usePermissions`)
+`useUserRole()` derivi i permessi dal ruolo letto in `useAuthStore`
+(`isDeveloper`, `isDirectorOrAbove`, `isCoachOrAbove`, …). Esisteva
+`usePermissions`, che ne era un involucro (`canImportTuttocampo`,
+`canEditRoster`, …): zero import, rimosso. Chi autorizza una scrittura e'
+`requireAuth(request, ['coach', 'director', 'developer'])` nella route, con
+la lista dei ruoli scritta li': il client non decide niente.
 
 ### Logica di servizio → `src/services`
 Tutta la logica "use-case" (chiamate AI, aggregazioni, business rules) vive in

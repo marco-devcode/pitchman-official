@@ -1,30 +1,54 @@
 /**
  * Registro unico delle collection di stagione.
  *
- * Esiste perche' cancellazione account ed export devono sapere TUTTO dove
- * stanno i dati di una squadra, e la cosa si dimentica: si aggiunge una
- * collection nuova, il pulsante "Elimina account" continua a funzionare senza
- * errori e lascia i dati di quella stagione a terra. Nessun errore, nessun
- * sintomo: semplicemente la promessa fatta all'utente ("cancello tutto")
- * non e' vera.
+ * Esiste perche' EXPORT e health-check devono sapere TUTTO dove stanno i dati
+ * di una squadra, e la cosa si dimentica: si aggiunge una collection nuova,
+ * l'export continua a funzionare senza errori e lascia fuori quei dati, e
+ * l'utente che scarica il proprio account non li trova.
  *
  * `season-collections.test.ts` confronta questo elenco con le collection usate
  * nel codice e fallisce se ne compare una che non e' qui. Il test e' il
  * meccanismo: il commento da solo non ferma nessuno.
  *
+ * NOTA SULLA CANCELLAZIONE. Qui non c'entra: `account/delete` usa
+ * `recursiveDelete` sul documento `teams/{seasonId}`, che porta via ogni
+ * sottocollection registrata o no. Il registro protegge l'EXPORT, che invece
+ * legge una collection alla volta e non puo' sapere cosa non sta guardando.
+ *
  * NOTA SULLE SOTTOCOLLECTION. `matches` contiene `lineup`, `events` e `stats`
  * a due livelli; `sessions` contiene `attendance`. Sono elencate sotto
- * `subcollections` perche' `recursiveDelete` le cancella da sole: sono
- * necessarie per l'integrita' dei dati, ma non per decidere se una
- * cancellazione e' completa (il test verifica quindi solo il primo livello).
+ * `subcollections` perche' l'export le appiattisce sotto il documento padre:
+ * non possono stare altrove e perdere il legame con la partita a cui
+ * appartengono. `recursiveDelete` le cancella da solo, quindi qui sono
+ * necessarie per l'integrita' dell'export, non per decidere se una
+ * cancellazione e' completa.
+ */
+
+/**
+ * Una voce del registro.
+ *
+ * `legacyDaVerificare` non e' un modo per dire "questa non la usa nessuno e
+ * non importa": e' una voce che il CODICE non raggiunge ma che si tiene
+ * perché non si può escludere, senza accesso ai dati, che qualche account
+ * abbia ancora documenti dentro. Toglierla ometterebbe quei documenti
+ * dall'export, e nessuno se ne accorgerebbe.
+ *
+ * La condizione per rimuoverla è scritta nella nota: un comando da eseguire
+ * con l'Admin SDK che restituisca zero documenti. Il test verifica che la
+ * condizione ci sia, non che sia stata eseguita.
  */
 export interface SeasonCollectionEntry {
   /** Path della collection, relativo a `teams/{seasonId}` */
   path: string;
-  /** Sottocollection annidate dentro questa, cancellate ricorsivamente */
+  /** Sottocollection annidate dentro questa, appiattinate dal nell'export */
   subcollections?: string[];
   /** Perche' esiste: cosa si perde se non viene elencata */
   note: string;
+  /**
+   * Il codice non la raggiunge piu', ma non e' stata verificata la sua
+   * vuotita. Vedi `season-collections.test.ts`.
+   */
+  legacyDaVerificare?: boolean;
 }
 
 export const SEASON_COLLECTIONS: SeasonCollectionEntry[] = [
@@ -39,8 +63,16 @@ export const SEASON_COLLECTIONS: SeasonCollectionEntry[] = [
     subcollections: ['attendance'],
     note: 'Allenamenti e presenze',
   },
-  { path: 'events', note: 'Eventi di squadra (calendario)' },
-  { path: 'trainings', note: 'Allenamenti (percorso parallelo)' },
+  {
+    path: 'events',
+    note: "Gli eventi vivono sotto matches/{matchId}/events, che e' gia' elencato fra le sottocollection di matches: questa voce copre gli eventi di squadra di una versione precedente. Il codice non la scrive piu'. Da rimuovere dopo aver verificato con l'Admin SDK che la collection non contiene documenti.",
+    legacyDaVerificare: true,
+  },
+  {
+    path: 'trainings',
+    note: "Percorso parallelo degli allenamenti, superato da sessions. Il codice non lo scrive piu': useTrainingStore usa solo sessions. Da rimuovere dopo aver verificato con l'Admin SDK che la collection non contiene documenti.",
+    legacyDaVerificare: true,
+  },
   { path: 'physicalTests', note: 'Test fisici dei giocatori' },
   {
     path: 'scouts',
@@ -81,10 +113,17 @@ export const USER_SUBCOLLECTIONS = [
  * `teams/{seasonId}` e che qui restano solo perche' qualche account puo' avere
  * ancora documenti al vecchio path.
  *
- * Se un utente ha ancora osservati sotto `users/{uid}/scoutPlayers` non li vede
- * piu': vanno migrati con `scripts/migrate-scout-to-season.ts`. Toglierli da
- * questo elenco prima della migrazione lascerebbe dati che nessuno puo' piu'
- * cancellare, quindi restano finche' il campo non e' vuoto ovunque.
+ * Il client non le legge piu': scout-repository scrive e legge solo
+ * `teams/{seasonId}/scouts`. Restano in questo elenco perche' i documenti al
+ * vecchio path sono invisibili all'app ma non smettono di esistere: toglierli
+ * da qui prima di averli spostati lascerebbe dati che "Elimina account" non
+ * puo' piu' cancellare, e il pulsante direbbe una falsita'.
+ *
+ * NOTA: lo script di migrazione `scripts/migrate-scout-to-season.ts` citato
+ * qui in passato NON e' mai esistito in questo repo (verificato su tutti i
+ * branch: nessun commit lo ha mai aggiunto o rimosso). Se un account ha
+ * ancora osservati sotto `users/{uid}/scoutPlayers`, va spostato a mano con
+ * l'Admin SDK, e poi questo elenco si puo' accorciare.
  */
 export const LEGACY_USER_SUBCOLLECTIONS = [
   'scoutPlayers',

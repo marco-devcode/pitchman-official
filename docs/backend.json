@@ -1,146 +1,140 @@
-
 {
+  "_nota": "Registro dei dati, allineato al codice al 2026-10-05. I path sono verificati contro src/lib/repositories/*.ts e contro il registro src/lib/season-collections.ts, che ha un test che fallisce se qui compare una collection che nel codice non esiste.",
+  "_regola_path": "I dati di SQUADRA vivono sotto teams/{seasonId}/ e sono aperti a chi e' nella stagione (owner, membri in sharedWith, direttori in directorUids). Sotto users/{uid}/ resta solo cio' che e' personale per definizione: la stagione attiva (settings/activeSeason) e la libreria esercizi (exercises, top-level).",
+  "auth": {
+    "providers": [
+      "email",
+      "google"
+    ],
+    "ruoli": {
+      "_nota": "AccountRole, letto dai custom claims del token (src/store/useAuthStore.ts). NON coincide con PlayerRole, che e' la posizione in campo (POR, DC, ATT, …).",
+      "valori": ["developer", "director", "coach", "player"],
+      "dove": "users/{uid}.role",
+      "permessi_di_stagione": {
+        "_nota": "isSeasonAuthorized apre a: owner, uid in members/memberUids, uid in sharedWith, uid in directorUids (sola lettura su rosa e osservati).",
+        "owner": "teams/{seasonId}.ownerId",
+        "membri": "teams/{seasonId}.members / .memberUids",
+        "condivisi": "teams/{seasonId}.sharedWith",
+        "direttore": "teams/{seasonId}.directorUids"
+      }
+    }
+  },
+  "firestore": {
+    "stagioni": {
+      "path": "/teams/{seasonId}",
+      "campi": {
+        "ownerId": "uid del proprietario",
+        "members": "Record<uid, 'owner' | 'staff'>",
+        "memberUids": "array di uid, derivato da members",
+        "sharedWith": "uid che possono SCRIVERE (legacy, ancora letto dalle rules)",
+        "directorUids": "uid del direttore sportivo: sola lettura su rosa e osservati",
+        "plan": "'beta' | 'free' | 'coach' | 'staff' (src/lib/plans.ts)",
+        "limits": "{ maxPlayers: number | null, maxMembers: number }"
+      }
+    },
+    "structure": [
+      {
+        "path": "/teams/{seasonId}/players",
+        "note": "Rosa. teamOwnerId e seasonId li scrive il repository: le rules li usano per autorizzare la scrittura e per 'Elimina account'."
+      },
+      {
+        "path": "/teams/{seasonId}/matches",
+        "subcollections": ["lineup", "events", "stats"],
+        "note": "Partite, formazioni, eventi e statistiche per gara."
+      },
+      {
+        "path": "/teams/{seasonId}/sessions",
+        "subcollections": ["attendance"],
+        "note": "Allenamenti e presenze."
+      },
+      { "path": "/teams/{seasonId}/physicalTests", "note": "Test fisici dei giocatori." },
+      { "path": "/teams/{seasonId}/events", "note": "Eventi di squadra (calendario)." },
+      { "path": "/teams/{seasonId}/trainings", "note": "Allenamenti (percorso parallelo)." },
+      {
+        "path": "/teams/{seasonId}/scouts",
+        "note": "Osservati. Prima sotto users/{uid}/scoutPlayers: spostati qui perche' il direttore sportivo devo poterli vedere."
+      },
+      {
+        "path": "/teams/{seasonId}/scoutCategories",
+        "note": "Etichette degli osservati (prima sotto users/{uid}/scoutCategories)."
+      },
+      { "path": "/teams/{seasonId}/aggregates", "note": "Aggregati precalcolati usati dalla dashboard." },
+      { "path": "/teams/{seasonId}/presence", "note": "Battito di presenza: nessun dato di squadra, serve a sapere chi ha l'app aperta." },
+      { "path": "/invites/{code}", "note": "Codici invito. I codici legacy (S-XXXXX) hanno legacy: true e scadono." },
+      { "path": "/exercises/{exerciseId}", "note": "Libreria esercizi: per utente, con userId." },
+      { "path": "/settings/{uid}", "note": "Impostazioni utente (incl. la stagione attiva)." },
+      { "path": "/users/{uid}", "note": "Profilo e ruolo. Sotto l'utente restano solo sottocollection personali: trainingSessions, physicalTests, settings." },
+      {
+        "path": "/users/{uid}/scoutPlayers",
+        "note": "LEGACY: piu' letta dal client, ma i documenti qui esistono ancora e senza migrarli resterebbero fuori da 'Elimina account'. L'elenco e' in LEGACY_USER_SUBCOLLECTIONS (src/lib/season-collections.ts)."
+      },
+      {
+        "path": "/users/{uid}/scoutCategories",
+        "note": "LEGACY, come sopra."
+      }
+    ],
+    "reasoning": "Il percorso teams/{seasonId}/ e' la selezione: le query non filtrano per userId, perche' su una raccolta condivisa un flag per-utente non puo' vivere nel documento. Il path e' scritto in un posto solo per repository, e season-collections.ts tiene il registro di tutte le collection, verificato da un test."
+  },
   "entities": {
     "ScoutPlayer": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ScoutPlayer",
       "type": "object",
-      "description": "Represents a player identified and tracked by the scouting module, including their details and associated categories. This entity is distinct from the core 'Player' entity, focusing specifically on external talents scouted by the user.",
+      "path": "/teams/{seasonId}/scouts/{scoutPlayerId}",
+      "description": "Un osservato: dato di squadra, non personale. Distincto dal 'Player' della rosa perche' e' un talento esterno seguito dal club.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ScoutPlayer entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The full name of the scouted player."
-        },
-        "role": {
-          "type": "string",
-          "description": "The primary role or position of the scouted player (e.g., 'Attacker', 'Midfielder', 'Defender')."
-        },
-        "currentTeam": {
-          "type": "string",
-          "description": "The name of the team the scouted player currently plays for outside of the user's managed team."
-        },
-        "notes": {
-          "type": "string",
-          "description": "Additional observations or comments about the scouted player, providing qualitative insights."
-        },
-        "categoryIds": {
-          "type": "array",
-          "description": "References to ScoutCategories this player belongs to, allowing for classification and filtering. (Relationship: ScoutCategory N:N ScoutPlayer)",
-          "items": {
-            "type": "string"
-          }
-        }
+        "id": { "type": "string", "description": "Id del documento." },
+        "name": { "type": "string", "description": "Nome e cognome." },
+        "role": { "type": "string", "default": "Attaccante", "description": "Ruolo (e' una stringa libera, non il PlayerRole)." },
+        "currentTeam": { "type": "string", "default": "", "description": "Squadra in cui gioca fuori dalla rosa." },
+        "notes": { "type": "string", "default": "", "description": "Osservazioni qualitative." },
+        "categoryIds": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Riferimenti a ScoutCategory." },
+        "teamOwnerId": { "type": "string", "description": "Scritto dal repository: le rules lo confrontano con request.auth.uid." },
+        "seasonId": { "type": "string", "description": "Serve a 'Elimina account' e alla migrazione." }
       },
-      "required": [
-        "id",
-        "name",
-        "role",
-        "currentTeam",
-        "categoryIds"
-      ]
+      "required": ["id", "name", "role", "currentTeam", "categoryIds"],
+      "fonte": "src/lib/schemas.ts (ScoutPlayerSchema)"
     },
     "ScoutCategory": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ScoutCategory",
       "type": "object",
-      "description": "Represents a custom category or tag created by the user to classify and filter scouted players, often displayed as colored badges.",
+      "path": "/teams/{seasonId}/scoutCategories/{scoutCategoryId}",
+      "description": "Etichetta creata per classificare e filtrare gli osservati, mostrata come badge colorato.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ScoutCategory entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The custom name of the scout category or tag (e.g., 'Promessa', 'Fisico', 'Piede Sinistro')."
-        },
-        "colorHex": {
-          "type": "string",
-          "description": "Hexadecimal color code for the badge associated with this category, used for UI representation (e.g., '#FF8F00')."
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string", "description": "Testo libero: 'Promessa', 'Fisico', 'Piede sinistro'." },
+        "colorHex": { "type": "string", "default": "#00FF00" }
       },
-      "required": [
-        "id",
-        "name",
-        "colorHex"
-      ]
+      "required": ["id", "name", "colorHex"],
+      "fonte": "src/lib/schemas.ts (ScoutCategorySchema)"
     },
     "TrainingSession": {
       "title": "TrainingSession",
       "type": "object",
-      "description": "Represents a single training session.",
+      "path": "/teams/{seasonId}/sessions/{sessionId}",
       "properties": {
-        "id": { "type": "string" },
+        "id": { "type": "string", "description": "Formato TR-XXXXX." },
         "index": { "type": "number" },
-        "date": { "type": "string", "format": "date-time" },
-        "notes": { "type": "string" },
-        "seasonId": { "type": "string" }
+        "date": { "type": "string" },
+        "notes": { "type": "string", "default": "" },
+        "focus": { "type": "string", "default": "" },
+        "seasonId": { "type": "string" },
+        "userId": { "type": "string" },
+        "exerciseIds": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "exercises": { "type": "array", "items": { "type": "object" }, "default": [] }
       },
-      "required": ["id", "index", "date", "seasonId"]
+      "required": ["id", "index", "date", "seasonId"],
+      "fonte": "src/lib/schemas.ts (TrainingSessionSchema)"
     },
     "TrainingAttendance": {
       "title": "TrainingAttendance",
       "type": "object",
-      "description": "Represents a player's attendance status for a training session.",
+      "path": "/teams/{seasonId}/sessions/{sessionId}/attendance/{playerId}",
+      "description": "Presenza di un giocatore a una seduta. L'ingresso in campo decide la presenza, non i minuti: un subentrato all'ultimo minuto ha 0 minuti e una presenza.",
       "properties": {
         "playerId": { "type": "string" },
         "status": { "type": "string", "enum": ["presente", "ritardo", "assente"] }
       },
       "required": ["playerId", "status"]
     }
-  },
-  "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
-  },
-  "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}/scoutPlayers/{scoutPlayerId}",
-        "definition": {
-          "entityName": "ScoutPlayer",
-          "schema": {
-            "$ref": "#/backend/entities/ScoutPlayer"
-          },
-          "description": "Stores individual scouted player data."
-        }
-      },
-      {
-        "path": "/users/{userId}/scoutCategories/{scoutCategoryId}",
-        "definition": {
-          "entityName": "ScoutCategory",
-          "schema": {
-            "$ref": "#/backend/entities/ScoutCategory"
-          },
-          "description": "Stores custom categories (tags)."
-        }
-      },
-      {
-        "path": "/users/{userId}/trainingSessions/{sessionId}",
-        "definition": {
-          "entityName": "TrainingSession",
-          "schema": {
-            "$ref": "#/backend/entities/TrainingSession"
-          },
-          "description": "Stores individual training sessions."
-        }
-      },
-      {
-        "path": "/users/{userId}/trainingSessions/{sessionId}/attendance/{playerId}",
-        "definition": {
-          "entityName": "TrainingAttendance",
-          "schema": {
-            "$ref": "#/backend/entities/TrainingAttendance"
-          },
-          "description": "Stores attendance for a specific training session."
-        }
-      }
-    ],
-    "reasoning": "The training module uses the same isolation pattern as Scout, nesting sessions and their respective attendance records under the user document."
   }
 }

@@ -1,25 +1,35 @@
 # 🗺️ PitchMan — Roadmap & Miglioramenti
----
+
+> **Come leggerlo.** Le voci con `[x]` sono fatte e c'è il path del codice.
+> Quelle senza sono proposte. Quando una voce è già nel codice ma qui sembra
+> da fare, il documento è il problema, non il lavoro: la Roadmap non è lo
+> stato dell'app.
+>
+> **Stato verificato al 2026-10-05** contro `main` @ `668755f`.
+
 Customer assistance in ? Research su documentazione FAQ e in ultima battuta cliccando su Non ho trovato la risposta apre chat con AI con accesso a documentazione e può rispondere solo a domande inerenti a come usare l'app e a che cosa fa l'app.
 
 ## 🔴 Bug & Fix Immediati
-- [ ] **Hydration Errors nei Modali**: Con React 18 / Next.js e componenti headless (Radix UI), verificare e prevenire avvisi di mismatch HTML tra il server rendering e la visualizzazione locale.
+- [ ] **Hydration Errors nei Modali**: Con React 19 / Next.js e componenti headless (Radix UI), verificare e prevenire avvisi di mismatch HTML tra il server rendering e la visualizzazione locale.
 
---- 
+---
 
 ## 🟡 Ottimizzazioni
 
 ### Developer mode
 - Il developer ha accesso alle funzioni di import da tuttocampo con login, per rosa e calendario. Poi bisogna aggiornare la cronaca eventi, la proposta è uno scraping settimanale automatizzato con cronjob
 
-
 ### Sicurezza
 - [ ] **Validazione password al signup** — `useAuthStore.ts` non impone requisiti minimi sulla password (lunghezza, complessità). Firebase accetta qualsiasi password ≥6 caratteri ma l'UI non guida l'utente.
+- [ ] **Firebase App Check**
 
 ### Codice
 
-- [ ] **Gestione Errori Globali (Global Error Boundary)**: Introdurre i file `error.tsx` e `global-error.tsx` nelle directory nevralgiche dell'App Router. L'intera app non deve crashare se una query fallisce isolatamente.
-- [ ] **Design Pattern "Service Layer" per l'AI**: Estrapolare le dirette invocazioni a Genkit dall'Interfaccia Grafica e ingabbiarle in un *Domain Service*. Rende il codice DRY e facile da fare Mocking per test unitari automatizzati.
+- [x] **Gestione Errori Globali (Global Error Boundary)** — 6 file: `app/error.tsx`, `app/global-error.tsx` e un `error.tsx` per `allenamento`, `calendario`, `membri`, `statistiche`.
+- [x] **Design Pattern "Service Layer" per l'AI** — `src/services/ai.service.ts` con test, più `stats-advanced-service.ts`. I flussi Genkit non sono più chiamati dal componente.
+- [ ] **Condivisione formazione come PNG** — esiste `src/lib/lineup-share.ts` e lo usa `match-lineup-tab.tsx`, ma va verificato che l'immagine sia quella che l'allenatore si aspetta.
+- [x] **Import da immagine (OCR)** — `src/lib/ai/file-extractor.ts`, usato dai flussi di import.
+- [ ] **Ruolo `player`** — `AccountRole` lo dichiara, `assign-role` lo assegna e `useUserRole().isPlayer` lo calcola, ma nessuna route né nessun guard lo tratta come caso proprio: un account con quel ruolo si comporta come un coach che non ha ancora ricevuto inviti. Serve decidere cosa può vedere un giocatore.
 
 ---
 
