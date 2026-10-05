@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebase-admin';
-import { apiError, countMembers, memberLimit, requireAuth, roleOf, type SeasonDoc } from '@/lib/server/auth';
+import {
+  accountRoleOf,
+  apiError,
+  countMembers,
+  isSeasonDirectorOf,
+  memberLimit,
+  requireAuth,
+  roleOf,
+  type SeasonDoc,
+} from '@/lib/server/auth';
 import { limitMessage } from '@/lib/plans';
 import { clientIp, rateLimit } from '@/lib/server/rate-limit';
 import { GENERIC_INVITE_ERROR } from '@/lib/server/invite-codes';
@@ -71,6 +80,11 @@ export async function POST(request: Request) {
 
   const targetSeason = adminDb.collection('teams').doc(invite.seasonId);
 
+  // Ruolo ACCOUNT, letto FUORI dalla transazione: `get()` dentro una
+  // transazione su Firestore deve precedere ogni scrittura della stessa
+  // transazione, e questo documento (`users/{uid}`) non viene scritto qui.
+  const accountRole = await accountRoleOf(auth.uid);
+
   try {
     const result = await adminDb.runTransaction(async (tx) => {
       const invSnap = await tx.get(inviteRef);
@@ -94,7 +108,12 @@ export async function POST(request: Request) {
 
       // Un codice legacy migrato puo' avere piu' usi: chi lo ha gia' riscosso
       // non deve essere bloccato dal fatto che il contatore sale.
-      if (roleOf(season as never, auth.uid)) {
+      //
+      // Il controllo comprende anche `isSeasonDirectorOf`: senza, un direttore
+      // che riscatta due volte lo stesso codice su una stagione dove e' gia'
+      // direttore passerebbe il controllo "gia' membro" (perche' non e' in
+      // `sharedWith`) e verrebbe aggiunto due volte.
+      if (roleOf(season as never, auth.uid) || isSeasonDirectorOf(season, auth.uid)) {
         return { ok: false as const, code: 'ALREADY_MEMBER' as const };
       }
 
@@ -107,14 +126,36 @@ export async function POST(request: Request) {
       const existingMembers = season.members ?? (ownerUid ? { [ownerUid]: 'owner' } : {});
       const existingUids = season.memberUids ?? Object.keys(existingMembers);
       const existingShared = season.sharedWith ?? [];
+      const existingDirectors = season.directorUids ?? [];
 
+      // UN INVITO, DUE PERMESSI. Il ruolo e' quello dell'ACCOUNT, non quello
+      // scritto sull'invito: il ruolo dell'invito dice "entra come staff",
+      // ma se chi riscatta ha il ruolo `director` allora entra come direttore.
+      //
+      // Perche' cosi' e non con un codice separato: il coach condivide lo stesso
+      // link che usa gia' per gli allenatori. La decisione "questa persona e' un
+      // direttore" l'hai presa tu, fuori dall'app, quando gli hai assegnato il
+      // ruolo — quindi il codice non deve decidere nulla.
+      const isDirector = accountRole === 'director';
+
+      // Il conteggio (`countMembers`) include gia' i direttori, quindi il tetto
+      // dei 5 li considera: e' la decisione esplicita dell'utente.
       tx.update(targetSeason, {
-        members: { ...existingMembers, [auth.uid]: inv.role },
-        memberUids: [...new Set([...existingUids, auth.uid])],
-        // `sharedWith` resta allineata: le rules vecchie e il codice client
-        // che non e' ancora migrato la leggono. Senza questo, un utente che
-        // riscatta un invito si ritrova con una stagione che non vede piu'.
-        sharedWith: existingShared.includes(auth.uid) ? existingShared : [...existingShared, auth.uid],
+        ...(isDirector
+          // DIRETTORE: solo `directorUids`. NON entra in `sharedWith`,
+          // `members` o `memberUids`, perche' da li' le rules gli darebbero
+          // la scrittura su partite, eventi e test.
+          ? {
+                directorUids: [...new Set([...existingDirectors, auth.uid])],
+              }
+          : {
+              members: { ...existingMembers, [auth.uid]: inv.role },
+              memberUids: [...new Set([...existingUids, auth.uid])],
+              // `sharedWith` resta allineata: le rules vecchie e il codigo client
+              // che non e' ancora migrato la leggono. Senza questo, un utente che
+              // riscatta un invito si ritrova con una stagione che non vede piu'.
+              sharedWith: existingShared.includes(auth.uid) ? existingShared : [...existingShared, auth.uid],
+            }),
         updatedAt: new Date().toISOString(),
       });
 

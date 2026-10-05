@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUser, useFirestore } from "@/firebase";
+import { useUser } from "@/firebase";
+import { useSeasonsStore } from "@/store/useSeasonsStore";
+import { scoutRepository } from "@/lib/repositories/scout-repository";
 import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { Trash2, Plus, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,26 +33,25 @@ interface ScoutCategoryDialogProps {
 
 export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCategoryDialogProps) {
   const { user } = useUser();
-  const firestore = useFirestore();
+  const { activeSeason } = useSeasonsStore();
+  const seasonId = activeSeason?.id ?? null;
   const { mutate } = useSWRConfig();
   
   const [loading, setLoading] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
 
+  // Le categorie stanno sulla stagione, come gli osservati che etichettano.
   const handleAddCategory = async () => {
-    if (!user || !firestore || !newCatName.trim()) return;
-    
+    if (!user || !seasonId || !newCatName.trim()) return;
+
     setLoading(true);
     try {
-      const id = `CAT-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      await setDoc(doc(firestore, 'users', user.uid, 'scoutCategories', id), {
-        id,
+      await scoutRepository.createCategory(seasonId, {
         name: newCatName.trim(),
         colorHex: selectedColor,
-        userId: user.uid
       });
-      await mutate(`users/${user.uid}/scoutCategories`);
+      await mutate(`teams/${seasonId}/scoutCategories`);
       setNewCatName("");
     } catch (e) {
       console.error(e);
@@ -60,9 +61,9 @@ export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCat
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!user || !firestore) return;
-    await deleteDoc(doc(firestore, 'users', user.uid, 'scoutCategories', id));
-    await mutate(`users/${user.uid}/scoutCategories`);
+    if (!user || !seasonId) return;
+    await scoutRepository.removeCategory(seasonId, id);
+    await mutate(`teams/${seasonId}/scoutCategories`);
   };
 
   return (

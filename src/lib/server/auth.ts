@@ -110,6 +110,18 @@ export interface SeasonDoc {
   memberUids?: string[];
   playerCount?: number;
   sharedWith?: string[];
+  /**
+   * Direttori sportivi che hanno riscattato un invito per questa stagione.
+   *
+   * Lista SEPARATA da `sharedWith` di proposito: `sharedWith` e' chi puo'
+   * scrivere (eventi, presenze, test), e il direttore non deve poterlo. Sta
+   * qui perche' le rules possono leggerlo con una sola `get()` sul documento
+   * della stagione, senza query su un'altra collection.
+   *
+   * Assente sulle stagioni vecchie: `isSeasonDirector` nelle rules controlla
+   * `'directorUids' in season` per questo.
+   */
+  directorUids?: string[];
   [key: string]: unknown;
 }
 
@@ -223,7 +235,64 @@ export function countMembers(season: Partial<SeasonDoc>): number {
   if (Array.isArray(season.sharedWith)) {
     for (const uid of season.sharedWith) if (typeof uid === 'string') uids.add(uid);
   }
+  // Il direttore conta nel tetto dei 5 membri: decisione dell'utente, perche' un
+  // club con 5 allenatori non deve poter condividere col proprio direttore, e
+  // perche' il posto che lui occupa e' comunque un posto che il club non puo'
+  // riempire.
+  //
+  // Nota il doppio conteggio possibile: se un uid fosse in `sharedWith` E in
+  // `directorUids` verrebbe contato una volta sola, perche' `uids` e' un Set.
+  // Questo e' il comportamento voluto: non e' che il direttore "vale due".
+  if (Array.isArray(season.directorUids)) {
+    for (const uid of season.directorUids) if (typeof uid === 'string') uids.add(uid);
+  }
   return uids.size;
+}
+
+/**
+ * Il ruolo DIRETTORE per questa stagione, o null.
+ *
+ * Diverso da `roleOf`, che restituisce 'owner' | 'staff': il direttore non e'
+ * staff e non deve passare per uno, altrimenti il codice che chiede
+ * `roleOf(...) === 'staff'` per autorizzare una scrittura gli darebbe il
+ * permesso. Sono due domande diverse e hanno due risposte diverse.
+ */
+export function isSeasonDirectorOf(season: Partial<SeasonDoc>, uid: string): boolean {
+  return Array.isArray(season.directorUids) && season.directorUids.includes(uid);
+}
+
+/**
+ * Il ruolo ACCOUNT di un utente, letto da `users/{uid}.role`.
+ *
+ * NON dai custom claims, perche' i due ruoli hanno due origini diverse:
+ * il developer si assegna da console (che scrive il claim) e il direttore
+ * arriva da un endpoint privato che scrive il documento. Se qui si leggesse il
+ * claim, il ruolo del direttore risulterebbe `coach` — il fallback di
+ * `useAuthStore` — e un direttore che riscatta un invito diventerebbe
+ * allenatore con pieni permessi di scrittura.
+ *
+ * `coerceRole` con fallback a `coach`: un documento assente o corrotto NON deve
+ * promuovere nessuno. Il caso peggiore (ruolo non riconosciuto) deve essere
+ * "nessun permesso in piu'", mai "tutti i permessi".
+ */
+export function coerceRole(value: unknown): 'developer' | 'director' | 'coach' | 'player' {
+  return value === 'developer' || value === 'director' || value === 'coach' || value === 'player'
+    ? value
+    : 'coach';
+}
+
+/** Ruolo ACCOUNT letto da Firestore, con fallback a `coach`. */
+export async function accountRoleOf(uid: string): Promise<'developer' | 'director' | 'coach' | 'player'> {
+  if (!adminDb) return 'coach';
+  try {
+    const snap = await adminDb.collection('users').doc(uid).get();
+    if (!snap.exists) return 'coach';
+    return coerceRole(snap.data()?.role);
+  } catch {
+    // Una lettura fallita non deve far entrare nessuno con permessi: il
+    // fallback 'coach' e' la scelta che non concede nulla.
+    return 'coach';
+  }
 }
 
 /** Il tetto membri della stagione, con fallback sui limiti del piano. */

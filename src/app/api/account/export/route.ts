@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { apiError, requireAuth, roleOf } from '@/lib/server/auth';
-import { SEASON_COLLECTIONS, USER_SUBCOLLECTIONS, USER_TOP_LEVEL_COLLECTIONS } from '@/lib/season-collections';
+import {
+  SEASON_COLLECTIONS,
+  USER_SUBCOLLECTIONS,
+  USER_TOP_LEVEL_COLLECTIONS,
+  LEGACY_USER_SUBCOLLECTIONS,
+} from '@/lib/season-collections';
 import { rateLimit } from '@/lib/server/rate-limit';
 
 export const runtime = 'nodejs';
@@ -94,7 +99,10 @@ export async function POST(request: Request) {
     for (const s of legacySeasons.docs) await addSeason(s, false);
 
     const personal: Record<string, unknown> = {};
-    for (const sub of USER_SUBCOLLECTIONS) {
+    // Anche le collection LEGACY: se l'export le omettesse, un account con
+    // osservati al vecchio path non troverebbe i suoi dati nell'export e
+    // penserebbe che siano spariti.
+    for (const sub of [...USER_SUBCOLLECTIONS, ...LEGACY_USER_SUBCOLLECTIONS]) {
       const snap = await adminDb.collection('users').doc(uid).collection(sub).get();
       if (!snap.empty) personal[sub] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     }

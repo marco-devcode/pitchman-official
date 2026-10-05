@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { usePlayersStore } from '@/store/usePlayersStore';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
+import { scoutRepository } from '@/lib/repositories/scout-repository';
 import {
   FormationModule,
   FORMATIONS,
@@ -120,9 +121,9 @@ export default function RosaOverviewPage() {
 
   // ── Scout / Observed players ──────────────────────────
   const scoutPlayersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'users', user.uid, 'scoutPlayers');
-  }, [firestore, user]);
+    if (!firestore || !user || !activeSeason) return null;
+    return scoutRepository.ref(activeSeason.id);
+  }, [firestore, user, activeSeason]);
 
   const { data: scoutPlayers } = useCollection<ScoutPlayer>(
     scoutPlayersQuery,

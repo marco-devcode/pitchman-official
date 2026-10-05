@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useUser, useFirestore } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { useUser } from "@/firebase";
 import { PlayerRole, getPrimaryRole } from '@/lib/types';
+import { useSeasonsStore } from '@/store/useSeasonsStore';
+import { scoutRepository } from '@/lib/repositories/scout-repository';
 import type { ScoutPlayer, ScoutCategory } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Check, Loader2, Shirt } from "lucide-react";
@@ -28,7 +29,8 @@ interface ScoutPlayerDialogProps {
 
 export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: ScoutPlayerDialogProps) {
   const { user } = useUser();
-  const firestore = useFirestore();
+  const { activeSeason } = useSeasonsStore();
+  const seasonId = activeSeason?.id ?? null;
   const { toast } = useToast();
   const { mutate } = useSWRConfig();
 
@@ -66,29 +68,26 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
   }, [player, open]);
 
   const handleSave = async () => {
-    if (!user || !firestore || !formData.name) return;
+    // Gli osservati stanno sulla stagione attiva: senza, non c'e' squadra a cui
+    // appartenerli e il salvataggio non avrebbe dove andare.
+    if (!user || !formData.name || !seasonId) return;
 
     setLoading(true);
     try {
+      const payload = {
+        ...formData,
+        name: formData.name,
+        role: formData.roles[0] || formData.role,
+        currentTeam: formData.currentTeam ?? '',
+        categoryIds: formData.categoryIds ?? [],
+        notes: formData.notes ?? '',
+      };
       if (player) {
-        await setDoc(doc(firestore, 'users', user.uid, 'scoutPlayers', player.id), {
-          ...formData,
-          id: player.id,
-          userId: user.uid,
-          role: formData.roles[0] || formData.role,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
+        await scoutRepository.update(user.uid, seasonId, player.id, payload);
       } else {
-        const id = `SP-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-        await setDoc(doc(firestore, 'users', user.uid, 'scoutPlayers', id), {
-          ...formData,
-          id,
-          userId: user.uid,
-          role: formData.roles[0] || formData.role,
-          createdAt: new Date().toISOString()
-        });
+        await scoutRepository.create(user.uid, seasonId, payload);
       }
-      await mutate(`users/${user.uid}/scoutPlayers`);
+      await mutate(`teams/${seasonId}/scouts`);
       onOpenChange(false);
     } catch (e: any) {
       console.error("Save Player Error:", e);

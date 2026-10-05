@@ -53,6 +53,36 @@ service cloud.firestore {
       return isSignedIn() && (season.ownerId == request.auth.uid || request.auth.uid in season.sharedWith);
     }
 
+    // ─── DIRETTORE SPORTIVO ────────────────────────────────────────────────
+    // Il direttore entra con lo STESSO codice invito di un allenatore, ma i
+    // permessi sono diversi e derivano dal ruolo che l'account ha gia':
+    // il coach finisce in `sharedWith`, il direttore in `directorUids`.
+    //
+    // Perche' due liste e non una: `sharedWith` e' l'elenco di chi puo' SCRIVERE
+    // nella stagione. Il direttore non deve poterlo. Con un unico elenco, o il
+    // direttore avrebbe gli stessi poteri di un allenatore (eventi, presenze,
+    // test), o gli allenatori avrebbero perso l'accesso.
+    //
+    // `directorUids` puo' non esistere sulle stagioni create prima di questa
+    // feature: `in` su una lista assente e' semplicemente false, quindi il
+    // direttore non ottiene accesso a una stagione vecchia finche' non entra
+    // con l'invito. Nessun errore, semplicemente non entra.
+    function isSeasonDirector(seasonId) {
+      let season = get(/databases/$(database)/documents/teams/$(seasonId)).data;
+      return isSignedIn() && getRole() == 'director'
+             && 'directorUids' in season
+             && request.auth.uid in season.directorUids;
+    }
+
+    // Il direttore vede i dati di IDENTITA' di una squadra (chi c'e', ruolo,
+    // infortuni, osservati) e NON i dati di GESTIONE (partite, eventi,
+    // presenze, test fisici): quelli sono il lavoro dell'allenatore e non
+    // servono al direttore. Quindi questa funzione NON viene usata sotto
+    // matches/sessions/physicalTests, e aggiungerla li' e' un errore.
+    function isSeasonDirectorOrAuthorized(seasonId) {
+      return isSeasonAuthorized(seasonId) || isSeasonDirector(seasonId);
+    }
+
     // ─── /users/{userId} ─────────────────────────────────────────────────────
     
     match /users/{userId} {
@@ -159,9 +189,32 @@ service cloud.firestore {
                     );
       allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
 
+      // ─── Osservati e categorie (dato di squadra) ────────────────────────
+      // Stanno qui dal blocco "scout condivisi". Un tempo erano sotto
+      // `users/{uid}/scoutPlayers`, quindi un coach li aveva e il direttore no.
+      // Il coach scrive, il direttore legge, nessuno dei due vede le partite
+      // dell'altro attraverso questo path.
+      match /scouts/{scoutId} {
+        allow get:    if isSignedIn() && (resource == null || isSeasonDirectorOrAuthorized(seasonId));
+        allow list:   if isSignedIn() && isSeasonDirectorOrAuthorized(seasonId);
+        allow create: if isSignedIn() && isSeasonAuthorized(seasonId) && request.resource.data.teamOwnerId == request.auth.uid;
+        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+      }
+
+      match /scoutCategories/{categoryId} {
+        allow get:    if isSignedIn() && (resource == null || isSeasonDirectorOrAuthorized(seasonId));
+        allow list:   if isSignedIn() && isSeasonDirectorOrAuthorized(seasonId);
+        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+      }
+
       match /players/{playerId} {
-        allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
+        // Il direttore LEGGE la rosa (deve vedere nomi, ruoli e infortuni) ma
+        // non la scrive: le quattro righe sotto restano solo agli allenatori.
+        allow get:    if isSignedIn() && (resource == null || isSeasonDirectorOrAuthorized(seasonId));
+        allow list:   if isSignedIn() && isSeasonDirectorOrAuthorized(seasonId);
         allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
         allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
         allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);

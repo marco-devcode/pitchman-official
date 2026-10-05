@@ -42,6 +42,14 @@ export const SEASON_COLLECTIONS: SeasonCollectionEntry[] = [
   { path: 'events', note: 'Eventi di squadra (calendario)' },
   { path: 'trainings', note: 'Allenamenti (percorso parallelo)' },
   { path: 'physicalTests', note: 'Test fisici dei giocatori' },
+  {
+    path: 'scouts',
+    note: 'Osservati: dati di squadra, condivisi col direttore sportivo',
+  },
+  {
+    path: 'scoutCategories',
+    note: 'Etichette degli osservati (prima sotto users/{uid})',
+  },
   { path: 'aggregates', note: 'Aggregati precalcolati usati dalla dashboard' },
   { path: 'presence', note: 'Battito di presenza, nessun dato di squadra' },
 ];
@@ -63,11 +71,24 @@ export const USER_TOP_LEVEL_COLLECTIONS = ['exercises'] as const;
  * che nessuno puo' piu' cancellare.
  */
 export const USER_SUBCOLLECTIONS = [
-  'scoutPlayers',
-  'scoutCategories',
   'trainingSessions',
   'physicalTests',
   'settings',
+] as const;
+
+/**
+ * Sottocollection sotto `users/{uid}` che sono state SPOSTATE su
+ * `teams/{seasonId}` e che qui restano solo perche' qualche account puo' avere
+ * ancora documenti al vecchio path.
+ *
+ * Se un utente ha ancora osservati sotto `users/{uid}/scoutPlayers` non li vede
+ * piu': vanno migrati con `scripts/migrate-scout-to-season.ts`. Toglierli da
+ * questo elenco prima della migrazione lascerebbe dati che nessuno puo' piu'
+ * cancellare, quindi restano finche' il campo non e' vuoto ovunque.
+ */
+export const LEGACY_USER_SUBCOLLECTIONS = [
+  'scoutPlayers',
+  'scoutCategories',
 ] as const;
 
 /** True se `path` e' una collection di stagione registrata. */

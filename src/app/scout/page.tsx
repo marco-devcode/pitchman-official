@@ -23,6 +23,8 @@ import type { ScoutPlayer, ScoutCategory } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
 import { displayPlayerName } from "@/lib/utils";
+import { useSeasonsStore } from "@/store/useSeasonsStore";
+import { scoutRepository } from "@/lib/repositories/scout-repository";
 
 // Sub-component to safely use useSearchParams
 function ScoutContent() {
@@ -30,6 +32,11 @@ function ScoutContent() {
   const firestore = useFirestore();
   const { mutate } = useSWRConfig();
   const searchParams = useSearchParams();
+  // Gli osservati sono un dato di SQUADRA: senza stagione attiva non c'e' nulla
+  // da mostrare, e con il path sotto `users/{uid}` non c'era piu' nulla da
+  // condividere col direttore sportivo.
+  const { activeSeason } = useSeasonsStore();
+  const seasonId = activeSeason?.id ?? null;
 
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [isPlayerDialogOpen, setIsPlayerDialogOpen] = useState(false);
@@ -78,14 +85,14 @@ function ScoutContent() {
 
   // Queries Firestore
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'users', user.uid, 'scoutCategories');
-  }, [firestore, user]);
+    if (!firestore || !seasonId) return null;
+    return scoutRepository.categoriesRef(seasonId);
+  }, [firestore, seasonId]);
 
   const playersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'users', user.uid, 'scoutPlayers');
-  }, [firestore, user]);
+    if (!firestore || !seasonId) return null;
+    return scoutRepository.ref(seasonId);
+  }, [firestore, seasonId]);
 
   const { data: categories, isLoading: catLoading } = useCollection<ScoutCategory>(categoriesQuery, ScoutCategorySchema as any);
   const { data: players, isLoading: playersLoading } = useCollection<ScoutPlayer>(playersQuery, ScoutPlayerSchema as any);
@@ -108,10 +115,10 @@ function ScoutContent() {
   };
 
   const confirmDeletePlayer = async () => {
-    if (!playerToDelete || !user || !firestore) return;
+    if (!playerToDelete || !user || !seasonId) return;
     try {
-      await deleteDoc(doc(firestore, 'users', user.uid, 'scoutPlayers', playerToDelete.id));
-      await mutate(`users/${user.uid}/scoutPlayers`);
+      await scoutRepository.remove(seasonId, playerToDelete.id);
+      await mutate(`teams/${seasonId}/scouts`);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Errore", description: "Impossibile eliminare l'osservato." });
       console.error("Delete Error:", err);

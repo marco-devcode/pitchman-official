@@ -1,5 +1,6 @@
 import { MATCH_FORMATIONS } from './formation-modules';
 import type { TacticalExercise } from './tactical-exercise';
+import type { PlanId } from './plans';
 
 export type AccountRole = 'developer' | 'director' | 'coach' | 'player';
 
@@ -8,6 +9,20 @@ export interface UserProfile {
   email: string;
   displayName?: string;
   role: AccountRole;
+  /**
+   * Piano di ABBONAMENTO dell'account, deciso dal backend (non dall'utente).
+   *
+   * Distinto dal `plan` che sta sul documento STAGIONE: quello e' la copia dei
+   * limiti applicata a una stagione specifica, e serve perche' le Firestore
+   * rules non possono fare query su un'altra collection. Questo e' la fonte di
+   * verita' del piano dell'account, letta dal client per cosa mostrare e dai
+   * server per i controlli.
+   *
+   * ASSENTE non significa free: `normalizePlan` (in `lib/plans.ts`) mappa
+   * qualunque valore sconosciuto, `undefined` compreso, a `beta`. Un campo
+   * assente lascia quindi tutti col massimo di permessi, mai senza accesso.
+   */
+  plan?: PlanId;
   teamIds?: string[];
   linkedPlayerId?: string;
   createdAt: string;

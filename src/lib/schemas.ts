@@ -187,7 +187,15 @@ export const ScoutPlayerSchema = z.object({
   currentTeam: z.string().default(''),
   categoryIds: z.array(z.string()).optional().default([]),
   notes: z.string().optional().default(''),
+  /**
+   * Scritto dal server/repository, non dall'utente: `teamOwnerId` e' l'uid di
+   * chi ha creato l'osservato e le rules lo confrontano con `request.auth.uid`
+   * per autorizzare la scrittura; `seasonId` serve a "Elimina account" e alla
+   * migrazione. Assenti sui documenti vecchi: il fallback e' non denegare.
+   */
   userId: z.string().optional(),
+  teamOwnerId: z.string().optional(),
+  seasonId: z.string().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
