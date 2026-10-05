@@ -9,7 +9,6 @@ import {
   setDoc, 
   updateDoc, 
   deleteDoc, 
-  query, 
   where,
   writeBatch,
   getDoc

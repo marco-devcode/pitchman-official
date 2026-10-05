@@ -2,16 +2,10 @@ import {
   collection, 
   query, 
   where, 
-  getDocs, 
   getDoc, 
   doc, 
-  setDoc, 
   updateDoc,
-  deleteDoc,
-  arrayUnion, 
-  writeBatch, 
   getFirestore, 
-  or 
 } from 'firebase/firestore';
 import type { Season } from '@/lib/types';
 import { SeasonSchema } from '@/lib/schemas';

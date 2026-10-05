@@ -285,20 +285,14 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         useStatsStore.getState().markStatsDirty();
 
         const duration = match.duration || 90;
-        const halfTime = Math.floor(duration / 2);
         const pitchManTeam = match.isHome ? 'home' : 'away';
-        const addedTime = match.addedTime;
 
         // NB: qui NON c'e' piu' nessun "minuto assoluto con recupero". Il
         // minutaggio e' delegato a computeMinutesPlayed, dove il recupero non
         // sposta il clock: la fine partita per i minuti e' `duration`, punto.
-
-        const chronologicalEvents = [...events].sort((a, b) => {
-            const pA = periodOrder[a.period] || 0;
-            const pB = periodOrder[b.period] || 0;
-            if (pA !== pB) return pA - pB;
-            return (a.minute ?? 0) - (b.minute ?? 0);
-        });
+        // Sotto il calcolo non serve ne' `halfTime` ne' `addedTime`: il primo
+        // e' dentro computeMinutesPlayed, il secondo riguarda solo la
+        // cronologia degli eventi, che non guarda qui.
 
         const newStats: PlayerMatchStats[] = allPlayers.map(player => {
             const playerId = player.id;
@@ -314,7 +308,9 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             const isSubstitute = lineup?.substitutes.some(p => (typeof p === 'string' ? p : p.playerId) === playerId);
 
             // Modello dei minuti in src/lib/player-minutes.ts: il recupero NON
-            // conta, e un ingresso nel recupero vale 1 minuto preso all'uscente.
+            // conta e NON esiste piu' il "minuto forzato a 1" (un ingresso nel
+            // supplementare vale tutto quello che resta, vedi la sezione
+            // "Perche' non esiste piu' il minuto forzato a 1" in quel file).
             // Qui il calcolo e' delegato, non reimplementato.
             const minutesPlayed = lineup && (isStarter || isSubstitute)
                 ? computeMinutesPlayed({
