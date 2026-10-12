@@ -86,8 +86,8 @@ export default function HomePage() {
     const upcoming = matches.filter(m => {
       const matchDate = parseISO(m.date);
       // Filtriamo per data >= oggi, escludendo le partite cancellate E quelle gia' finite.
-      // Se una partita e' oggi ma e' gia' stata segnata come 'Finita', passiamo alla prossima.
-      return matchDate >= today && m.status !== 'canceled' && m.status !== 'Finita';
+      // Se una partita e' oggi ma e' gia' stata segnata come 'completed', passiamo alla prossima.
+      return matchDate >= today && m.status !== 'canceled' && m.status !== 'completed';
     }).sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
     return upcoming[0] || null;
   }, [matches]);
