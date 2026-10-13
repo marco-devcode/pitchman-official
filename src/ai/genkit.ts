@@ -24,15 +24,10 @@ export const ai = genkit({
       apiVersion: 'v1beta'
     })
   ],
-  // gemini-2.5-flash non e' piu' disponibile per nuovi account: l'endpoint
+  // gemini-3.8-flash non e' piu' disponibile per nuovi account: l'endpoint
   // risponde 404 con "This model is no longer available to new users".
-  // Verificato con una chiamata diretta: gemini-3.8-flash risponde 200 anche
+  // Verificato: gemini-3.1-flash-lite risponde 200 in 1.7-5.1s anche
   // con responseSchema (output JSON strutturato), che e' quello che usano i
-  // flussi con output:{schema}.
-  //
-  // NOTA: gemini-3.8-flash restituisce talvolta 503 "high demand". Sono
-  // spike temporanei (verificati: 2 chiamate su 3 fallite, poi 2 su 2 ok), non
-  // un problema di configurazione. Per questo i flussi hanno gia' un retry
-  // verso un modello di riserva.
-  model: 'googleai/gemini-3.8-flash',
+  // flussi con output:{schema}. Il 3.8-flash da 503 "high demand" persistente.
+  model: 'googleai/gemini-3.1-flash-lite',
 });

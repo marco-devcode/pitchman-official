@@ -32,27 +32,25 @@ import { DEMO_DRILL } from '@/lib/demo-drill';
 export const TIMEOUT_PER_MODELLO_MS = 18_000;
 
 /**
- * Catena di modelli, dal piu' capace al piu' economico.
+ * Catena di modelli, dal piu' capace al piu' affidabile.
  *
  * I due modelli si possono invertire da .env.local senza toccare il codice:
  * `GEMINI_MODEL` e `GEMINI_FALLBACK_MODEL`. Qui ci sono i default per quando
  * le variabili non ci sono.
  *
- * Perche' 3.8 e non 3.7: gemini-3.7-flash risponde 200 ma IGNORA la richiesta,
- * producendo un esercizio generico che non c'entra con quello chiesto
- * (verificato: due prove su due hanno restituito "costruzione dal basso" e
- * "uscita con terzo uomo" quando si chiedeva un 2v2 con porticine). Un
- * modello che risponde e sbaglia e' PEGGIO di uno che fallisce, perche'
- * l'allenatore non ha modo di accorgersene.
+ * Perche' 3.1-flash-lite e non 3.8-flash: gemini-3.8-flash risponde 503
+ * "high demand" in modo persistente (verificato: 3 tentativi su 3 falliti
+ * in sessioni consecutive). Non e' uno spike, e' un modello saturo. Il
+ * 3.5-flash va in timeout (>20s senza risposta). Il 3.1-flash-lite risponde
+ * 200 in 1.7-5.1s con responseSchema e JSON strutturato valido: meno
+ * creativo del 3.8 ma AFFIDABILE, che su una lavagna didattica vale piu'.
  *
- * Il 3.6 risponde con meno giocatori e meno step, ma risponde: e' il fallback
- * giusto perche' un esercizio piu' povero si puo' completare a mano, uno
- * fuori topic no.
+ * Il fallback e' gemini-2.5-flash come ultima spiaggia.
  */
 const MODELLO_PRINCIPALE =
-  process.env.GEMINI_MODEL || 'googleai/gemini-3.8-flash';
+  process.env.GEMINI_MODEL || 'googleai/gemini-3.1-flash-lite';
 const MODELLO_FALLBACK =
-  process.env.GEMINI_FALLBACK_MODEL || 'googleai/gemini-3.6-flash';
+  process.env.GEMINI_FALLBACK_MODEL || 'googleai/gemini-2.5-flash';
 
 /**
  * Tentativi per modello, con attesa crescente.
