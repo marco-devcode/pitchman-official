@@ -19,7 +19,7 @@ import {
   Play, Pause, ChevronLeft, ChevronRight, RotateCcw, Plus, Trash2, Undo2,
 } from 'lucide-react';
 
-import type { TacticalExercise, TacticalEntity } from '@/lib/tactical-exercise';
+import type { TacticalExercise, TacticalEntity, TacticalStep } from '@/lib/tactical-exercise';
 import { clampCoord } from '@/lib/tactical-exercise';
 import { posizioniInizialiStep } from '@/lib/step-continuity';
 import { cn } from '@/lib/utils';
@@ -427,6 +427,69 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         {/* touch-action: none solo in modifica. In sola lettura il campo deve
             poter scorrere via swipe insieme alla pagina: senza, il dito ferma
             lo scroll e sull'iPhone la lavagna blocca il resto della schermata. */}
+      {/* Toolbar di modifica: SOPRA il canvas, perche' mentre si corregge la
+          scena e' l'azione piu' frequente, e sotto si trova a fare da
+          separatore fra il campo e i controlli di playback. */}
+      {editable && (
+        <div className="w-full flex flex-wrap items-center gap-1.5 mb-3">
+          <button
+            type="button"
+            onClick={() => aggiungiEntita('player')}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Pedina
+          </button>
+          <button
+            type="button"
+            onClick={() => aggiungiEntita('ball')}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Palla
+          </button>
+          <button
+            type="button"
+            onClick={() => aggiungiEntita('cone')}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Cono
+          </button>
+          <button
+            type="button"
+            onClick={() => aggiungiEntita('zone')}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> Zona
+          </button>
+          <button
+            type="button"
+            onClick={rimuoviSelezionato}
+            disabled={!selezionato || scena.length <= 1}
+            aria-label="Rimuovi selezionato"
+            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <Trash2 className="h-3 w-3" /> Togli
+          </button>
+          <span className="flex-1" />
+
+          {/* Coordinate della pedina selezionata: senza, spostare di due unità
+              è un gioco a indovinare. */}
+          <span className="text-[10px] font-black tabular-nums text-brand-green">
+            {selezionata
+              ? `${selezionata.id}: ${selezionata.x.toFixed(0)}, ${selezionata.y.toFixed(0)}`
+              : 'Tocca una pedina'}
+          </span>
+          <button
+            type="button"
+            onClick={() => aggiornaScena(data?.initialEntities ?? [])}
+            aria-label="Annulla le modifiche"
+            className="p-2 bg-black/60 rounded-lg hover:bg-black/80"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div>
         <Stage
           width={FIELD_W}
           height={FIELD_H}
@@ -591,62 +654,6 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         </Stage>
       </div>
 
-      {/* Barra di modifica: aggiunta pedina/palla/cono, coordinate e rimozione.
-          Visibile solo in modalita' modifica, e sopra i controlli di playback
-          perche' e' l'azione piu' frequente mentre si corregge la scena. */}
-      {editable && (
-        <div className="w-full flex flex-wrap items-center gap-1.5 mt-3">
-          <button
-            type="button"
-            onClick={() => aggiungiEntita('player')}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Pedina
-          </button>
-          <button
-            type="button"
-            onClick={() => aggiungiEntita('ball')}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Palla
-          </button>
-          <button
-            type="button"
-            onClick={() => aggiungiEntita('cone')}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Cono
-          </button>
-          <button
-            type="button"
-            onClick={rimuoviSelezionato}
-            disabled={!selezionato || scena.length <= 1}
-            aria-label="Rimuovi selezionato"
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-          >
-            <Trash2 className="h-3 w-3" /> Togli
-          </button>
-
-          <span className="flex-1" />
-
-          {/* Coordinate della pedina selezionata: senza, spostare di due unità
-              è un gioco a indovinare. */}
-          <span className="text-[10px] font-black tabular-nums text-brand-green">
-            {selezionata
-              ? `${selezionata.id}: ${selezionata.x.toFixed(0)}, ${selezionata.y.toFixed(0)}`
-              : 'Tocca una pedina'}
-          </span>
-          <button
-            type="button"
-            onClick={() => aggiornaScena(data?.initialEntities ?? [])}
-            aria-label="Annulla le modifiche"
-            className="p-2 bg-black/60 rounded-lg hover:bg-black/80"
-          >
-            <Undo2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
       {/* Descrizione dello step corrente */}
       {currentStep ? (
         <div className="w-full bg-black/50 p-3 rounded-lg mt-3 text-xs border border-brand-green/20">
@@ -701,6 +708,31 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         >
           {isPlaying && !inPausa ? <Pause size={20} /> : <Play size={20} />}
         </button>
+
+        {/* Aggiungi step: solo in modifica. Lo step nuovo parte dalle posizioni
+            attuali delle entita' (cioe' dove sono finite quelle dello step
+            precedente), cosi' la continuita' con quello prima e' gia' corretta. */}
+        {editable && (
+          <button
+            type="button"
+            onClick={() => {
+              const nuovoStep: TacticalStep = {
+                stepNumber: steps.length + 1,
+                description: `Step ${steps.length + 1}`,
+                actions: [],
+              };
+              const nuoviSteps = [...steps, nuovoStep];
+              setSteps(nuoviSteps);
+              onChange?.({ ...data, steps: nuoviSteps });
+              setStepIndex(nuoviSteps.length - 1);
+              setIsPlaying(false);
+            }}
+            aria-label="Aggiungi step"
+            className="p-2 bg-black/60 rounded-full hover:bg-black/80 border border-brand-green/30"
+          >
+            <Plus size={16} className="text-brand-green" />
+          </button>
+        )}
 
         <button
           type="button"

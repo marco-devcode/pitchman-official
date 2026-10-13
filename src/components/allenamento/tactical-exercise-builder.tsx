@@ -141,10 +141,12 @@ export function TacticalExerciseBuilder({ open, onOpenChange, initial, onSave }:
             </div>
           </div>
 
-          {/* Toolbar: tipi di entità da aggiungere */}
+          {/* Toolbar: tipi di entità da aggiungere. E' un selettore di TIPO,
+              non un pulsante che aggiunge: il player Konva ha già i propri
+              comandi di aggiunta. Qui si sceglie solo cosa mette sul campo. */}
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground dark:text-muted-foreground/60">
-              Aggiungi al campo
+              Tipo da aggiungere
             </Label>
             <div className="flex flex-wrap gap-2">
               {TIPI_DISPONIBILI.map((t) => (
@@ -167,7 +169,7 @@ export function TacticalExerciseBuilder({ open, onOpenChange, initial, onSave }:
               ))}
             </div>
             <p className="text-[9px] text-muted-foreground/60">
-              Clicca sul campo per posizionare. Trascina per spostare. Il tipo selezionato qui sopra è quello che viene aggiunto.
+              Usa i pulsanti sopra il campo per posizionare il tipo selezionato.
             </p>
           </div>
 
