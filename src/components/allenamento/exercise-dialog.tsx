@@ -9,9 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Globe, Lock, Image as ImageIcon, Video, Link as LinkIcon, Save, X, Target, Users, Loader2, Clock } from "lucide-react";
 import { PiTrafficCone } from "react-icons/pi";
+import { GiSoccerBall } from "react-icons/gi";
 import { Exercise, ExerciseMedia, ExerciseMediaType } from "@/lib/types";
+import { TacticalExercise } from "@/lib/tactical-exercise";
 import { useExerciseStore } from "@/store/useExerciseStore";
 import { cn } from "@/lib/utils";
+import { TacticalExerciseBuilder } from "@/components/allenamento/tactical-exercise-builder";
 
 interface ExerciseDialogProps {
   open: boolean;
@@ -37,6 +40,8 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
   const [durationSets, setDurationSets] = useState("");
   const [newMediaType, setNewMediaType] = useState<ExerciseMediaType>('image');
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [tactical, setTactical] = useState<TacticalExercise | null>(null);
+  const [tacticalOpen, setTacticalOpen] = useState(false);
 
   useEffect(() => {
     if (exercise) {
@@ -107,7 +112,8 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
       visibility,
       playerCount: playerCount.length > 0 ? playerCount : ['Qualsiasi'],
       media,
-      duration: finalDuration
+      duration: finalDuration,
+      ...(tactical ? { tactical } : {}),
     };
 
     if (exercise) {
@@ -269,6 +275,24 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
 
             {/* Right: Media & Assets */}
             <div className="space-y-4">
+              {/* Crea con la lavagna tattica */}
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setTacticalOpen(true)}
+                  className="w-full h-11 rounded-xl border-brand-green/40 bg-brand-green/10 text-brand-green font-black uppercase tracking-widest text-[10px] hover:bg-brand-green/20 hover:border-brand-green/60 transition-all gap-2"
+                >
+                  <GiSoccerBall className="h-4 w-4" />
+                  Crea con la lavagna tattica
+                </Button>
+                {tactical && (
+                  <p className="text-[9px] text-muted-foreground/60 text-center">
+                    Lavagna tattica creata: {tactical.playersShown} giocatori, {tactical.steps.length} step
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-3 group">
                 <div className="flex items-center gap-2 mb-0.5">
                   <ImageIcon className="h-3.5 w-3.5 text-primary dark:text-brand-green" />
@@ -414,6 +438,13 @@ export function ExerciseDialog({ open, onOpenChange, exercise }: ExerciseDialogP
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <TacticalExerciseBuilder
+        open={tacticalOpen}
+        onOpenChange={setTacticalOpen}
+        initial={tactical}
+        onSave={(ex) => setTactical(ex)}
+      />
     </Dialog>
   );
 }
