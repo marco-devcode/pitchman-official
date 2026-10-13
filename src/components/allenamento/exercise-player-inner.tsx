@@ -75,7 +75,7 @@ interface Props {
   onChange?: (data: TacticalExercise) => void;
 }
 
-export default function ExercisePlayerInner({ data, className, editable = false, onChange }: Props) {
+export default function ExercisePlayerInner({ data, className, editable = false, onChange, addType, showAddButtons = true }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -217,6 +217,17 @@ export default function ExercisePlayerInner({ data, className, editable = false,
     },
     [scena, aggiornaScena],
   );
+
+  // Quando il genitore cambia `addType`, aggiunge l'entità corrispondente.
+  // Il genitore (builder) ha già i pulsanti: qui non si duplica la logica,
+  // si riusa quella del player. Il valore null ignora l'effetto.
+  const addTypeRef = useRef<TacticalEntity['type'] | null>(null);
+  useEffect(() => {
+    if (addType && addType !== addTypeRef.current) {
+      addTypeRef.current = addType;
+      aggiungiEntita(addType);
+    }
+  }, [addType, aggiungiEntita]);
 
   const rimuoviSelezionato = useCallback(() => {
     if (!selezionato) return;
@@ -427,39 +438,43 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         {/* touch-action: none solo in modifica. In sola lettura il campo deve
             poter scorrere via swipe insieme alla pagina: senza, il dito ferma
             lo scroll e sull'iPhone la lavagna blocca il resto della schermata. */}
-      {/* Toolbar di modifica: SOPRA il canvas, perche' mentre si corregge la
-          scena e' l'azione piu' frequente, e sotto si trova a fare da
-          separatore fra il campo e i controlli di playback. */}
+      {/* Toolbar di modifica: SOPRA il canvas. I pulsanti di aggiunta sono
+          nascosti quando c'è una toolbar esterna (showAddButtons=false):
+          il genitore li ha già, e averli in due posti crea confusione. */}
       {editable && (
         <div className="w-full flex flex-wrap items-center gap-1.5 mb-3">
-          <button
-            type="button"
-            onClick={() => aggiungiEntita('player')}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Pedina
-          </button>
-          <button
-            type="button"
-            onClick={() => aggiungiEntita('ball')}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Palla
-          </button>
-          <button
-            type="button"
-            onClick={() => aggiungiEntita('cone')}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Cono
-          </button>
-          <button
-            type="button"
-            onClick={() => aggiungiEntita('zone')}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Zona
-          </button>
+          {showAddButtons && (
+            <>
+              <button
+                type="button"
+                onClick={() => aggiungiEntita('player')}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Pedina
+              </button>
+              <button
+                type="button"
+                onClick={() => aggiungiEntita('ball')}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Palla
+              </button>
+              <button
+                type="button"
+                onClick={() => aggiungiEntita('cone')}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Cono
+              </button>
+              <button
+                type="button"
+                onClick={() => aggiungiEntita('zone')}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-black/60 text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Zona
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={rimuoviSelezionato}
@@ -669,7 +684,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
       )}
 
       {/* Controlli */}
-      <div className="flex items-center gap-2 mt-3">
+      <div className="flex flex-wrap items-center gap-2 mt-3">
         <button
           type="button"
           onClick={() => goTo(safeIndex - 1)}

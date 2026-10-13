@@ -16,7 +16,7 @@
  */
 
 import dynamic from 'next/dynamic';
-import type { TacticalExercise } from '@/lib/tactical-exercise';
+import type { TacticalExercise, TacticalEntity } from '@/lib/tactical-exercise';
 
 const ExercisePlayerInner = dynamic(
   () => import('./exercise-player-inner'),
@@ -42,6 +42,15 @@ interface Props {
   editable?: boolean;
   /** Notifica ogni modifica della scena. */
   onChange?: (data: TacticalExercise) => void;
+  /**
+   * Quando cambia valore, aggiunge un'entità di quel tipo sul campo.
+   * Serve a collegare una toolbar esterna (es. il builder) ai pulsanti
+   * interni del player: il player ha già la logica di posizionamento
+   * intelligente, non va duplicata.
+   */
+  addType?: TacticalEntity['type'] | null;
+  /** Nasconde i pulsanti di aggiunta interni (usato quando c'è una toolbar esterna). */
+  showAddButtons?: boolean;
 }
 
 export default function ExercisePlayer(props: Props) {

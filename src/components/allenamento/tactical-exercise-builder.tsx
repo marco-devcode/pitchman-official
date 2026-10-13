@@ -166,18 +166,21 @@ export function TacticalExerciseBuilder({ open, onOpenChange, initial, onSave }:
                   {t.icon}
                   {t.label}
                 </Button>
-              ))}
-            </div>
-            <p className="text-[9px] text-muted-foreground/60">
+              ))}            </div>            <p className="text-[9px] text-muted-foreground/60">
               Usa i pulsanti sopra il campo per posizionare il tipo selezionato.
             </p>
           </div>
 
-          {/* Player Konva in editing */}
+          {/* Player Konva in editing. `addType` collega i pulsanti qui sopra
+              al canvas: il player ha già la logica di posizionamento, non va
+              duplicata. `showAddButtons={false}` nasconde i pulsanti interni
+              di aggiunta, mantenendo Togli e coordinate. */}
           <ExercisePlayer
             data={currentExercise}
             editable
             onChange={handlePlayerChange}
+            addType={selectedType}
+            showAddButtons={false}
           />
 
           {/* Riepilogo */}
