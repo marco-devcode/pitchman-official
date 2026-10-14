@@ -73,6 +73,15 @@ interface Props {
   editable?: boolean;
   /** Chiamata a ogni modifica della scena: la UI la usa per il pulsante Salva. */
   onChange?: (data: TacticalExercise) => void;
+  /**
+   * Quando cambia valore, aggiunge un'entità di quel tipo sul campo.
+   * Serve a collegare una toolbar esterna (es. il builder) ai pulsanti
+   * interni del player: il player ha già la logica di posizionamento
+   * intelligente, non va duplicata.
+   */
+  addType?: TacticalEntity['type'] | null;
+  /** Nasconde i pulsanti di aggiunta interni (usato quando c'è una toolbar esterna). */
+  showAddButtons?: boolean;
 }
 
 export default function ExercisePlayerInner({ data, className, editable = false, onChange, addType, showAddButtons = true }: Props) {
@@ -169,7 +178,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
    * giocatore, che e' esattamente il difetto che il repair corregge a valle.
    */
   const aggiungiEntita = useCallback(
-    (tipo: 'player' | 'ball' | 'cone') => {
+    (tipo: 'player' | 'ball' | 'cone' | 'zone') => {
       // Una sola palla: se c'e' gia', si seleziona quella esistente invece di
       // aggiungerne una seconda. Due palle su un campo animato non hanno
       // nessuna lettura possibile.
@@ -434,10 +443,6 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         {data?.title}
       </h2>
 
-      <div className="border-2 border-brand-green/50 rounded-lg overflow-hidden">
-        {/* touch-action: none solo in modifica. In sola lettura il campo deve
-            poter scorrere via swipe insieme alla pagina: senza, il dito ferma
-            lo scroll e sull'iPhone la lavagna blocca il resto della schermata. */}
       {/* Toolbar di modifica: SOPRA il canvas. I pulsanti di aggiunta sono
           nascosti quando c'è una toolbar esterna (showAddButtons=false):
           il genitore li ha già, e averli in due posti crea confusione. */}
@@ -504,7 +509,10 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         </div>
       )}
 
-      <div>
+      <div className="border-2 border-brand-green/50 rounded-lg overflow-hidden">
+        {/* touch-action: none solo in modifica. In sola lettura il campo deve
+            poter scorrere via swipe insieme alla pagina: senza, il dito ferma
+            lo scroll e sull'iPhone la lavagna blocca il resto della schermata. */}
         <Stage
           width={FIELD_W}
           height={FIELD_H}
@@ -737,7 +745,6 @@ export default function ExercisePlayerInner({ data, className, editable = false,
                 actions: [],
               };
               const nuoviSteps = [...steps, nuovoStep];
-              setSteps(nuoviSteps);
               onChange?.({ ...data, steps: nuoviSteps });
               setStepIndex(nuoviSteps.length - 1);
               setIsPlaying(false);
