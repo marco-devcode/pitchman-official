@@ -56,6 +56,12 @@ export function TacticalExerciseBuilder({ open, onOpenChange, initial, onSave }:
   const [entities, setEntities] = useState<TacticalEntity[]>([]);
   const [steps, setSteps] = useState<TacticalExercise['steps']>([]);
   const [selectedType, setSelectedType] = useState<TacticalEntity['type']>('player');
+  // Contatore dei click: è il segnale che dice al player "aggiungi una
+  // entità del tipo selezionato". Senza, due click sullo stesso tipo non
+  // producono due entità (il valore non cambia) — e il tentativo di
+  // aggirare il problema resettando un ref nel player causava un loop
+  // infinito di render ("Maximum update depth exceeded").
+  const [addSignal, setAddSignal] = useState(0);
 
   // Reset all'apertura: carica l'esercizio esistente o parte da una scena
   // vuota con il campo base.
@@ -155,7 +161,10 @@ export function TacticalExerciseBuilder({ open, onOpenChange, initial, onSave }:
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setSelectedType(t.tipo)}
+                  onClick={() => {
+                    setSelectedType(t.tipo);
+                    setAddSignal((n) => n + 1);
+                  }}
                   className={cn(
                     'h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider gap-1.5 transition-all',
                     selectedType === t.tipo
@@ -180,6 +189,7 @@ export function TacticalExerciseBuilder({ open, onOpenChange, initial, onSave }:
             editable
             onChange={handlePlayerChange}
             addType={selectedType}
+            addSignal={addSignal}
             showAddButtons={false}
           />
 

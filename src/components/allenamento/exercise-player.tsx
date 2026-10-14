@@ -49,6 +49,8 @@ interface Props {
    * intelligente, non va duplicata.
    */
   addType?: TacticalEntity['type'] | null;
+  /** Contatore incrementato dal genitore a ogni click: è il segnale di aggiunta. */
+  addSignal?: number;
   /** Nasconde i pulsanti di aggiunta interni (usato quando c'è una toolbar esterna). */
   showAddButtons?: boolean;
 }

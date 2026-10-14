@@ -80,11 +80,17 @@ interface Props {
    * intelligente, non va duplicata.
    */
   addType?: TacticalEntity['type'] | null;
+  /**
+   * Contatore che il genitore incrementa a ogni click su "aggiungi": e' il
+   * segnale che fa scattare l'aggiunta. Non si guarda `addType` da solo
+   * perche' cliccare due volte sullo stesso tipo deve aggiungere due entità.
+   */
+  addSignal?: number;
   /** Nasconde i pulsanti di aggiunta interni (usato quando c'è una toolbar esterna). */
   showAddButtons?: boolean;
 }
 
-export default function ExercisePlayerInner({ data, className, editable = false, onChange, addType, showAddButtons = true }: Props) {
+export default function ExercisePlayerInner({ data, className, editable = false, onChange, addType, addSignal = 0, showAddButtons = true }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -206,18 +212,21 @@ export default function ExercisePlayerInner({ data, className, editable = false,
     [scena, aggiornaScena],
   );
 
-  // Quando il genitore cambia `addType`, aggiunge l'entità corrispondente.
-  // Il genitore (builder) ha già i pulsanti: qui non si duplica la logica,
-  // si riusa quella del player. Il valore null ignora l'effetto.
-  const addTypeRef = useRef<TacticalEntity['type'] | null>(null);
+  // Aggiunta comandata dal genitore (builder). NON si guarda il VALORE di
+  // `addType`: si guarda un contatore `addSignal` che il genitore incrementa
+  // a ogni click. Con un ref sul valore, resettarlo per permettere di
+  // riaggiungere lo stesso tipo faceva rifare il confronto a OGNI render
+  // (addType invariato, ref nullato): aggiungeva un giocatore per frame,
+  // React moriva con "Maximum update depth exceeded" e il dialog della
+  // lavagna si apriva su una schermata di errore. Il contatore no: cambia
+  // solo quando il genitore clicca davvero.
+  const addSignalRef = useRef(addSignal);
   useEffect(() => {
-    if (addType && addType !== addTypeRef.current) {
-      addTypeRef.current = addType;
+    if (addType && addSignal !== addSignalRef.current) {
+      addSignalRef.current = addSignal;
       aggiungiEntita(addType);
-      // Reset immediato: il prossimo click sullo stesso tipo deve riaggiungere.
-      addTypeRef.current = null;
     }
-  }, [addType, aggiungiEntita]);
+  }, [addType, addSignal, aggiungiEntita]);
 
   const rimuoviSelezionato = useCallback(() => {
     if (!selezionato) return;
