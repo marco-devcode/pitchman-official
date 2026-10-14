@@ -153,21 +153,6 @@ export default function ExercisePlayerInner({ data, className, editable = false,
     y: clampCoord(((y - PAD) / INNER_H) * 100),
   }), []);
 
-  const spostaEntita = useCallback(
-    (id: string, x: number, y: number) => {
-      // Ferma il playback: mentre la sequenza gira, positionOf riscrive la
-      // posizione di ogni entita' a ogni frame, quindi la pedina appena
-      // spostata tornerebbe indietro al primo frame. Fermare qui e' il modo
-      // che non richiede all'utente di premere pausa prima di corregere una
-      // posizione, cosa che nessuno si aspetta di dover fare.
-      setIsPlaying(false);
-      const punto = daPx(x, y);
-      aggiornaScena(
-        scena.map((e) => (e.id === id ? { ...e, ...punto } : e)),
-      );
-    },
-    [scena, daPx, aggiornaScena],
-  );
 
   /**
    * Aggiunge un oggetto in un posto libero.
@@ -179,16 +164,10 @@ export default function ExercisePlayerInner({ data, className, editable = false,
    */
   const aggiungiEntita = useCallback(
     (tipo: 'player' | 'ball' | 'cone' | 'zone') => {
-      // Una sola palla: se c'e' gia', si seleziona quella esistente invece di
-      // aggiungerne una seconda. Due palle su un campo animato non hanno
-      // nessuna lettura possibile.
-      if (tipo === 'ball') {
-        const palla = scena.find((e) => e.type === 'ball');
-        if (palla) {
-          setSelezionato(palla.id);
-          return;
-        }
-      }
+      // Nessun limite sul numero di palle: un esercizio puo' averne piu'
+      // di una (es. doppio pallone per la ricezione). Il blocco "una sola
+      // palla" era una regola dell'AI, non della lavagna manuale: qui
+      // l'allenatore sa cosa sta facendo.
 
       const occupati = scena;
       let punto = { x: 50, y: 50 };
@@ -212,7 +191,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
 
       const indice = scena.filter((e) => e.type === tipo).length + 1;
       const nuova: TacticalEntity = {
-        id: `${tipo}-${Date.now().toString(36)}`,
+        id: `${tipo}-${Date.now().toString(36)}-${indice}`,
         type: tipo,
         x: punto.x,
         y: punto.y,
@@ -235,6 +214,8 @@ export default function ExercisePlayerInner({ data, className, editable = false,
     if (addType && addType !== addTypeRef.current) {
       addTypeRef.current = addType;
       aggiungiEntita(addType);
+      // Reset immediato: il prossimo click sullo stesso tipo deve riaggiungere.
+      addTypeRef.current = null;
     }
   }, [addType, aggiungiEntita]);
 
@@ -294,6 +275,56 @@ export default function ExercisePlayerInner({ data, className, editable = false,
   const posizioniInizio = useMemo(
     () => posizioniInizialiStep(entities, steps, safeIndex),
     [entities, steps, safeIndex],
+  );
+
+  const spostaEntita = useCallback(
+    (id: string, x: number, y: number) => {
+      // Ferma il playback: mentre la sequenza gira, positionOf riscrive la
+      // posizione di ogni entita' a ogni frame, quindi la pedina appena
+      // spostata tornerebbe indietro al primo frame. Fermare qui e' il modo
+      // che non richiede all'utente di premere pausa prima di corregere una
+      // posizione, cosa che nessuno si aspetta di dover fare.
+      setIsPlaying(false);
+      const punto = daPx(x, y);
+
+      // Se c'e' uno step attivo e l'entita' NON ha già un'azione in quello
+      // step, il drag CREA un'azione `run` in quello step: l'entita' si
+      // muove da dove si trova all'inizio dello step (posizioniInizio) alla
+      // nuova posizione. Senza questo, il drag modifica initialEntities
+      // (la scena base condivisa da TUTTI gli step) e l'utente ha la
+      // sensazione di star modificando tutti gli step insieme.
+      if (currentStep && steps.length > 0) {
+        const partenza = posizioniInizio.get(id) ?? { x: 50, y: 50 };
+        const azioneEsistente = currentStep.actions?.find((a) => a.entityId === id);
+        if (!azioneEsistente) {
+          const nuoviSteps = steps.map((s, i) => {
+            if (i !== safeIndex) return s;
+            return {
+              ...s,
+              actions: [
+                ...(s.actions ?? []),
+                {
+                  entityId: id,
+                  type: 'run' as const,
+                  from: { x: partenza.x, y: partenza.y },
+                  to: { x: punto.x, y: punto.y },
+                  duration: 1,
+                },
+              ],
+            };
+          });
+          onChange?.({ ...data, steps: nuoviSteps });
+          return;
+        }
+      }
+
+      // Senza step attivi (o se l'entita' ha già un'azione in quello step),
+      // il drag modifica la scena base: è il comportamento originale.
+      aggiornaScena(
+        scena.map((e) => (e.id === id ? { ...e, ...punto } : e)),
+      );
+    },
+    [scena, daPx, aggiornaScena, currentStep, steps, safeIndex, posizioniInizio, data, onChange],
   );
 
   /**
@@ -576,10 +607,15 @@ export default function ExercisePlayerInner({ data, className, editable = false,
                     y={p.y}
                     width={((zone.width ?? 20) / 100) * INNER_W}
                     height={((zone.height ?? 20) / 100) * INNER_H}
-                    fill="rgba(172,229,4,0.12)"
-                    stroke="rgba(172,229,4,0.5)"
-                    strokeWidth={1}
+                    fill={selezionato === zone.id ? "rgba(172,229,4,0.25)" : "rgba(172,229,4,0.12)"}
+                    stroke={selezionato === zone.id ? "#ffffff" : "rgba(172,229,4,0.5)"}
+                    strokeWidth={selezionato === zone.id ? 2 : 1}
                     cornerRadius={4}
+                    draggable={editable}
+                    onDragStart={() => setSelezionato(zone.id)}
+                    onDragEnd={(e) => spostaEntita(zone.id, e.target.x(), e.target.y())}
+                    onClick={() => editable && setSelezionato(zone.id)}
+                    onTap={() => editable && setSelezionato(zone.id)}
                   />
                 );
               })}
