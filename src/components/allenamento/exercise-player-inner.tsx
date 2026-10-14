@@ -248,8 +248,20 @@ export default function ExercisePlayerInner({ data, className, editable = false,
   // In sola lettura si puo' passare direttamente il prop senza memoizzare:
   // non cambia mai dentro un render.
   const entities = useMemo(
-    () => (editable ? scena : (data?.initialEntities ?? [])),
-    [editable, scena, data?.initialEntities],
+    () => {
+      if (editable) return scena;
+      // In sola lettura, se lo step corrente ha un frame, mostra le entità
+      // nella posizione dello step PRECEDENTE (da dove parte l'animazione).
+      // Senza questo, il canvas mostrerebbe initialEntities (la scena base)
+      // anche quando si guarda uno step avanzato, e il primo frame
+      // dell'animazione farebbe saltare i giocatori.
+      if (currentStep?.frame && safeIndex > 0) {
+        const framePrecedente = steps[safeIndex - 1]?.frame;
+        if (framePrecedente) return framePrecedente;
+      }
+      return data?.initialEntities ?? [];
+    },
+    [editable, scena, data?.initialEntities, currentStep, safeIndex, steps],
   );
 
   /** Applica l'andamento richiesto al parametro 0..1. */
@@ -288,76 +300,84 @@ export default function ExercisePlayerInner({ data, className, editable = false,
 
   const spostaEntita = useCallback(
     (id: string, x: number, y: number) => {
-      // Ferma il playback: mentre la sequenza gira, positionOf riscrive la
-      // posizione di ogni entita' a ogni frame, quindi la pedina appena
-      // spostata tornerebbe indietro al primo frame. Fermare qui e' il modo
-      // che non richiede all'utente di premere pausa prima di corregere una
-      // posizione, cosa che nessuno si aspetta di dover fare.
       setIsPlaying(false);
       const punto = daPx(x, y);
 
-      // Se c'e' uno step attivo e l'entita' NON ha già un'azione in quello
-      // step, il drag CREA un'azione `run` in quello step: l'entita' si
-      // muove da dove si trova all'inizio dello step (posizioniInizio) alla
-      // nuova posizione. Senza questo, il drag modifica initialEntities
-      // (la scena base condivisa da TUTTI gli step) e l'utente ha la
-      // sensazione di star modificando tutti gli step insieme.
+      // Modello FRAME: aggiorna la posizione dell'entità nel frame dello step
+      // corrente. Il frame è una fotografia completa del campo: si prende
+      // quella dello step precedente (o la scena base se è il primo step) e
+      // si sposta solo l'entità trascinata. L'animazione interpola tra le
+      // due fotografie — tutti i giocatori si muovono insieme, coerente.
       if (currentStep && steps.length > 0) {
-        const partenza = posizioniInizio.get(id) ?? { x: 50, y: 50 };
-        const azioneEsistente = currentStep.actions?.find((a) => a.entityId === id);
-        if (!azioneEsistente) {
-          const nuoviSteps = steps.map((s, i) => {
-            if (i !== safeIndex) return s;
-            return {
-              ...s,
-              actions: [
-                ...(s.actions ?? []),
-                {
-                  entityId: id,
-                  type: 'run' as const,
-                  from: { x: partenza.x, y: partenza.y },
-                  to: { x: punto.x, y: punto.y },
-                  duration: 1,
-                },
-              ],
-            };
-          });
-          onChange?.({ ...data, steps: nuoviSteps });
-          return;
+        const framePrecedente = safeIndex > 0
+          ? (steps[safeIndex - 1]?.frame ?? null)
+          : null;
+        const base = framePrecedente ?? scena;
+        const nuovoFrame = base.map((e) =>
+          e.id === id ? { ...e, ...punto } : e,
+        );
+        // Se l'entità non è nel frame precedente (aggiunta dopo), la aggiunge.
+        if (!nuovoFrame.find((e) => e.id === id)) {
+          const originale = scena.find((e) => e.id === id);
+          if (originale) nuovoFrame.push({ ...originale, ...punto });
         }
+        const nuoviSteps = steps.map((s, i) =>
+          i === safeIndex ? { ...s, frame: nuovoFrame } : s,
+        );
+        onChange?.({ ...data, steps: nuoviSteps });
+        return;
       }
 
-      // Senza step attivi (o se l'entita' ha già un'azione in quello step),
-      // il drag modifica la scena base: è il comportamento originale.
+      // Senza step attivi, il drag modifica la scena base.
       aggiornaScena(
         scena.map((e) => (e.id === id ? { ...e, ...punto } : e)),
       );
     },
-    [scena, daPx, aggiornaScena, currentStep, steps, safeIndex, posizioniInizio, data, onChange],
+    [scena, daPx, aggiornaScena, currentStep, steps, safeIndex, data, onChange],
   );
 
   /**
    * Posizione corrente di un'entita', interpolata sul progresso dello step.
    *
-   * `progress` e' il tempo trascorso nello step in secondi, non una frazione:
-   * e' cosi' che startAt (ritardo) e duration (durata propria) si sommano
-   * nello stesso dominio.
+   * Due modelli:
+   * - FRAME: interpola linearmente tra la posizione iniziale (dallo step
+   *   precedente) e la posizione nel frame dello step corrente. Tutte le
+   *   entità si muovono insieme, stessa durata, stesso easing. È il modello
+   *   Tactical Pad: coerente e semplice.
+   * - ACTIONS: interpola per singola azione (from/to/duration/startAt).
+   *   Retrocompatibilità con l'AI.
    */
+  const stepDuration = useCallback(() => {
+    // Modello FRAME: durata fissa, tutti si muovono insieme.
+    if (currentStep?.frame) return 2;
+    const azioni = currentStep?.actions ?? [];
+    if (!azioni.length) return 2;
+    const fine = azioni.map((a) => Math.max(0, a.startAt ?? 0) + Math.max(0.1, a.duration ?? 1));
+    const max = Math.max(...fine);
+    return Math.max(0.5, Math.min(8, max));
+  }, [currentStep]);
+
   const positionOf = useCallback(
     (entity: TacticalEntity) => {
       // Punto di partenza: fine dello step precedente, non l'origine.
       const partenza = posizioniInizio.get(entity.id) ?? { x: entity.x, y: entity.y };
+
+      // Modello FRAME: il frame dello step corrente ha la posizione finale.
+      if (currentStep?.frame) {
+        const nelFrame = currentStep.frame.find((e) => e.id === entity.id);
+        if (!nelFrame) return toPx(partenza);
+        // Interpolazione lineare su tutto lo step: t va da 0 a 1.
+        const t = Math.max(0, Math.min(1, progress / stepDuration()));
+        return toPx({
+          x: partenza.x + (nelFrame.x - partenza.x) * t,
+          y: partenza.y + (nelFrame.y - partenza.y) * t,
+        });
+      }
+
+      // Modello ACTIONS (retrocompatibilità AI).
       const action = currentStep?.actions?.find((a) => a.entityId === entity.id);
       if (!action) return toPx(partenza);
 
-      // Se l'azione parte da un punto diverso dalla posizione iniziale,
-      // si parte da quello: altrimenti l'entita' salta all'inizio dello step.
-      // from e to sono {x, y} normalizzati 0-100, quindi si interpola nel
-      // dominio normalizzato e si converte solo alla fine: interpolare sui
-      // pixel darebbe risultati diversi a seconda della dimensione del campo.
-      // `from` ha la precedenza quando c'e': e' il punto da cui l'allenatore
-      // si aspetta di vedere partire il movimento, e se il modello l'ha
-      // dichiarato esplicitamente va rispettato.
       const fx = action.from?.x ?? partenza.x;
       const fy = action.from?.y ?? partenza.y;
       const tx = action.to?.x ?? fx;
@@ -365,8 +385,6 @@ export default function ExercisePlayerInner({ data, className, editable = false,
 
       const dur = Math.max(0.1, action.duration ?? 1);
       const attesa = Math.max(0, action.startAt ?? 0);
-      // Prima di startAt l'entita' e' ferma sul punto di partenza; dopo la
-      // durata e' ferma su quello d'arrivo.
       const locale = (progress - attesa) / dur;
       const t = ease(Math.max(0, Math.min(1, locale)), action.easing);
 
@@ -375,7 +393,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         y: fy + (ty - fy) * t,
       });
     },
-    [currentStep, progress, posizioniInizio],
+    [currentStep, progress, posizioniInizio, stepDuration],
   );
 
   /**
@@ -387,16 +405,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
    * brevi finiscono prima e restano ferme sull'arrivo, che e' quello che si
    * vuole vedere.
    */
-  const stepDuration = useCallback(() => {
-    const azioni = currentStep?.actions ?? [];
-    if (!azioni.length) return 2;
-    const fine = azioni.map((a) => Math.max(0, a.startAt ?? 0) + Math.max(0.1, a.duration ?? 1));
-    const max = Math.max(...fine);
-    // Clamp: un duration assurdo dal modello bloccherebbe l'animazione per
-    // minuti, e uno zero renderebbe lo step invisibile. 8 secondi e' il tetto:
-    // oltre, l'allenatore aspetta troppo prima di vedere il passo seguente.
-    return Math.max(0.5, Math.min(8, max));
-  }, [currentStep]);
+
 
   useEffect(() => {
     if (!isPlaying || inPausa) return;
@@ -784,10 +793,19 @@ export default function ExercisePlayerInner({ data, className, editable = false,
           <button
             type="button"
             onClick={() => {
+              // Il nuovo step parte con un frame identico alla scena corrente
+              // (o al frame dello step precedente): l'allenatore lo trascina
+              // da lì. Senza frame iniziale, il primo drag creerebbe il frame
+              // da zero e le entità non trascinate sparirebbero.
+              const framePrecedente = steps.length > 0
+                ? (steps[steps.length - 1]?.frame ?? null)
+                : null;
+              const frameIniziale = framePrecedente ?? scena;
               const nuovoStep: TacticalStep = {
                 stepNumber: steps.length + 1,
                 description: `Step ${steps.length + 1}`,
                 actions: [],
+                frame: frameIniziale.map((e) => ({ ...e })),
               };
               const nuoviSteps = [...steps, nuovoStep];
               onChange?.({ ...data, steps: nuoviSteps });

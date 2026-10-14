@@ -66,7 +66,24 @@ export interface TacticalAction {
 export interface TacticalStep {
   stepNumber: number;
   description: string;
+  /**
+   * Azioni esplicite (modello AI). Ogni azione muove UN'entità da `from` a
+   * `to`. Usato dal generatore AI e dagli esercizi salvati prima del
+   * passaggio al modello a frame.
+   */
   actions: TacticalAction[];
+  /**
+   * Fotografia COMPLETA del campo a fine step (modello Tactical Pad).
+   *
+   * Quando presente, il player interpola tra la posizione di ogni entità
+   * nello step precedente e la sua posizione in `frame`. È il modello
+   * corretto per la lavagna manuale: l'allenatore trascina i giocatori e
+   * l'animazione li muove tutti insieme, in modo coerente, senza dover
+   * gestire `from`/`to` per singola entità.
+   *
+   * Quando assente, si usa `actions` (retrocompatibilità con l'AI).
+   */
+  frame?: TacticalEntity[];
 }
 
 export interface TacticalExercise {
