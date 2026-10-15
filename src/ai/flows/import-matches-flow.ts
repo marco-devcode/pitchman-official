@@ -121,11 +121,13 @@ export async function importMatchesFromText(input: ImportMatchesInput): Promise<
  * un bug dietro tentativi inutili.
  */
 const CATENA_MODELLI = [
-  // verificati 200 con questo schema
-  'googleai/gemini-3.5-flash',
-  'googleai/gemini-flash-lite-latest',
-  'googleai/gemini-3-flash-preview',
-  // i piu' capaci, ma vanno in 503: restano in coda
+  // verificati 200 con responseSchema e la chiave del progetto (ottobre 2026),
+  // ordinati dal piu' veloce: il primo che risponde vince.
+  'googleai/gemini-flash-lite-latest',   // ~1.4s, il piu' affidabile
+  'googleai/gemini-3.1-flash-lite',      // ~1.5s, qualche 503 sporadico
+  'googleai/gemini-3.5-flash-lite',      // ~9.2s, lento ma risponde
+  // i piu' capaci, ma saturi sulla quota free: restano in coda come ultima
+  // possibilita' prima di arrendersi (un 503 qui chiude la catena).
   'googleai/gemini-3.8-flash',
   'googleai/gemini-3.6-flash',
 ] as const;

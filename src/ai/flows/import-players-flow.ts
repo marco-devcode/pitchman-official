@@ -59,6 +59,25 @@ export async function importPlayersFromText(input: ImportPlayersInput): Promise<
   return importPlayersFlow(input);
 }
 
+/**
+ * Catena modelli per l'import rosa.
+ *
+ * PRIMA era un solo modello (`gemini-flash-latest`) senza fallback: quel
+ * modello risponde 503 "high demand" in modo persistente sulla quota free,
+ * quindi l'import rosa era ROTTO — l'allenatore incollava la lista e
+ * riceveva un errore, con zero possibilita' di ripiego.
+ *
+ * I modelli qui sono verificati con la chiave del progetto (ottobre 2026):
+ * rispondono 200 con responseSchema, che e' il contratto dei flussi Genkit.
+ * L'ordine va dal piu' veloce al piu' lento: il primo che risponde vince,
+ * e i 503 di uno coprono la caduta dell'altro.
+ */
+const CATENA_MODELLI = [
+  'googleai/gemini-flash-lite-latest',   // ~1.4s, il piu' affidabile
+  'googleai/gemini-3.1-flash-lite',      // ~1.5s, a volta 503 al primo colpo
+  'googleai/gemini-3.5-flash-lite',      // ~9.2s, lento ma risponde
+] as const;
+
 const importPlayersFlow = ai.defineFlow(
   {
     name: 'importPlayersFlow',
@@ -66,15 +85,22 @@ const importPlayersFlow = ai.defineFlow(
     outputSchema: ImportPlayersOutputSchema,
   },
   async (input) => {
-    try {
-      const { output } = await prompt(input, { model: 'googleai/gemini-flash-latest' });
-      if (!output || !output.players) {
-        throw new Error('L\'AI non è riuscita ad estrarre giocatori dal testo fornito.');
+    let ultimoErrore: unknown;
+    for (const modello of CATENA_MODELLI) {
+      try {
+        const { output } = await prompt(input, { model: modello });
+        if (!output || !output.players) continue;
+        return output;
+      } catch (error: any) {
+        ultimoErrore = error;
+        console.warn(`[import-rosa] ${modello} fallito:`, String(error?.message ?? error).slice(0, 120));
       }
-      return output;
-    } catch (error: any) {
-      console.error("AI Import Players Error:", error);
-      throw new Error(error.message || 'Errore durante l\'analisi della lista giocatori.');
     }
-  }
+    console.error('[import-rosa] tutti i modelli falliti:', ultimoErrore);
+    throw new Error(
+      ultimoErrore instanceof Error && ultimoErrore.message
+        ? ultimoErrore.message
+        : "Il servizio AI non risponde. Riprova fra poco.",
+    );
+  },
 );

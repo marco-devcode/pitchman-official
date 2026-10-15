@@ -32,25 +32,28 @@ import { DEMO_DRILL } from '@/lib/demo-drill';
 export const TIMEOUT_PER_MODELLO_MS = 18_000;
 
 /**
- * Catena di modelli, dal piu' capace al piu' affidabile.
+ * Catena di modelli, dal piu' affidabile al piu' lento.
  *
  * I due modelli si possono invertire da .env.local senza toccare il codice:
  * `GEMINI_MODEL` e `GEMINI_FALLBACK_MODEL`. Qui ci sono i default per quando
  * le variabili non ci sono.
  *
- * Perche' 3.1-flash-lite e non 3.8-flash: gemini-3.8-flash risponde 503
- * "high demand" in modo persistente (verificato: 3 tentativi su 3 falliti
- * in sessioni consecutive). Non e' uno spike, e' un modello saturo. Il
- * 3.5-flash va in timeout (>20s senza risposta). Il 3.1-flash-lite risponde
- * 200 in 1.7-5.1s con responseSchema e JSON strutturato valido: meno
- * creativo del 3.8 ma AFFIDABILE, che su una lavagna didattica vale piu'.
+ * Verificati con la chiave del progetto (ottobre 2026), 200 con
+ * responseSchema: `gemini-3.8-flash` e `gemini-3.7-flash` rispondono 503
+ * "high demand" persistente, `gemini-2.5-flash` e' 404 per gli account
+ * nuovi. Il `gemini-flash-lite-latest` risponde in ~1.4s ed e' il piu'
+ * stabile; il `gemini-3.1-flash-lite` in ~1.5s con qualche 503 sporadico.
  *
- * Il fallback e' gemini-2.5-flash come ultima spiaggia.
+ * Il terzo in catena e' il piu' lento (~9s) ma e' l'ultima rete prima del
+ * demo: su una lavagna didattica un esercizio che arriva tardi batte un
+ * esercizio che non arriva.
  */
 const MODELLO_PRINCIPALE =
-  process.env.GEMINI_MODEL || 'googleai/gemini-3.1-flash-lite';
+  process.env.GEMINI_MODEL || 'googleai/gemini-flash-lite-latest';
 const MODELLO_FALLBACK =
-  process.env.GEMINI_FALLBACK_MODEL || 'googleai/gemini-2.5-flash';
+  process.env.GEMINI_FALLBACK_MODEL || 'googleai/gemini-3.1-flash-lite';
+const MODELLO_TERZA_SCELTA =
+  process.env.GEMINI_MODEL_3 || 'googleai/gemini-3.5-flash-lite';
 
 /**
  * Tentativi per modello, con attesa crescente.
@@ -107,7 +110,7 @@ function eQuotaEsaurita(messaggio: string): boolean {
 
 /** Espone la catena per il pannello di debug, senza esporre la chiave. */
 export function catenaModelli(): string[] {
-  return [MODELLO_PRINCIPALE, MODELLO_FALLBACK].filter(
+  return [MODELLO_PRINCIPALE, MODELLO_FALLBACK, MODELLO_TERZA_SCELTA].filter(
     (m, i, a) => a.indexOf(m) === i,
   );
 }

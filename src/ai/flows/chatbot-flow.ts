@@ -196,40 +196,32 @@ STILE:
         `\nDOMANDA: ${input.message}`,
       ].filter(Boolean).join('\n\n');
 
-      // ── Chiamata a Gemini 3.8 Flash con Fallback ──
-      try {
-        const result = await ai.generate({
-          model: 'googleai/gemini-3.8-flash',
-          prompt: promptCompleto,
-          system: systemPrompt,
-        });
-
-        return { text: result.text };
-      } catch (genError: any) {
-        // Verifica se è un errore 503 / high demand
-        const errorString = String(genError).toLowerCase();
-        if (
-          errorString.includes('503') || 
-          errorString.includes('high demand') || 
-          errorString.includes('overloaded') ||
-          errorString.includes('service unavailable')
-        ) {
-          console.warn("[Chatbot] Gemini 3.8 Flash 503 Error, falling back to gemini-flash-latest", genError);
-          
-          const fallbackResult = await ai.generate({
-            model: 'googleai/gemini-flash-latest',
+      // ── Catena modelli: prima quelli verificati, poi i capaci saturi ──
+      // `gemini-3.8-flash` e `gemini-flash-latest` rispondono 503 in modo
+      // persistente sulla quota free (verificato ottobre 2026): come prima
+      // scelta il chatbot moriva sempre sul 503, e il fallback a sua volta
+      // era saturo. Ora si parte dal modello che risponde davvero.
+      const catena = [
+        'googleai/gemini-flash-lite-latest',
+        'googleai/gemini-3.1-flash-lite',
+        'googleai/gemini-3.5-flash-lite',
+        'googleai/gemini-3.8-flash',
+      ];
+      let ultimoErrore: any;
+      for (const modello of catena) {
+        try {
+          const result = await ai.generate({
+            model: modello,
             prompt: promptCompleto,
             system: systemPrompt,
           });
-
-          return { 
-            text: fallbackResult.text + "\n\n*(Risposta generata tramite modello di fallback per elevato traffico sui server)*"
-          };
+          return { text: result.text };
+        } catch (genError: any) {
+          ultimoErrore = genError;
+          console.warn(`[Chatbot] ${modello} fallito:`, String(genError?.message ?? genError).slice(0, 120));
         }
-        
-        // Se non è un 503, rilanciamo l'errore per farlo catturare dal handler generico
-        throw genError;
       }
+      throw ultimoErrore ?? new Error('Nessun modello ha risposto.');
     } catch (error: any) {
       console.error("[Chatbot Flow Error]", error);
       return { text: RESPONSES.GENERIC_ERROR(error.message || 'errore sconosciuto') };
