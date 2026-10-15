@@ -75,11 +75,21 @@ export function TacticalExerciseBuilder({ open, onOpenChange, initial, onSave }:
     } else {
       setTitle('');
       setDescription('');
-      setEntities([
+      const scenaIniziale: TacticalEntity[] = [
         { id: 'player-1', type: 'player', team: 'blue', label: '1', x: 50, y: 50 },
         { id: 'ball-1', type: 'ball', x: 50, y: 50 },
-      ]);
-      setSteps([]);
+      ];
+      setEntities(scenaIniziale);
+      // Parte con UNO step già creato: l'allenatore trascina i giocatori
+      // direttamente nello step 1, senza passare per uno "step 0" informa
+      // che non esiste nell'interfaccia. Il frame dello step 1 è una copia
+      // della scena iniziale.
+      setSteps([{
+        stepNumber: 1,
+        description: 'Step 1',
+        actions: [],
+        frame: scenaIniziale.map((e) => ({ ...e })),
+      }]);
     }
   }, [open, initial]);
 

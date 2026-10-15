@@ -362,11 +362,18 @@ export default function ExercisePlayerInner({ data, className, editable = false,
       // Punto di partenza: fine dello step precedente, non l'origine.
       const partenza = posizioniInizio.get(entity.id) ?? { x: entity.x, y: entity.y };
 
-      // Modello FRAME: il frame dello step corrente ha la posizione finale.
+      // Modello FRAME.
       if (currentStep?.frame) {
         const nelFrame = currentStep.frame.find((e) => e.id === entity.id);
         if (!nelFrame) return toPx(partenza);
-        // Interpolazione lineare su tutto lo step: t va da 0 a 1.
+        // In editing e a step fermo (progress=0): mostra la posizione del
+        // FRAME, non quella di partenza. L'allenatore ha trascinato il
+        // giocatore e deve vedere dove l'ha messo, non da dove parte
+        // l'animazione. Con progress=0 e interpolazione, il giocatore
+        // tornava visivamente alla posizione precedente dopo il drag.
+        if (editable && !isPlaying && progress === 0) {
+          return toPx(nelFrame);
+        }
         const t = Math.max(0, Math.min(1, progress / stepDuration()));
         return toPx({
           x: partenza.x + (nelFrame.x - partenza.x) * t,
@@ -393,7 +400,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         y: fy + (ty - fy) * t,
       });
     },
-    [currentStep, progress, posizioniInizio, stepDuration],
+    [currentStep, progress, posizioniInizio, stepDuration, editable, isPlaying],
   );
 
   /**
