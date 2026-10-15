@@ -285,9 +285,15 @@ const importMatchesFlow = ai.defineFlow(
               }
               return output;
             }
-            errori.push(
-              'L\'AI ha risposto senza trovare partite: nessun modello ha riconosciuto i dati.',
-            );
+            // Se il modello risponde ma senza partite, non e' un errore di
+            // quel modello: e' il testo che non viene riconosciuto. Una
+            // riga sola, non una per modello — tre righe uguali sembravano
+            // tre errori distinti e confondevano la diagnosi.
+            if (!errori.some((e) => e.startsWith("L'AI ha risposto"))) {
+              errori.push(
+                "L'AI ha risposto senza trovare partite: nessun modello ha riconosciuto i dati.",
+              );
+            }
           } catch (error: any) {
             const testo = String(error?.message || error);
             console.error(`[import] ${modello} fallito:`, testo);
