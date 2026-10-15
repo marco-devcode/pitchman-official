@@ -8,6 +8,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { risolviFilePerAI } from '@/lib/ai/file-extractor';
+import { userError } from '@/ai/errors';
 
 const cleanKey = (key?: string) => key?.replace(/['"]/g, '').trim();
 
@@ -189,8 +190,18 @@ const importMatchesFlow = ai.defineFlow(
       process.env.GOOGLE_API_KEY,
     );
 
-    if (!apiKey || apiKey === 'missing-key') {
-      throw new Error('Configurazione AI Mancante: La chiave API non è stata configurata correttamente nel file .env (assicurati che non ci siano virgolette o spazi).');
+    // Il check sulla lunghezza non e' ridondanza: una variabile d'ambiente
+    // puo' contenere un PLACEHOLDER (es. un valore segnaposto messo in
+    // Vercel per "riempire il campo"), che e' truthy e passa il `!apiKey`
+    // ma fa fallire ogni chiamata con API_KEY_INVALID. E' successo davvero:
+    // GOOGLE_GENAI_API_KEY su Vercel conteneva 11 caratteri di placeholder
+    // e l'import partite falliva con un errore generico, senza dire che la
+    // chiave non era valida. Le chiavi Google/Gemini reali sono lunghe
+    // almeno ~30 caratteri; sotto i 20 e' un segnaposto, non una chiave.
+    if (!apiKey || apiKey === 'missing-key' || apiKey.length < 20) {
+      throw userError(
+        'Configurazione AI non valida: la chiave API configurata sul server non e\' utilizzabile (vuota o non valida).',
+      );
     }
 
     if (input.teamName === undefined && input.fileDataUrl) {
@@ -198,7 +209,7 @@ const importMatchesFlow = ai.defineFlow(
     }
 
     if (!input.fileDataUrl && (!input.rawContent || input.rawContent.trim().length < 10)) {
-      throw new Error('Devi fornire o un file valido o un testo di almeno 10 caratteri.');
+      throw userError('Devi fornire o un file valido o un testo di almeno 10 caratteri.');
     }
 
     const contentToAnalyze = input.rawContent ? cleanContent(input.rawContent) : undefined;
@@ -285,8 +296,15 @@ const importMatchesFlow = ai.defineFlow(
             }
             // 400 = schema o chiave non accettati. Cambiare modello non
             // aiuterebbe: si esce subito per non nascondere la causa vera.
-            if (/400|INVALID_ARGUMENT|Unrecognized key/i.test(testo)) {
-              throw error;
+            // L'errore del provider dice solo "INVALID_ARGUMENT" senza
+            // dati utente: si mostra la causa riconosciuta, non la riga
+            // grezza.
+            if (/400|INVALID_ARGUMENT|Unrecognized key|API key/i.test(testo)) {
+              throw userError(
+                /API key|API_KEY_INVALID/i.test(testo)
+                  ? 'Configurazione AI non valida: il server ha rifiutato la chiave API. La chiave configurata non e\' valida per questo progetto.'
+                  : 'L\'AI ha rifiutato la richiesta (errore 400): il formato dei dati non e\' compatibile. Riprova o usa l\'import da file.',
+              );
             }
           }
         }
@@ -297,12 +315,19 @@ const importMatchesFlow = ai.defineFlow(
       // Annulla e Importa, e l'utente non poteva piu' fare nulla.
       const dettagli = errori.slice(0, 3).map((e) => `• ${e}`).join('\n');
       const extra = errori.length > 3 ? `\n(+${errori.length - 3} altri)` : '';
-      throw new Error(
-        `Tutti i modelli AI hanno risposto con errore.\n${dettagli}${extra}`,
+      // Il messaggio elenca cosa e' successo a OGNI modello: l'utente deve
+      // capire se e' la chiave, i modelli saturi o il testo non riconosciuto.
+      // Non contiene dati dell'utente — solo nomi di modelli e cause
+      // riconosciute da `causaLeggibile`.
+      throw userError(
+        `L'import non e' riuscito.\n${dettagli}${extra}`,
       );
     } catch (error: any) {
       console.error("AI Analysis error:", error);
-      throw new Error(error.message || 'Errore durante l\'analisi del testo tramite AI.');
+      // Un errore marcato arriva da uno dei controlli sopra e il suo
+      // messaggio e' gia' per l'utente: va propagato così com'è.
+      if (error?.userMessage) throw error;
+      throw userError("Errore imprevisto durante l'analisi del calendario.");
     }
   }
 );

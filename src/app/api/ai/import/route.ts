@@ -135,20 +135,18 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('[api/ai/import] errore:', error?.message || error);
-    await logUsage({
-      uid: guard.uid,
-      seasonId: guard.seasonId,
-      route: `import_${body.operation}`,
-      model: 'unknown',
-      inputTokens: 0,
-      outputTokens: 0,
-      cached: false,
-      durationMs: Date.now() - started,
-    });
-    // 502 e non 500: il fallimento e' del servizio AI. Il messaggio per
-    // l'utente e' generico perche' la stringa dell'errore del provider puo'
+    // Un flusso puo' marcare il proprio errore come userMessage: in quel
+    // caso il messaggio e' gia' scritto per l'utente e non contiene dati
+    // sensibili (vedi src/ai/errors.ts). Prima TUTTO diventava il
+    // generico "L'analisi non e' riuscita", e l'utente non poteva capire
+    // se era la chiave, i modelli saturi o il testo. Il generico resta
+    // per gli errori non marcati: la stringa grezza del provider puo'
     // contenere il testo del prompt, cioe' i dati della squadra.
-    return apiError(502, 'AI_FAILED', "L'analisi non e' riuscita. Riprova fra poco.");
+    const messaggio =
+      typeof error?.userMessage === 'boolean' && typeof error?.message === 'string'
+        ? error.message
+        : "L'analisi non e' riuscita. Riprova fra poco.";
+    return apiError(502, 'AI_FAILED', messaggio);
   }
 }
 
