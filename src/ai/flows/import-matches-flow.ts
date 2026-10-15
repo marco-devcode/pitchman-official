@@ -124,13 +124,16 @@ export async function importMatchesFromText(input: ImportMatchesInput): Promise<
 const CATENA_MODELLI = [
   // verificati 200 con responseSchema e la chiave del progetto (ottobre 2026),
   // ordinati dal piu' veloce: il primo che risponde vince.
+  //
+  // NON mettere in coda modelli saturi: 3.8-flash e 3.6-flash rispondono 503
+  // dopo attese lunghe. Con testo non-calendario (dove NESSUN modello trova
+  // partite) la catena completa faceva sforare il maxDuration di 60s e
+  // Vercel uccideva la funzione con un 504 senza messaggio. Verificato:
+  // 62s e FUNCTION_INVOCATION_TIMEOUT sul testo non-calendario. Tre modelli
+  // che rispondono in 1.4/1.5/9s × 2 giri restano sotto il tetto.
   'googleai/gemini-flash-lite-latest',   // ~1.4s, il piu' affidabile
   'googleai/gemini-3.1-flash-lite',      // ~1.5s, qualche 503 sporadico
   'googleai/gemini-3.5-flash-lite',      // ~9.2s, lento ma risponde
-  // i piu' capaci, ma saturi sulla quota free: restano in coda come ultima
-  // possibilita' prima di arrendersi (un 503 qui chiude la catena).
-  'googleai/gemini-3.8-flash',
-  'googleai/gemini-3.6-flash',
 ] as const;
 
 /**
