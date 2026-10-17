@@ -83,7 +83,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
       return;
     }
 
-    if (activeTab === 'text' && (!rawText.trim() || rawText.trim().length < 10)) {
+    if (!rawText.trim() || rawText.trim().length < 10) {
       toast({
         variant: "destructive",
         title: "Dati insufficienti",
@@ -113,6 +113,18 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
     }
     const result = esito.data;
 
+    // Nessuna partita trovata: l'AI non ha riconosciuto il calendario.
+    // Mostro un messaggio chiaro e lascio il dialog aperto così l'utente
+    // può aggiungere il nome squadra o incollare un testo diverso.
+    if (!result.matches || result.matches.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nessuna partita trovata",
+        description: `L'AI non ha riconosciuto le partite nel testo${result.teamName ? ` per la squadra "${result.teamName}"` : ''}. Prova ad aggiungere il nome della tua squadra sopra e riprova.`,
+      });
+      return;
+    }
+
     const matchesToSave = result.matches.map(match => ({
       opponent: match.opponent,
       date: match.date,
@@ -135,7 +147,7 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
     setFileName('');
   };
 
-  const isImportDisabled = isLoading || (activeTab === 'file' && !teamName.trim()) || (activeTab === 'text' && !rawText.trim()) || (activeTab === 'file' && !fileDataUrl);
+  const isImportDisabled = isLoading || (activeTab === 'text' && !rawText.trim()) || (activeTab === 'file' && !fileDataUrl);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,25 +203,11 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
                       className="min-h-[160px] text-[11px] font-bold rounded-2xl bg-background dark:bg-black border-border dark:border-brand-green/30 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green text-foreground dark:text-white placeholder:text-muted-foreground dark:text-muted-foreground/30 dark:placeholder:text-white/10 transition-colors"
                     />
                   </TabsContent>
-                  
-                  <TabsContent value="file" className="mt-0 space-y-4">
-                    <div className="border border-border/50 dark:border-white/10 p-4 rounded-xl bg-muted/20 dark:bg-card/20">
-                      <label className="text-[10px] font-black uppercase text-muted-foreground dark:text-white/30 tracking-widest block mb-1.5 ml-1">
-                        Nome della tua squadra:
-                      </label>
-                      <Input 
-                        placeholder="Es. OSL"
-                        value={teamName}
-                        onChange={(e) => setTeamName(e.target.value)}
-                        disabled={isLoading}
-                        className="h-10 text-xs font-bold rounded-xl bg-background dark:bg-black border-border dark:border-brand-green/30"
-                      />
-                      <p className="text-[9px] text-muted-foreground mt-1 ml-1 font-bold">L'AI selezionerà solo le partite che includono questo nome.</p>
-                    </div>
 
+                  <TabsContent value="file" className="mt-0 space-y-4">
                     <div className="border-2 border-dashed border-border dark:border-brand-green/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-muted/30 dark:bg-card/30 hover:bg-muted/50 dark:hover:bg-card/50 transition-colors relative">
-                      <input 
-                        type="file" 
+                      <input
+                        type="file"
                         accept=".pdf,.docx,.jpg,.jpeg,.png"
                         onChange={handleFileChange}
                         disabled={isLoading}
@@ -232,6 +230,24 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
                     </div>
                   </TabsContent>
                 </Tabs>
+              </div>
+
+              {/* Nome squadra: visibile in entrambi i tab. L'AI lo usa per filtrare
+                  solo le partite della squadra dell'utente. */}
+              <div className="border border-border/50 dark:border-white/10 p-4 rounded-xl bg-muted/20 dark:bg-card/20">
+                <label className="text-[10px] font-black uppercase text-muted-foreground dark:text-white/30 tracking-widest block mb-1.5 ml-1">
+                  Nome della tua squadra (opzionale)
+                </label>
+                <Input
+                  placeholder="Es. OSL"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  disabled={isLoading}
+                  className="h-10 text-xs font-bold rounded-xl bg-background dark:bg-black border-border dark:border-brand-green/30"
+                />
+                <p className="text-[9px] text-muted-foreground mt-1 ml-1 font-bold">
+                  L'AI selezionerà solo le partite che includono questo nome. Lascia vuoto se l'AI deve individuarla da sola.
+                </p>
               </div>
 
               <AsyncFeedback
