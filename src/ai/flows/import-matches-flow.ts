@@ -10,8 +10,6 @@ import { z } from 'genkit';
 import { risolviFilePerAI } from '@/lib/ai/file-extractor';
 import { userError } from '@/ai/errors';
 
-const cleanKey = (key?: string) => key?.replace(/['"]/g, '').trim();
-
 const ImportMatchesInputSchema = z.object({
   rawContent: z.string().optional().describe('Il contenuto testuale o HTML copiato manualmente.'),
   fileDataUrl: z.string().optional().describe('Base64 data URL del file.'),
@@ -176,37 +174,6 @@ const importMatchesFlow = ai.defineFlow(
     outputSchema: ImportMatchesOutputSchema,
   },
   async (input) => {
-    // BUG REALE, trovato il 2026-09-30. Questo controllo guardava solo
-    // GOOGLE_GENAI_API_KEY e GOOGLE_API_KEY, ma il progetto configura la chiave
-    // come GEMINI_API_KEY (vedi genkit.ts e .env.local). Risultato: la chiave
-    // c'era ed era valida - genkit.ts la trovava e il modello rispondeva - ma
-    // questo controllo gettava "Configurazione AI Mancante" e l'import non
-    // partiva MAI, con testo, immagine o PDF. La schermata mostrava pero'
-    // "An error occurred in the Server Components render", perche' l'errore
-    // veniva lanciato da una server action e Next.js lo sostituisce.
-    //
-    // La lista dei nomi deve restare ALLINEATA a quella di genkit.ts: se
-    // aggiungi un nome li', aggiungilo anche qui, o il controllo mente.
-    const apiKey = cleanKey(
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_GENAI_API_KEY ||
-      process.env.GOOGLE_API_KEY,
-    );
-
-    // Il check sulla lunghezza non e' ridondanza: una variabile d'ambiente
-    // puo' contenere un PLACEHOLDER (es. un valore segnaposto messo in
-    // Vercel per "riempire il campo"), che e' truthy e passa il `!apiKey`
-    // ma fa fallire ogni chiamata con API_KEY_INVALID. E' successo davvero:
-    // GOOGLE_GENAI_API_KEY su Vercel conteneva 11 caratteri di placeholder
-    // e l'import partite falliva con un errore generico, senza dire che la
-    // chiave non era valida. Le chiavi Google/Gemini reali sono lunghe
-    // almeno ~30 caratteri; sotto i 20 e' un segnaposto, non una chiave.
-    if (!apiKey || apiKey === 'missing-key' || apiKey.length < 20) {
-      throw userError(
-        'Configurazione AI non valida: la chiave API configurata sul server non e\' utilizzabile (vuota o non valida).',
-      );
-    }
-
     if (input.teamName === undefined && input.fileDataUrl) {
       // It's allowed to be undefined if DA TESTO is used, but if we have specific file we might want it, though we now handle both.
     }
