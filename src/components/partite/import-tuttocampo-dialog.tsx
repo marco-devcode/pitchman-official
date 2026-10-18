@@ -135,7 +135,21 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
       status: (new Date(match.date) < new Date() ? 'completed' : 'scheduled') as any,
     }));
 
+    const prima = useMatchesStore.getState().matches.length;
     await bulkAdd(matchesToSave);
+    const dopo = useMatchesStore.getState().matches.length;
+
+    if (matchesToSave.length > 0 && dopo === prima) {
+      // bulkAdd è uscito senza salvare nulla (es. nessuna stagione attiva).
+      // L'errore è già stato impostato nello store da bulkAdd stesso.
+      const erroreStore = useMatchesStore.getState().error;
+      toast({
+        variant: "destructive",
+        title: "Partite non salvate",
+        description: erroreStore || 'Le partite non sono state salvate. Riprova.',
+      });
+      return;
+    }
 
     toast({
       title: "Importazione completata",

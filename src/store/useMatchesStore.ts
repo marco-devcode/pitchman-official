@@ -73,7 +73,10 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
     bulkAdd: async (matchesData) => {
         const user = useAuthStore.getState().user;
         const activeSeason = useSeasonsStore.getState().activeSeason;
-        if (!activeSeason || !user) return;
+        if (!activeSeason || !user) {
+            set({ error: 'Nessuna stagione attiva. Seleziona una stagione prima di importare le partite.', loading: false });
+            return;
+        }
 
         // Una partita aggiunta, rimossa o aggiornata cambia record e
         // leaderboard: la dashboard li deve rivedere al ritorno.
