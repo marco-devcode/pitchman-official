@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Globe, AlertCircle, Link2, CalendarCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMatchesStore } from '@/store/useMatchesStore';
+import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -62,7 +63,20 @@ export function ImportCalendarioScraperDialog({ open, onOpenChange }: ImportCale
         status: m.status,
       }));
 
-      await bulkAdd(matchesToSave);
+      const seasonId = useSeasonsStore.getState().activeSeason?.id;
+      const prima = useMatchesStore.getState().matches.length;
+      await bulkAdd(matchesToSave, seasonId);
+      const dopo = useMatchesStore.getState().matches.length;
+
+      if (matchesToSave.length > 0 && dopo === prima) {
+        const erroreStore = useMatchesStore.getState().error;
+        toast({
+          variant: "destructive",
+          title: "Partite non salvate",
+          description: erroreStore || 'Le partite non sono state salvate. Riprova.',
+        });
+        return;
+      }
 
       toast({
         title: "Calendario Importato",

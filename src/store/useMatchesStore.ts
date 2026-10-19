@@ -19,7 +19,7 @@ interface MatchState {
     error: string | null;
     fetchAll: (seasonId?: string) => Promise<void>;
     add: (data: Omit<MatchCreateData, 'seasonId' | 'userId' | 'teamOwnerId' | 'teamId'>) => Promise<Match | undefined>;
-    bulkAdd: (matchesData: Omit<MatchCreateData, 'userId' | 'seasonId' | 'teamOwnerId' | 'teamId'>[]) => Promise<void>;
+    bulkAdd: (matchesData: Omit<MatchCreateData, 'userId' | 'seasonId' | 'teamOwnerId' | 'teamId'>[], seasonId?: string) => Promise<void>;
     update: (id: string, updates: Partial<Omit<Match, 'id' | 'userId'>>) => Promise<void>;
     remove: (id: string) => Promise<void>;
     removeAll: () => Promise<void>;
@@ -70,10 +70,13 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         await get().fetchAll(activeSeason.id);
         return newMatch;
     },
-    bulkAdd: async (matchesData) => {
+    bulkAdd: async (
+        matchesData: Omit<MatchCreateData, 'userId' | 'seasonId' | 'teamOwnerId' | 'teamId'>[],
+        seasonId?: string,
+    ) => {
         const user = useAuthStore.getState().user;
-        const activeSeason = useSeasonsStore.getState().activeSeason;
-        if (!activeSeason || !user) {
+        const targetSeasonId = seasonId ?? useSeasonsStore.getState().activeSeason?.id;
+        if (!targetSeasonId || !user) {
             set({ error: 'Nessuna stagione attiva. Seleziona una stagione prima di importare le partite.', loading: false });
             return;
         }
@@ -82,8 +85,8 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         // leaderboard: la dashboard li deve rivedere al ritorno.
         useStatsStore.getState().markStatsDirty();
 
-        await matchRepository.bulkAdd(matchesData, user.id, activeSeason.id);
-        await get().fetchAll(activeSeason.id);
+        await matchRepository.bulkAdd(matchesData, user.id, targetSeasonId);
+        await get().fetchAll(targetSeasonId);
     },
     update: async (id, updates) => {
         const activeSeason = useSeasonsStore.getState().activeSeason;

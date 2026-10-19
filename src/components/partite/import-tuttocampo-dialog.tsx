@@ -17,6 +17,7 @@ import { FileText, AlertCircle, RefreshCw, ClipboardCopy, Info, Upload } from 'l
 import * as AIService from '@/services/ai.service';
 import { useToast } from '@/hooks/use-toast';
 import { useMatchesStore } from '@/store/useMatchesStore';
+import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAsyncAction } from '@/lib/hooks/useAsyncAction';
@@ -135,8 +136,9 @@ export function ImportTuttocampoDialog({ open, onOpenChange }: ImportTuttocampoD
       status: (new Date(match.date) < new Date() ? 'completed' : 'scheduled') as any,
     }));
 
+    const seasonId = useSeasonsStore.getState().activeSeason?.id;
     const prima = useMatchesStore.getState().matches.length;
-    await bulkAdd(matchesToSave);
+    await bulkAdd(matchesToSave, seasonId);
     const dopo = useMatchesStore.getState().matches.length;
 
     if (matchesToSave.length > 0 && dopo === prima) {

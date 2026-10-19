@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     body.operation === 'players' ? body.rawText
     : body.operation === 'matches' ? (body.rawContent ?? body.fileDataUrl ?? '')
     : `${body.rawList}|${body.formation ?? ''}`;
-  const cacheKey = hashKey('import', body.operation, guard.uid, normalizeForCache(raw));
+  const cacheKey = hashKey('import', body.operation, guard.uid, guard.seasonId, normalizeForCache(raw));
 
   const cached = await cacheGet<unknown>(cacheKey);
   if (cached.hit) {
