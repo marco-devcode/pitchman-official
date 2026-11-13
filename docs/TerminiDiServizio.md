@@ -15,13 +15,13 @@ Utilizzando il servizio, l’utente dichiara di aver letto, compreso e accettato
 
 ### 2. Finalità del servizio
 
-Pitchman è una piattaforma in fase di MVP (Minimum Viable Product) dedicata alla `[gestione sportiva / organizzamento di allenamenti e partite / analisi delle prestazioni atletiche]`. Il servizio consente agli utenti di creare un profilo, monitorare i propri dati di gioco/allenamento e `[inserisci altre funzioni base, es: organizzare eventi sportivi o ricevere feedback]`.
+Pitchman è una piattaforma in fase di MVP (Minimum Viable Product) dedicata alla gestione sportiva, organizzazione di allenamenti e partite e analisi delle prestazioni atletiche. Il servizio consente agli utenti di creare un profilo e monitorare i propri dati di gioco/allenamento.
 
 ---
 
 ### 3. Requisiti dell’utente
 
-* Il servizio è destinato a utenti di età pari o superiore a `[14 o 16 o 18]` anni.
+* Il servizio è destinato a utenti di età pari o superiore a 18 anni.
 * L’utente si impegna a fornire dati di registrazione veritieri e a custodire le proprie credenziali di accesso in modo sicuro, essendo l'unico responsabile delle attività svolte tramite il proprio account.
 
 ---
@@ -55,14 +55,7 @@ Trattandosi di una versione MVP (progetto in fase di test pubblico):
 
 ---
 
-### 7. Nessuna affiliazione con federazioni o brand terzi
-
-`[Nota: Mantieni questa sezione solo se citi marchi reali come Serie A, Nike, Garmin, ecc. Altrimenti cancellala]`
-Pitchman, la web app e il suo sviluppatore non sono affiliati, sponsorizzati o approvati ufficialmente da alcuna federazione sportiva, squadra professionistica o brand terzo eventualmente citato nel servizio a scopo puramente descrittivo.
-
----
-
-### 8. Sospensione e chiusura dell'account
+### 7. Sospensione e chiusura dell'account
 
 Lo sviluppatore si riserva il diritto di sospendere, limitare o eliminare definitivamente l’accesso al servizio a un utente (temporaneamente o definitivamente), in qualsiasi momento e senza preavviso, in caso di:
 
@@ -72,35 +65,35 @@ Lo sviluppatore si riserva il diritto di sospendere, limitare o eliminare defini
 
 ---
 
-### 9. Esclusioni e limitazioni di responsabilità
+### 8. Esclusioni e limitazioni di responsabilità
 
 * Il servizio è fornito **"così com’è"** e **"come disponibile"**, senza garanzie di alcun tipo, espresse o implicite.
 * Nei limiti massimi consentiti dalla legge, lo sviluppatore non risponde di danni diretti o indiretti, perdita di dati di allenamento/gioco, interruzione del servizio o infortuni derivanti dall'errata interpretazione delle funzioni o delle metriche della web app.
 
 ---
 
-### 10. Proprietà intellettuale
+### 9. Proprietà intellettuale
 
-Il codice sorgente, l'interfaccia grafica, il logo **Pitchman**, il design e i contenuti originali della web app sono di proprietà esclusiva di Thiago `[Tuo Cognome]` e sono protetti dalle leggi sul diritto d'autore. È vietata la copia, la riproduzione o la decompilazione della web app senza autorizzazione scritta.
+Il codice sorgente, l'interfaccia grafica, il logo **Pitchman**, il design e i contenuti originali della web app sono di proprietà esclusiva e sono protetti dalle leggi sul diritto d'autore. È vietata la copia, la riproduzione o la decompilazione della web app senza autorizzazione scritta.
 
 ---
 
-### 11. Privacy e trattamento dati
+### 10. Privacy e trattamento dati
 
 Il trattamento dei dati personali inseriti nella web app è disciplinato dalla Privacy Policy di Pitchman, accessibile al seguente link:
 
-* `[Inserisci il link alla tua Privacy Policy, es: [https://www.pitchman.app/privacy](https://www.pitchman.app/privacy)]`
+* [Privacy Policy](/privacy)
 
 ---
 
-### 12. Modifiche dei Termini
+### 11. Modifiche dei Termini
 
 I presenti Termini possono essere aggiornati in qualsiasi momento per adeguarli a nuove funzionalità o a modifiche di legge. La data di aggiornamento in alto indica la versione corrente. L’uso continuato della web app dopo una modifica equivale all'accettazione della versione aggiornata.
 
 ---
 
-### 13. Contatti
+### 12. Contatti
 
 Per qualsiasi segnalazione di bug, violazione o domanda relativa ai presenti Termini, puoi contattare il supporto all'indirizzo:
 
-* **Email:** `[Inserisci la tua email di supporto]`
+* **Email:** losviluppatore@hotmail.com

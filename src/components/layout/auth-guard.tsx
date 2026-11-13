@@ -22,8 +22,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const { hasInitialized, setHasInitialized } = useAppStore();
 
-  // Pagine legali sempre pubbliche (requisito legale, non servono auth)
-  const isPublicLegal = pathname === '/termini' || pathname === '/privacy';
+  // Pagine pubbliche (legali + landing page): non richiedono autenticazione
+  const isPublicLegal = pathname === '/termini' || pathname === '/privacy' || pathname === '/landing';
 
   const { fetchSettings } = useSettingsStore();
   const { fetchAll: fetchSeasons } = useSeasonsStore();

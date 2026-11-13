@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -270,10 +271,22 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <div className="text-xs text-center text-muted-foreground mt-4 space-x-2">
-          <a href="/privacy" className="hover:underline hover:text-primary transition-colors">Privacy Policy</a>
-          <span>&bull;</span>
-          <a href="/termini" className="hover:underline hover:text-primary transition-colors">Termini di servizio</a>
+        <div className="w-full flex flex-col items-center gap-3 pt-1">
+          <Link
+            href="/landing"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold border border-primary/30 dark:border-brand-green/40 bg-primary/5 dark:bg-brand-green/10 text-primary dark:text-brand-green hover:bg-primary/10 dark:hover:bg-brand-green/20 transition-all"
+          >
+            <span>Scopri tutte le funzionalità di PitchMan</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+
+          <div className="text-xs text-center text-muted-foreground space-x-2">
+            <Link href="/landing" className="hover:underline hover:text-primary transition-colors">Presentazione</Link>
+            <span>&bull;</span>
+            <Link href="/privacy" className="hover:underline hover:text-primary transition-colors">Privacy Policy</Link>
+            <span>&bull;</span>
+            <Link href="/termini" className="hover:underline hover:text-primary transition-colors">Termini di servizio</Link>
+          </div>
         </div>
       </div>
     </div>

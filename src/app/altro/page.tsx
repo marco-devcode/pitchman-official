@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authHeaders } from "@/lib/api-client";
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Download, Moon, Sun, Plus, CheckCircle2, History, AlertTriangle, RefreshCw, LogOut, User, Trash2, Clock, Loader2, Bell, Shield, ChevronRight, Shirt, Share2, Copy, Pencil, BarChart3 } from 'lucide-react';
+import { Download, Moon, Sun, Plus, CheckCircle2, History, AlertTriangle, RefreshCw, LogOut, User, Trash2, Clock, Loader2, Bell, Shield, ChevronRight, Shirt, Share2, Copy, Pencil, BarChart3, FileText } from 'lucide-react';
 import { PiTrafficCone } from "react-icons/pi";
 import { useToast } from '@/hooks/use-toast';
 import { playerRepository } from '@/lib/repositories/player-repository';
@@ -921,6 +922,33 @@ export default function AltroPage() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+            </div>
+
+            {/* Documenti Legali */}
+            <div className="space-y-2 border-t border-border/50 pt-4">
+              <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">Informativa Legale</h4>
+              <div className="grid grid-cols-1 gap-2">
+                <Link
+                  href="/privacy"
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted/70 dark:bg-card/30 dark:hover:bg-card/50 border border-border dark:border-brand-green/20 transition-all text-xs font-bold"
+                >
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary dark:text-brand-green" />
+                    Privacy Policy
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </Link>
+                <Link
+                  href="/termini"
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted/70 dark:bg-card/30 dark:hover:bg-card/50 border border-border dark:border-brand-green/20 transition-all text-xs font-bold"
+                >
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary dark:text-brand-green" />
+                    Termini di Servizio
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </Link>
+              </div>
             </div>
           </div>
         </DialogContent>

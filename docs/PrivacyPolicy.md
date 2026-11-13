@@ -5,7 +5,7 @@
 ## 1. Titolare del Trattamento
 Questa informativa si applica alla web app **Pitchman**.
 
-- **Email di contatto:** marcoacaso03@gmail.com
+- **Email di contatto:** losviluppatore@hotmail.com
 
 ## 2. Dati Raccolti
 ### Dati di registrazione
