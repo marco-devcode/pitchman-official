@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 
-const path = process.argv[2] ?? 'firestore.rules.v2';
+const path = process.argv[2] ?? 'firestore.rules';
 const rules = readFileSync(path, 'utf8');
 
 let env;

@@ -27,8 +27,8 @@ formazioni e chatbot tattico. Funziona anche offline (Dexie/IndexedDB).
 ```
 src/
   app/            routes App Router + error.tsx per sezione
-  ai/             flussi Genkit (chatbot, import rosa/calendario, lineup,
-                  generatore esercizi) + genkit.ts
+  ai/             flussi Genkit (chatbot, import rosa/calendario, lineup)
+                  + genkit.ts
   components/
     ui/           primitivi shadcn + async-feedback (loading/errore coerente)
     layout/       header, bottom-nav, auth-guard, theme-provider
@@ -47,12 +47,13 @@ src/
 
 ### Rotte
 
-Le pagine sono 23 (`src/app/**/page.tsx`). Le sezioni che non compaiono
+Le pagine sono 24 (`src/app/**/page.tsx`). Le sezioni che non compaiono
 nell'albero sopra: `/admin`, `/admin/users`, `/admin/plans`, `/admin/health`
 (developer), `/director` (direttore sportivo), `/membri`, `/membri/[id]`,
-`/membri/confronto`, `/login`, `/altro` (impostazioni, tema, debug).
+`/membri/confronto`, `/login`, `/landing`, `/privacy`, `/termini`, `/altro`
+(impostazioni, tema, debug).
 
-Le route API sono 22 sotto `src/app/api/`: le stagioni
+Le route API sono 21 sotto `src/app/api/`: le stagioni
 (`seasons`, `seasons/[seasonId]`, `.../members`, `.../invites`),
 l'AI (`generate`, `chatbot`, `ai/import`, `import-rosa`,
 `import-calendario`), gli account (`account/export`, `account/delete`),

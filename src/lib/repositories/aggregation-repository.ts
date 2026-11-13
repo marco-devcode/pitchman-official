@@ -3,7 +3,6 @@ import {
     doc,
     setDoc,
     getDoc,
-    query,
     writeBatch
 } from 'firebase/firestore';
 import { matchRepository } from './match-repository';

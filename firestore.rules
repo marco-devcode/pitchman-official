@@ -1,368 +1,350 @@
 rules_version = '2';
+
+// ============================================================================
+// Assumed Data Model
+// ============================================================================
+//
+// Custom Claims (set via Firebase Admin SDK):
+//   - admin: bool (optional) — legacy/emulator admin flag
+//   - role: 'developer' | 'director' | 'coach' | 'player' (optional)
+//
+// Collection: users/{userId}
+//   - uid: string
+//   - email: string
+//   - displayName: string
+//   - role: 'developer' | 'director' | 'coach' | 'player' (protected; only admin/developer can modify)
+//   - createdAt, updatedAt: string
+//   Subcollections (user-owned legacy & personal settings):
+//     - settings/{settingId} (e.g. activeSeason: { seasonId, updatedAt })
+//     - scoutPlayers/{scoutPlayerId} (legacy)
+//     - scoutCategories/{scoutCategoryId} (legacy)
+//     - trainingSessions/{sessionId} + attendance/{playerId} (legacy)
+//     - physicalTests/{testId} (legacy)
+//
+// Collection: teams/{seasonId} (created/deleted via Admin SDK API routes only)
+//   - id, userId, ownerId: string (immutable from client)
+//   - name: string (1..100 chars; editable by season owner only)
+//   - updatedAt: string (1..64 chars; editable by season owner only)
+//   - members: map<uid, 'owner' | 'staff'> (server-managed)
+//   - memberUids: list<uid> (server-managed)
+//   - sharedWith: list<uid> (legacy, server-managed)
+//   - directorUids: list<uid> (server-managed, read-only directors)
+//   - plan, limits, playerCount, isActive, createdAt (server-managed / legacy)
+//   Subcollections:
+//     - players/{playerId}              (read: member | season director; write: member)
+//     - scouts/{scoutId}                (read: member | season director; create: member with teamOwnerId == uid; update/delete: member)
+//     - scoutCategories/{categoryId}    (read: member | season director; write: member)
+//     - matches/{matchId}               (read/write: member only)
+//       - lineup/{lineupId}             (read/write: member only)
+//       - events/{eventId}              (read/write: member only)
+//       - stats/{statId}                (read/write: member only)
+//     - sessions/{sessionId}            (read/write: member only)
+//       - attendance/{playerId}         (read/write: member only)
+//     - events/{eventId}                (legacy; read/write: member only)
+//     - trainings/{trainingId}          (legacy; read/write: member only)
+//     - physicalTests/{testId}          (read/write: member only)
+//     - aggregates/{aggregateId=**}     (read/write: member only)
+//     - presence/{uid}                  (read/delete: member; create/update: self member with only { lastSeen: number|timestamp })
+//
+// Server-only Collections (no client access):
+//   - invites, rateLimits, aiUsage, aiCache, feedback
+//
+// Collection: exercises/{exerciseId}
+//   - userId: string (required on create == request.auth.uid; immutable on update)
+//   - visibility: 'global' | 'private'
+//
+// Collection: settings/{userId}
+//   - User preferences owned exclusively by userId
+//
+// ============================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── Helper Functions ────────────────────────────────────────────────────
+    // ═══ Helper Functions ══════════════════════════════════════════════════
+    //
+    // NESSUNA dichiarazione `let` in tutto il file: in Firestore Rules `let`
+    // seguito da `if` viene rifiutato dal compilatore (`Unexpected 'if'`).
+    // Tutte le helper usano espressioni booleane pure.
 
-    function isSignedIn() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function isUserOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
     }
 
-    function getRole() {
-      return request.auth.token.role;
+    function hasAppRole(roleName) {
+      return signedIn() &&
+        'role' in request.auth.token &&
+        request.auth.token.role == roleName;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        'admin' in request.auth.token &&
+        request.auth.token.admin == true;
     }
 
     function isDeveloper() {
-      return getRole() == 'developer';
+      return hasAppRole('developer');
     }
 
-    function isDirectorOrAbove() {
-      return getRole() in ['director', 'developer'];
+    function isAdminOrDeveloper() {
+      return isAdmin() || isDeveloper();
     }
 
-    function isCoachOrAbove() {
-      return getRole() in ['coach', 'director', 'developer'];
+    function teamPath(seasonId) {
+      return /databases/$(database)/documents/teams/$(seasonId);
     }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    function incomingIsAuthorized(seasonId) {
-      return isSignedIn() && (
-        request.resource.data.teamOwnerId == request.auth.uid ||
-        request.auth.uid in get(/databases/$(database)/documents/teams/$(seasonId)).data.sharedWith ||
-        get(/databases/$(database)/documents/teams/$(seasonId)).data.ownerId == request.auth.uid
+    function isTeamDocOwner(data) {
+      return signedIn() && (
+        ('ownerId' in data && data.ownerId == request.auth.uid) ||
+        ('members' in data &&
+         data.members is map &&
+         request.auth.uid in data.members &&
+         data.members[request.auth.uid] == 'owner')
       );
     }
 
-    function existingIsAuthorized(seasonId) {
-      return isSignedIn() && (
-        resource.data.teamOwnerId == request.auth.uid ||
-        request.auth.uid in get(/databases/$(database)/documents/teams/$(seasonId)).data.sharedWith ||
-        get(/databases/$(database)/documents/teams/$(seasonId)).data.ownerId == request.auth.uid
+    function isTeamDocMember(data) {
+      return signedIn() && (
+        ('ownerId' in data && data.ownerId == request.auth.uid) ||
+        ('members' in data &&
+         data.members is map &&
+         request.auth.uid in data.members) ||
+        ('memberUids' in data &&
+         data.memberUids is list &&
+         request.auth.uid in data.memberUids) ||
+        ('sharedWith' in data &&
+         data.sharedWith is list &&
+         request.auth.uid in data.sharedWith)
       );
     }
-    
-    function isSeasonAuthorized(seasonId) {
-      let season = get(/databases/$(database)/documents/teams/$(seasonId)).data;
-      return isSignedIn() && (season.ownerId == request.auth.uid || request.auth.uid in season.sharedWith);
+
+    function isTeamDocDirector(data) {
+      return hasAppRole('director') &&
+        'directorUids' in data &&
+        data.directorUids is list &&
+        request.auth.uid in data.directorUids;
     }
 
-    // ─── DIRETTORE SPORTIVO ────────────────────────────────────────────────
-    // Il direttore entra con lo STESSO codice invito di un allenatore, ma i
-    // permessi sono diversi e derivano dal ruolo che l'account ha gia':
-    // il coach finisce in `sharedWith`, il direttore in `directorUids`.
-    //
-    // Perche' due liste e non una: `sharedWith` e' l'elenco di chi puo' SCRIVERE
-    // nella stagione. Il direttore non deve poterlo. Con un unico elenco, o il
-    // direttore avrebbe gli stessi poteri di un allenatore (eventi, presenze,
-    // test), o gli allenatori avrebbero perso l'accesso.
-    //
-    // `directorUids` puo' non esistere sulle stagioni create prima di questa
-    // feature: `in` su una lista assente e' semplicemente false, quindi il
-    // direttore non ottiene accesso a una stagione vecchia finche' non entra
-    // con l'invito. Nessun errore, semplicemente non entra.
+    function isOwnerOf(seasonId) {
+      return signedIn() &&
+        exists(teamPath(seasonId)) &&
+        isTeamDocOwner(get(teamPath(seasonId)).data);
+    }
+
+    function isMember(seasonId) {
+      return signedIn() &&
+        exists(teamPath(seasonId)) &&
+        isTeamDocMember(get(teamPath(seasonId)).data);
+    }
+
+    // Il direttore sportivo vede i dati di identità/mercato della squadra
+    // (rosa, osservati, categorie osservati) in sola lettura, mai i dati di
+    // gestione dell'allenatore (partite, eventi, presenze, test fisici).
     function isSeasonDirector(seasonId) {
-      let season = get(/databases/$(database)/documents/teams/$(seasonId)).data;
-      return isSignedIn() && getRole() == 'director'
-             && 'directorUids' in season
-             && request.auth.uid in season.directorUids;
+      return hasAppRole('director') &&
+        exists(teamPath(seasonId)) &&
+        isTeamDocDirector(get(teamPath(seasonId)).data);
     }
 
-    // Il direttore vede i dati di IDENTITA' di una squadra (chi c'e', ruolo,
-    // infortuni, osservati) e NON i dati di GESTIONE (partite, eventi,
-    // presenze, test fisici): quelli sono il lavoro dell'allenatore e non
-    // servono al direttore. Quindi questa funzione NON viene usata sotto
-    // matches/sessions/physicalTests, e aggiungerla li' e' un errore.
+    function isMemberOrDirector(seasonId) {
+      return isMember(seasonId) || isSeasonDirector(seasonId);
+    }
+
     function isSeasonDirectorOrAuthorized(seasonId) {
-      return isSeasonAuthorized(seasonId) || isSeasonDirector(seasonId);
+      return isMemberOrDirector(seasonId);
     }
 
-    // ─── /users/{userId} ─────────────────────────────────────────────────────
-    
-    match /users/{userId} {
-      allow get:    if isOwner(userId) || isDeveloper();
-      allow list:   if isDeveloper();
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) || isDeveloper());
-      allow delete: if isExistingOwner(userId) || isDeveloper();
+    // ═══ /users/{userId} ═══════════════════════════════════════════════════
 
+    match /users/{userId} {
+      allow get:    if isUserOwner(userId) || isAdminOrDeveloper();
+      allow list:   if isAdminOrDeveloper();
+      allow create: if isAdminOrDeveloper() ||
+                      (isUserOwner(userId) &&
+                       (!('role' in request.resource.data) ||
+                        request.resource.data.role in ['coach', 'player']));
+      allow update: if isAdminOrDeveloper() ||
+                      (isUserOwner(userId) &&
+                       resource != null &&
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+      allow delete: if (isUserOwner(userId) && resource != null) || isAdminOrDeveloper();
+
+      // Preferenze utente attive (es. `users/{uid}/settings/activeSeason`)
+      match /settings/{settingId} {
+        allow read, write: if isUserOwner(userId);
+      }
+
+      // Dati storici sotto l'utente (mantenuti per cleanup / compatibilità)
       match /scoutPlayers/{scoutPlayerId} {
-        allow get, list: if isOwner(userId);
-        allow create:    if isOwner(userId) && request.resource.data.id == scoutPlayerId;
-        allow update:    if isOwner(userId);
-        allow delete:    if isOwner(userId);
+        allow read, write: if isUserOwner(userId);
       }
 
       match /scoutCategories/{scoutCategoryId} {
-        allow get, list: if isOwner(userId);
-        allow create:    if isOwner(userId) && request.resource.data.id == scoutCategoryId;
-        allow update:    if isOwner(userId);
-        allow delete:    if isOwner(userId);
+        allow read, write: if isUserOwner(userId);
+      }
+
+      match /scouts/{scoutId} {
+        allow read, write: if isUserOwner(userId);
       }
 
       match /trainingSessions/{sessionId} {
-        allow get, list: if isOwner(userId);
-        allow create:    if isOwner(userId);
-        allow update, delete: if isExistingOwner(userId);
+        allow read, write: if isUserOwner(userId);
 
         match /attendance/{playerId} {
-          allow get, list: if isOwner(userId);
-          allow write:     if isOwner(userId);
+          allow read, write: if isUserOwner(userId);
         }
       }
 
-      // ─── Stagione attiva per utente ──────────────────────────────────────
-      //
-      // `isActive` non puo' stare sul documento della stagione: quel documento
-      // e' condiviso, quindi il flag sarebbe condiviso e due allenatori si
-      // pesterebbero i piedi. La scelta della stagione attiva e' per utente e
-      // vive qui. Non contiene dati della squadra: solo quale stagione hai
-      // scelto di guardare in questo momento.
-      match /settings/{settingId} {
-        allow get, create, update, delete: if isOwner(userId);
+      match /physicalTests/{testId} {
+        allow read, write: if isUserOwner(userId);
       }
 
-      // ─── Physical Tests ───────────────────────────────────────────────────
-      match /physicalTests/{testId} {
-        allow get, list: if isOwner(userId);
-        allow create:    if isOwner(userId) && request.resource.data.userId == userId;
-        allow update:    if isExistingOwner(userId);
-        allow delete:    if isExistingOwner(userId);
+      match /{sub}/{docId} {
+        allow read, write: if isUserOwner(userId);
       }
     }
 
-    // ─── /teams/{seasonId} ───────────────────────────────────────────────────
-    
-    match /teams/{seasonId} {
-      // ─── Accesso con codice di invito ───────────────────────────────────────
-      //
-      // Il join con codice ("Partecipa con codice") ha bisogno di DUE cose
-      // che prima non erano permesse, ed e' per questo che falliva con
-      // "Missing or insufficient permissions.":
-      //
-      // 1. LEGGERE il documento per verificare che il codice esista. La regola
-      //    precedente permetteva la lettura solo a owner e a chi era gia' in
-      //    sharedWith: chi sta per entrare non e' in nessuno dei due, quindi
-      //    la getDoc veniva negata e il flusso moriva sul primo passo.
-      //
-      // 2. SCRIVERE per aggiungersi. La regola precedente permetteva
-      //    l'update a un non-proprietario solo se il documento in arrivo
-      //    conteneva gia' il suo uid in sharedWith — cioe' se era gia' dentro.
-      //    Richiedere di essere gia' dentro per poter entrare e' circolare, e
-      //    nessuna variante della stessa regola lo risolve: serve una via
-      //    d'ingresso che non passi da "l'ho gia' letto".
-      //
-      // La barriera di sicurezza e' il codice: `S-` + 5 caratteri base36
-      // casuali (~60 milioni di combinazioni). Chi e' autenticato e conosce il
-      // codice puo' entrare: e' il comportamento atteso della funzione.
-      // I documenti figli (players, matches, sessions, ...) restano protetti
-      // da isSeasonAuthorized, quindi NON diventano leggibili solo per aver
-      // letto il documento della stagione: si ottiene l'accesso scrivendo il
-      // proprio uid in sharedWith, che e' l'unico modo per ottenerlo.
-      allow get:    if isSignedIn();
-      // `get` resta aperto a chiunque autenticato perche' il codice invito
-      // funziona cosi': chi ha il codice deve poter leggere la stagione per
-      // riscattarlo. Non e' una apertura: i documenti FIGLI restano protetti.
-      //
-      // `list` invece e' chiuso, e aggiunge il direttore: senza questa riga il
-      // direttore non potrebbe vedere la lista delle sue stagioni e la sua
-      // schermata sarebbe vuota senza alcun errore. La condizione e' il suo uid
-      // dentro `directorUids`, quindi vede solo quelle.
-      allow list:   if isSignedIn() && (
-                      resource.data.ownerId == request.auth.uid ||
-                      request.auth.uid in resource.data.sharedWith ||
-                      ('directorUids' in resource.data && request.auth.uid in resource.data.directorUids)
-                    );
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isSignedIn() && (
-                      (resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == request.auth.uid) ||
-                      // Aggiungersi a se' stessi con il codice di invito.
-                      // hasOnly(['sharedWith','updatedAt']) perche' joinSeason
-                      // scrive anche updatedAt: hasOnly(['sharedWith']) lo
-                      // renderebbe DENIED per un campo extra.
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'updatedAt']) &&
-                       request.auth.uid in request.resource.data.sharedWith &&
-                       // Non si puo' aggiungere qualcun altro al posto proprio:
-                       // l'array deve conservare tutti gli uid precedenti e
-                       // crescere di ESATTAMENTE un elemento.
-                       // (La concatenazione di liste con '+' non e' valida in
-                       // Firestore rules — il compilatore la segnala come
-                       // "Invalid type ... Expected one of [list, set]".
-                       // hasAll + size e' l'equivalente corretto.)
-                       request.resource.data.sharedWith.hasAll(resource.data.sharedWith) &&
-                       request.resource.data.sharedWith.size() == resource.data.sharedWith.size() + 1
-                      )
-                    );
-      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    // ═══ /teams/{seasonId} ═════════════════════════════════════════════════
 
-      // ─── Osservati e categorie (dato di squadra) ────────────────────────
-      // Stanno qui dal blocco "scout condivisi". Un tempo erano sotto
-      // `users/{uid}/scoutPlayers`, quindi un coach li aveva e il direttore no.
-      // Il coach scrive, il direttore legge, nessuno dei due vede le partite
-      // dell'altro attraverso questo path.
+    match /teams/{seasonId} {
+      // Creazione e cancellazione SOLO dal server (Admin SDK).
+      allow create: if false;
+      allow delete: if false;
+
+      // Lettura per membri (owner/staff/legacy sharedWith) e direttori della stagione.
+      allow get:  if resource != null &&
+                     (isTeamDocMember(resource.data) || isTeamDocDirector(resource.data));
+      allow list: if isTeamDocMember(resource.data) || isTeamDocDirector(resource.data);
+
+      // Aggiornamento: solo l'owner può rinominare la stagione (`name`, `updatedAt`).
+      allow update: if isTeamDocOwner(resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['name', 'updatedAt']) &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAll(['name', 'updatedAt']) &&
+                      request.resource.data.name is string &&
+                      request.resource.data.name.size() > 0 &&
+                      request.resource.data.name.size() <= 100 &&
+                      request.resource.data.updatedAt is string &&
+                      request.resource.data.updatedAt.size() > 0 &&
+                      request.resource.data.updatedAt.size() <= 64;
+
+      // ─── Rosa (lettura anche al direttore sportivo) ─────────────────────
+      match /players/{playerId} {
+        allow get, list: if isMemberOrDirector(seasonId);
+        allow create, update, delete: if isMember(seasonId);
+      }
+
+      // ─── Osservati e categorie (lettura anche al direttore sportivo) ─────
       match /scouts/{scoutId} {
-        allow get:    if isSignedIn() && (resource == null || isSeasonDirectorOrAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonDirectorOrAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId) && request.resource.data.teamOwnerId == request.auth.uid;
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow get, list: if isMemberOrDirector(seasonId);
+        allow create: if isMember(seasonId) &&
+                        'teamOwnerId' in request.resource.data &&
+                        request.resource.data.teamOwnerId == request.auth.uid;
+        allow update, delete: if isMember(seasonId);
       }
 
       match /scoutCategories/{categoryId} {
-        allow get:    if isSignedIn() && (resource == null || isSeasonDirectorOrAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonDirectorOrAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow get, list: if isMemberOrDirector(seasonId);
+        allow create, update, delete: if isMember(seasonId);
       }
 
-      match /players/{playerId} {
-        // Il direttore LEGGE la rosa (deve vedere nomi, ruoli e infortuni) ma
-        // non la scrive: le quattro righe sotto restano solo agli allenatori.
-        allow get:    if isSignedIn() && (resource == null || isSeasonDirectorOrAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonDirectorOrAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
-      }
-
+      // ─── Partite (solo membri della stagione) ───────────────────────────
       match /matches/{matchId} {
-        allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow get, list, create, update, delete: if isMember(seasonId);
 
         match /lineup/{lineupId} {
-          allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-          allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow get, list, create, update, delete: if isMember(seasonId);
         }
 
         match /events/{eventId} {
-          allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-          allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow get, list, create, update, delete: if isMember(seasonId);
         }
 
         match /stats/{statId} {
-          allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-          allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow get, list, create, update, delete: if isMember(seasonId);
         }
       }
 
+      // ─── Allenamenti e presenze (solo membri della stagione) ────────────
       match /sessions/{sessionId} {
-        allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
-      }
+        allow get, list, create, update, delete: if isMember(seasonId);
 
-      match /events/{eventId} {
-        allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
-      }
-
-      match /trainings/{trainingId} {
-        allow get:    if isSignedIn() && (resource == null || isSeasonAuthorized(seasonId));
-        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
-      }
-
-      // ─── Allenamenti (2026-09: spostati da users/{uid}/trainingSessions) ──
-      //
-      // Erano gli UNICI dati sotto users/{uid}: privati per costruzione, quindi
-      // un ospite della stagione vedeva la stagione vuota. Convivono con
-      // players e matches sotto teams/{seasonId}, e la condivisione funziona
-      // perche' isSeasonAuthorized autorizza owner e membri di sharedWith.
-      match /sessions/{sessionId} {
-        allow get:    if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
-
-        // Presenze della sessione: un documento per giocatore.
         match /attendance/{playerId} {
-          allow get:    if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-          allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+          allow get, list, create, update, delete: if isMember(seasonId);
         }
       }
 
-      // ─── Test fisici (2026-09: spostati da users/{uid}/physicalTests) ────
-      //
-      // Come gli allenamenti, erano gli unici dati sotto users/{uid} e quindi
-      // privati. Stessa logica delle sessions: isSeasonAuthorized autorizza
-      // il proprietario e chi e' in sharedWith.
-      match /physicalTests/{testId} {
-        allow get:    if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow list:   if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
-      }
+      // ─── Collection legacy / operative di stagione (solo membri) ────────
+      match /events/{eventId}        { allow get, list, create, update, delete: if isMember(seasonId); }
+      match /trainings/{trainingId}  { allow get, list, create, update, delete: if isMember(seasonId); }
+      match /physicalTests/{testId}  { allow get, list, create, update, delete: if isMember(seasonId); }
 
+      // Aggregati precalcolati (profondità variabile)
       match /aggregates/{aggregateId=**} {
-        allow get, list: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow write:    if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow get, list, create, update, delete: if isMember(seasonId);
       }
 
-      // ─── Presence: chi e' online su questa stagione (2026-09) ────────────
-      //
-      // Ogni utente scrive il proprio documento in
-      // teams/{seasonId}/presence/{uid} con un battito periodico. Un
-      // onSnapshot su questa collezione dice chi c'e' SENZA refresh, e fa
-      // comparire l'avviso "un altro allenatore e' su questa stagione,
-      // le modifiche possono sovrascriversi".
-      //
-      // Il documento contiene SOLO lastSeen: nessun dato della squadra, e le
-      // regole lo impongono con hasOnly, cosi' nessuno puo' nascondere altro
-      // dentro. Nota sul delete: e' consentito a chiunque della stagione
-      // perche' serve a ripulire i documenti scaduti, e un documento di
-      // presenza non contiene nulla di riservato.
+      // ─── Presence: chi è online su questa stagione ──────────────────────
       match /presence/{uid} {
-        allow get, list: if isSignedIn() && isSeasonAuthorized(seasonId);
-        allow create: if isSignedIn() && isSeasonAuthorized(seasonId) && request.resource.data.keys().hasOnly(['lastSeen']);
-        allow update: if isSignedIn() && isSeasonAuthorized(seasonId) && request.resource.data.keys().hasOnly(['lastSeen']);
-        allow delete: if isSignedIn() && isSeasonAuthorized(seasonId);
+        allow get, list: if isMember(seasonId);
+        allow create, update: if isMember(seasonId) &&
+                                request.auth.uid == uid &&
+                                request.resource.data.keys().hasOnly(['lastSeen']) &&
+                                request.resource.data.keys().hasAll(['lastSeen']) &&
+                                (request.resource.data.lastSeen is number ||
+                                 request.resource.data.lastSeen is timestamp);
+        allow delete: if isMember(seasonId);
       }
     }
 
-    // ─── /exercises/{exerciseId} ─────────────────────────────────────────────
-    
+    // ═══ Collection solo-server ════════════════════════════════════════════
+
+    match /invites/{code=**}    { allow read, write: if false; }
+    match /rateLimits/{id=**}   { allow read, write: if false; }
+    match /aiUsage/{id=**}      { allow read, write: if false; }
+    match /aiCache/{id=**}      { allow read, write: if false; }
+    match /feedback/{id=**}     { allow read, write: if false; }
+
+    // ═══ Esercizi ══════════════════════════════════════════════════════════
+
     match /exercises/{exerciseId} {
-      allow get, list: if isSignedIn() && (resource.data.visibility == 'global' || resource.data.userId == request.auth.uid);
-      allow create:    if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isOwner(resource.data.userId);
+      allow get:  if signedIn() && resource != null && (
+        ('visibility' in resource.data && resource.data.visibility == 'global') ||
+        ('userId' in resource.data && resource.data.userId == request.auth.uid)
+      );
+      allow list: if signedIn() && (
+        ('visibility' in resource.data && resource.data.visibility == 'global') ||
+        ('userId' in resource.data && resource.data.userId == request.auth.uid)
+      );
+      allow create: if signedIn() &&
+                      'userId' in request.resource.data &&
+                      request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() &&
+                      resource != null &&
+                      'userId' in resource.data &&
+                      resource.data.userId == request.auth.uid &&
+                      'userId' in request.resource.data &&
+                      request.resource.data.userId == resource.data.userId;
+      allow delete: if signedIn() &&
+                      resource != null &&
+                      'userId' in resource.data &&
+                      resource.data.userId == request.auth.uid;
     }
 
-    // ─── /settings/{userId} ──────────────────────────────────────────────────
-    
+    // ═══ Impostazioni per utente ═══════════════════════════════════════════
+
     match /settings/{userId} {
-      allow get, write: if isOwner(userId);
+      allow read, write: if isUserOwner(userId);
     }
+
+    // ═══ Catch-all ═════════════════════════════════════════════════════════
 
     match /{document=**} {
       allow read, write: if false;

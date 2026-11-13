@@ -9,7 +9,6 @@ import {
   setDoc, 
   updateDoc, 
   deleteDoc, 
-  where,
   writeBatch,
   getDoc
 } from 'firebase/firestore';

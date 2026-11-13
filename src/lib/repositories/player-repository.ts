@@ -34,6 +34,31 @@ export type PlayerCreateData = {
     userId: string;
 }
 
+/**
+ * Normalizes and validates a raw Firestore player document, applying the legacy
+ * `firstName`/`lastName` fallback from `name` when missing.
+ */
+export function parsePlayerDoc(id: string, rawData: Record<string, unknown>): Player {
+  let firstName = typeof rawData.firstName === 'string' ? rawData.firstName : '';
+  let lastName = typeof rawData.lastName === 'string' ? rawData.lastName : '';
+
+  // Fallback per dati esistenti senza firstName/lastName
+  if (!firstName || !lastName) {
+    const rawName = typeof rawData.name === 'string' ? rawData.name : '';
+    const parts = rawName.split(' ');
+    firstName = parts.shift() || '';
+    lastName = parts.join(' ') || firstName;
+  }
+
+  const data = { ...rawData, firstName, lastName, id };
+  const parsed = PlayerSchema.safeParse(data);
+  if (!parsed.success) {
+    console.error('Schema validation failed for Player:', parsed.error);
+    return data as Player;
+  }
+  return parsed.data;
+}
+
 export const playerRepository = {
   async getAll(userId: string, seasonId?: string) {
     if (!userId || !seasonId) return [];
@@ -41,24 +66,7 @@ export const playerRepository = {
     const playersRef = collection(db, 'teams', seasonId, 'players');
     const q = query(playersRef);
     const snapshot = await getDocs(q);
-    const players = snapshot.docs.map(doc => {
-      const pData = doc.data();
-      
-      // Fallback per dati esistenti senza firstName/lastName
-      if (!pData.firstName || !pData.lastName) {
-        const parts = (pData.name || "").split(" ");
-        pData.firstName = parts.shift() || "";
-        pData.lastName = parts.join(" ") || pData.firstName;
-      }
-
-      const data = { ...pData, id: doc.id };
-      const parsed = PlayerSchema.safeParse(data);
-      if (!parsed.success) {
-        console.error("Schema validation failed for Player:", parsed.error);
-        return data as Player;
-      }
-      return parsed.data;
-    });
+    const players = snapshot.docs.map(doc => parsePlayerDoc(doc.id, doc.data()));
     return players.sort((a, b) => a.lastName.localeCompare(b.lastName));
   },
 

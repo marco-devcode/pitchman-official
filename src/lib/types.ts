@@ -415,16 +415,6 @@ export type Match = {
   updatedAt?: string;
 };
 
-export const ATTENDANCE_STATUSES = ['presente', 'assente', 'in dubbio'] as const;
-export type AttendanceStatus = typeof ATTENDANCE_STATUSES[number];
-
-export type MatchAttendance = {
-  matchId: string;
-  playerId: string;
-  status: AttendanceStatus;
-  teamOwnerId?: string;
-};
-
 export type StarterPlayer = {
   playerId: string;
   role: string;

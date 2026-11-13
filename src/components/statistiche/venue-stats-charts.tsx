@@ -3,7 +3,7 @@
 import { useStatsStore } from "@/store/useStatsStore";
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 import { COLORS, useThemeCharts } from "@/lib/design-tokens";
 
 export function VenueStatsCharts() {
@@ -69,7 +69,7 @@ export function VenueStatsCharts() {
     return (
         <Card className="bg-card border border-primary/20 dark:border-brand-green/30 shadow-sm dark:shadow-themesoft rounded-3xl overflow-hidden backdrop-blur-sm">
             <CardHeader className="pb-2">
-                <CardTitle className="text-base font-black uppercase tracking-tight text-primary dark: text-white">Statistiche Risultati</CardTitle>
+                <CardTitle className="text-base font-black uppercase tracking-tight text-primary dark:text-white">Statistiche Risultati</CardTitle>
                 <CardDescription className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground/60 tracking-wider">Distribuzione esiti Totale, In Casa e In Trasferta.</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">

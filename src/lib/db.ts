@@ -1,10 +1,10 @@
 
 import Dexie, { type EntityTable, type Table } from 'dexie';
-import type { Player, Match, MatchAttendance, PlayerMatchStats, MatchLineup, MatchEvent, Season } from './types';
+import type { Player, Match, PlayerMatchStats, MatchLineup, MatchEvent, Season } from './types';
 
 export type SyncMutation = {
   id?: number;
-  collection: 'players' | 'matches' | 'matchAttendances' | 'playerMatchStats' | 'matchLineups' | 'matchEvents' | 'seasons';
+  collection: 'players' | 'matches' | 'playerMatchStats' | 'matchLineups' | 'matchEvents' | 'seasons';
   docId: string;
   action: 'add' | 'update' | 'delete' | 'upsert';
   payload: unknown;
@@ -18,7 +18,6 @@ export type SyncMutation = {
 class PitchManDB extends Dexie {
     players!: EntityTable<Player, 'id'>;
     matches!: EntityTable<Match, 'id'>;
-    matchAttendances!: Table<MatchAttendance, [string, string]>;
     playerMatchStats!: Table<PlayerMatchStats, [string, string]>;
     matchLineups!: EntityTable<MatchLineup, 'matchId'>;
     matchEvents!: EntityTable<MatchEvent, 'id'>;
@@ -40,6 +39,10 @@ class PitchManDB extends Dexie {
         // Versione 10: Coda di sincronizzazione offline
         this.version(10).stores({
             syncQueue: '++id, collection, docId, createdAt'
+        });
+        // Versione 11: Rimozione tabella morta matchAttendances
+        this.version(11).stores({
+            matchAttendances: null
         });
     }
 }

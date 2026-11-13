@@ -93,25 +93,31 @@ sono coperte dal pattern sopra).
 ## Struttura directory
 ```
 src/
-  app/            # routes (App Router) + error.tsx per sezione
+  app/            # routes (App Router, 24 pagine + 21 API) + error.tsx per sezione
   ai/             # flussi Genkit + genkit.ts
   components/
     ui/           # primitivi shadcn + async-feedback
     layout/       # header, bottom-nav, auth/role guard
-    ai/ giocatori/ partite/ allenamento/  # componenti di dominio
+    ai/ giocatori/ partite/ allenamento/ calendario/ scout/ statistiche/ legal/  # componenti di dominio
   lib/
     repositories/ # CRUD Firestore
-    hooks/        # useAsyncAction, useUserRole, usePermissions, use-toast
-    schemas.ts types.ts utils.ts db.ts firebase-admin.ts
+    hooks/        # useAsyncAction
+    server/       # firebase-admin.ts e helper lato server
+    season-collections.ts schemas.ts types.ts plans.ts player-minutes.ts drill.ts utils.ts db.ts
   services/       # logica use-case (ai.service, stats-advanced-service)
-  store/          # Zustand: useTeamStore (ctx) + per-feature store
-  hooks/          # useUserRole, usePermissions, usePWAInstall
+  store/          # Zustand: useSeasonsStore + useAuthStore + per-feature store
+  hooks/          # useUserRole, usePrefetch, usePresence, usePWAInstall, use-toast
 ```
 
 ## Sicurezza
-- Firestore Security Rules (`firestore.rules`) validano il `role` dai Firebase
-  Auth custom claims (`getRole()`).
-- Gating UI: `RoleGuard` + `useUserRole`/`usePermissions`.
+- Firestore Security Rules (`firestore.rules`) validano i ruoli dai Firebase
+  Auth custom claims (`hasAppRole(...)`, `isDeveloper()`, `isAdmin()`) insieme a
+  membership/ownership per stagione (`isMember(seasonId)`, `isOwnerOf(seasonId)`,
+  `isSeasonDirector(seasonId)`), riservano al server `create`/`delete` su
+  `/teams/{seasonId}` e bloccano lato client le collection server-only
+  (`invites`, `rateLimits`, `aiUsage`, `aiCache`, `feedback`).
+- Gating UI: `RoleGuard` + `useUserRole` (`AuthGuard` lascia pubbliche senza
+  login `/login`, `/landing`, `/privacy`, `/termini`).
 - `middleware.ts` (preventivo): rifiuta le richieste a `/api/admin/*` prive di
   header `Authorization`. La verifica vera del token/ruolo resta nelle route
   handler (es. `set-role` controlla `role === 'developer'`). Le page autenticate
@@ -119,7 +125,8 @@ src/
   nessun session cookie): per farlo serve adottare Firebase session cookies.
 
 ## Test
-- Unitari (Jest): repository, `stats-advanced-service`, hook `useAsyncAction`,
+- Unitari e sicurezza (Jest): repository, `season-collections.test.ts`,
+  `firestore.rules.test.ts`, `stats-advanced-service`, hook `useAsyncAction`,
   componente `AsyncFeedback`, service layer `ai.service` (flussi mockati).
 - E2E (Playwright): `e2e/smoke.spec.ts` verifica lo shell dell'app + floating
   assistant; gira su CI (`test:e2e`, richiede `npx playwright install`).

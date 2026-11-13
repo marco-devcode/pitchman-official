@@ -119,11 +119,10 @@ export const USER_SUBCOLLECTIONS = [
  * da qui prima di averli spostati lascerebbe dati che "Elimina account" non
  * puo' piu' cancellare, e il pulsante direbbe una falsita'.
  *
- * NOTA: lo script di migrazione `scripts/migrate-scout-to-season.ts` citato
- * qui in passato NON e' mai esistito in questo repo (verificato su tutti i
- * branch: nessun commit lo ha mai aggiunto o rimosso). Se un account ha
- * ancora osservati sotto `users/{uid}/scoutPlayers`, va spostato a mano con
- * l'Admin SDK, e poi questo elenco si puo' accorciare.
+ * NOTA: per gli account con osservati legacy sotto `users/{uid}/scoutPlayers`
+ * è ora disponibile `scripts/migrate-scout-to-season.ts`. Una volta completata
+ * e verificata la migrazione in produzione, questo elenco legacy potrà essere
+ * accorciato rimuovendo `LEGACY_USER_SUBCOLLECTIONS`.
  */
 export const LEGACY_USER_SUBCOLLECTIONS = [
   'scoutPlayers',

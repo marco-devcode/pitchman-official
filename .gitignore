@@ -55,3 +55,8 @@ changes.diff
 /min.rules
 /probe-*.rules
 /firebase.json.tmp
+
+# Export locali e artifact generati PWA
+/users.json
+/public/sw.js
+/public/workbox-*.js

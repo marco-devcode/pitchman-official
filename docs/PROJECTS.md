@@ -20,14 +20,14 @@ Customer assistance in ? Research su documentazione FAQ e in ultima battuta clic
 - Il developer ha accesso alle funzioni di import da tuttocampo con login, per rosa e calendario. Poi bisogna aggiornare la cronaca eventi, la proposta è uno scraping settimanale automatizzato con cronjob
 
 ### Sicurezza
-- [ ] **Validazione password al signup** — `useAuthStore.ts` non impone requisiti minimi sulla password (lunghezza, complessità). Firebase accetta qualsiasi password ≥6 caratteri ma l'UI non guida l'utente.
+- [x] **Validazione password al signup** — Implementata in `src/app/login/page.tsx` (`validatePassword`: minimo 8 caratteri, numero e carattere speciale) con feedback nell'UI di registrazione.
 - [ ] **Firebase App Check**
 
 ### Codice
 
 - [x] **Gestione Errori Globali (Global Error Boundary)** — 6 file: `app/error.tsx`, `app/global-error.tsx` e un `error.tsx` per `allenamento`, `calendario`, `membri`, `statistiche`.
 - [x] **Design Pattern "Service Layer" per l'AI** — `src/services/ai.service.ts` con test, più `stats-advanced-service.ts`. I flussi Genkit non sono più chiamati dal componente.
-- [ ] **Condivisione formazione come PNG** — esiste `src/lib/lineup-share.ts` e lo usa `match-lineup-tab.tsx`, ma va verificato che l'immagine sia quella che l'allenatore si aspetta.
+- [x] **Condivisione formazione come PNG** — Implementata in `src/lib/lineup-share.ts` e collegata in `match-lineup-tab.tsx` (resta opzionale verifica visiva finale sul campo reale).
 - [x] **Import da immagine (OCR)** — `src/lib/ai/file-extractor.ts`, usato dai flussi di import.
 - [ ] **Ruolo `player`** — `AccountRole` lo dichiara, `assign-role` lo assegna e `useUserRole().isPlayer` lo calcola, ma nessuna route né nessun guard lo tratta come caso proprio: un account con quel ruolo si comporta come un coach che non ha ancora ricevuto inviti. Serve decidere cosa può vedere un giocatore.
 
@@ -63,13 +63,13 @@ Crea esercizi con AI, addestra un vision e un replica
 Modalità spogliatoio con sondaggi e questionari privati
 
 ### ⚽ Gestione Partite
-- [ ] **Condivisione formazione** — Generare un'immagine PNG del layout tattico (campo con nomi) da condividere su WhatsApp/Telegram.
+- [x] **Condivisione formazione** — Implementata con `src/lib/lineup-share.ts` (generazione immagine PNG del layout tattico da `match-lineup-tab.tsx`).
 
 ### 📊 Statistiche Avanzate
 - [ ] **Export statistiche in PDF** — Report di fine stagione stampabile.
 
 ### 🤖 AI & Automazione
-- [ ] **Import rosa da foto** — Scansione OCR di fogli presenze cartacei o liste rosa da foto, usando l'AI per estrarre nomi e ruoli.
+- [x] **Import rosa da foto** — Implementata tramite `src/lib/ai/file-extractor.ts` e flussi AI di importazione rosa/calendario da immagine/documento.
 
 ### 📱 Mobile & PWA
 - [ ] **Estensione Leggera Smartwatch** — Esplorare lo sviluppo di un mini target layout indossabile per prendere presenze on-the-go o far scattare un cronometro partita live dall'orologio da polso.
@@ -87,15 +87,15 @@ Modalità spogliatoio con sondaggi e questionari privati
 ## 🚀 Feature Rivoluzionarie (Game Changers)
 
 ### 🧩 Automazione & Campo
-- [ ] **Cronometro Match con Eventi** — Gestione live della partita con tasti rapidi "Gol/Cartellino" che registrano l'ora esatta automaticamente.
+- [x] **Cronometro Match con Eventi** — Implementata con `src/components/partite/floating-match-timer.tsx`, `live-match-tracker.tsx` e `useLiveTimerStore`.
 
 ### 🧠 Intelligenza Artificiale
-- [ ] **AI Assistant "Best 11"** — Suggerimento automatico della formazione titolare incrociando presenze agli allenamenti e performance nelle ultime gare.
+- [x] **AI Assistant "Best 11"** — Implementata con `src/ai/flows/suggest-lineup-flow.ts`, `AIService.suggestLineup` e `src/components/partite/smart-lineup-dialog.tsx`.
 
 ## 🛠️ Ottimizzazioni Tecniche e Architetturali
 
 ### 🎨 Design System
-- [ ] **Standardizzazione Design Tokens** — Centralizzare tutti i colori neon in variabili CSS (`--brand-yellow`, etc.) per evitare duplicazioni di hex code sparsi nei componenti.
+- [x] **Standardizzazione Design Tokens** — Implementata in `src/app/globals.css` (incluso `--brand-lime`) e `src/lib/design-tokens.ts`.
 
 ### 🏗️ Codice & Stabilità
 

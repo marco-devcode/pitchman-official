@@ -3,7 +3,7 @@
 import { useStatsStore } from "@/store/useStatsStore";
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 import { GiSoccerBall } from "react-icons/gi";
 
 import { COLORS, useThemeCharts } from "@/lib/design-tokens";

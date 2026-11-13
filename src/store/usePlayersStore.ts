@@ -3,10 +3,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { playerRepository } from '@/lib/repositories/player-repository';
+import { playerRepository, parsePlayerDoc } from '@/lib/repositories/player-repository';
 import type { Player, Role, PlayerRole } from '@/lib/types';
 import type { PlayerCreateData } from '@/lib/repositories/player-repository';
-import { PlayerSchema } from '@/lib/schemas';
 import { useStatsStore } from './useStatsStore';
 import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
@@ -144,21 +143,7 @@ export const usePlayersStore = create<PlayerState>()(
         const playersRef = collection(db, 'teams', seasonId, 'players');
         const q = query(playersRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
-          const players = snapshot.docs.map(doc => {
-            const pData = doc.data();
-            if (!pData.firstName || !pData.lastName) {
-              const parts = (pData.name || "").split(" ");
-              pData.firstName = parts.shift() || "";
-              pData.lastName = parts.join(" ") || pData.firstName;
-            }
-            const data = { ...pData, id: doc.id };
-            const parsed = PlayerSchema.safeParse(data);
-            if (!parsed.success) {
-              console.error("Schema validation failed for Player:", parsed.error);
-              return data as Player;
-            }
-            return parsed.data;
-          });
+          const players = snapshot.docs.map(doc => parsePlayerDoc(doc.id, doc.data()));
           set({ players: players.sort((a, b) => a.lastName.localeCompare(b.lastName)), loading: false, error: null });
         }, (err) => {
           console.error("Players onSnapshot error:", err);
