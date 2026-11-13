@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Download, Moon, Sun, Plus, CheckCircle2, History, AlertTriangle, RefreshCw, LogOut, User, Trash2, Clock, Loader2, Bell, Shield, ChevronRight, Shirt, Share2, Copy, Pencil, BarChart3, FileText } from 'lucide-react';
+import { Download, Moon, Sun, Plus, CheckCircle2, History, AlertTriangle, RefreshCw, User, Trash2, Clock, Loader2, Bell, Shield, ChevronRight, Shirt, Share2, Copy, Pencil, BarChart3, FileText } from 'lucide-react';
 import { PiTrafficCone } from "react-icons/pi";
 import { useToast } from '@/hooks/use-toast';
 import { playerRepository } from '@/lib/repositories/player-repository';
@@ -18,6 +18,9 @@ import { matchRepository } from '@/lib/repositories/match-repository';
 import { GiSoccerBall } from "react-icons/gi";
 import { useThemeStore } from '@/store/useThemeStore';
 import { ThemeColorDialog } from '@/components/theme/theme-color-panel';
+import { AccountProfileDialog } from '@/components/altro/account-profile-dialog';
+import { NotificationsSettingsDialog } from '@/components/altro/notifications-settings-dialog';
+import { PrivacyDataDialog } from '@/components/altro/privacy-data-dialog';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { useMatchesStore } from '@/store/useMatchesStore';
 import { usePlayersStore } from '@/store/usePlayersStore';
@@ -538,34 +541,12 @@ export default function AltroPage() {
       {/* DIALOGS */}
 
       {/* Account Dialog */}
-      <Dialog open={isAccountOpen} onOpenChange={setIsAccountOpen}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-foreground">Profilo Allenatore</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 dark:bg-card/20 hover:bg-muted/50 dark:hover:bg-card/30">
-              <div className="h-12 w-12 rounded-full bg-background dark:bg-black border border-border dark:border-brand-green flex items-center justify-center text-primary dark:text-brand-green font-black uppercase text-xl shadow-sm dark:shadow-theme">
-                {user?.username.charAt(0)}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-lg font-black tracking-tight">{user?.username}</span>
-                <span className="text-sm text-muted-foreground dark:text-muted-foreground/60">{user?.email}</span>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Button
-                onClick={handleLogout}
-                className="w-full rounded-xl font-black uppercase text-xs h-12 bg-background dark:bg-black border border-rose-500/50 text-rose-500 hover:bg-rose-500/10 hover:border-rose-500 shadow-sm dark:shadow-[0_0_10px_rgba(244,63,94,0.05)] transition-all"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Esci dall'Account
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AccountProfileDialog
+        open={isAccountOpen}
+        onOpenChange={setIsAccountOpen}
+        user={user}
+        onLogout={handleLogout}
+      />
 
       {/* Gestione Squadra Dialog */}
       <ThemeColorDialog open={isColorsOpen} onOpenChange={setIsColorsOpen} />
@@ -803,156 +784,30 @@ export default function AltroPage() {
       </Dialog>
 
       {/* Notifiche Dialog */}
-      <Dialog open={isNotificheOpen} onOpenChange={setIsNotificheOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-lg rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-foreground">Notifiche Push</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Configura gli avvisi pre-gara e pre-allenamento.</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 pt-4">
-            {/* Notifica Partita */}
-            <div className="flex flex-col gap-3 p-3 rounded-2xl bg-muted/30 dark:bg-card/20 border border-border dark:border-transparent">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-bold uppercase tracking-tight">Giorno della Partita</Label>
-                </div>
-                <Switch
-                  checked={localMatchNotificationEnabled}
-                  onCheckedChange={setLocalMatchNotificationEnabled}
-                  className="data-[state=checked]:bg-primary dark:data-[state=checked]:bg-brand-green"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                "Prendi nota della formazione e inserisci il risultato!"
-              </p>
-              {localMatchNotificationEnabled && (
-                <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase">Orario Notifica</Label>
-                  <Input 
-                    type="time" 
-                    value={localMatchNotificationTime}
-                    onChange={(e) => setLocalMatchNotificationTime(e.target.value)}
-                    className="w-28 h-8 text-xs font-bold bg-background dark:bg-black border-border dark:border-brand-green/30"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Notifica Allenamento */}
-            <div className="flex flex-col gap-3 p-3 rounded-2xl bg-muted/30 dark:bg-card/20 border border-border dark:border-transparent">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-bold uppercase tracking-tight">Giorno dell'Allenamento</Label>
-                </div>
-                <Switch
-                  checked={localTrainingNotificationEnabled}
-                  onCheckedChange={setLocalTrainingNotificationEnabled}
-                  className="data-[state=checked]:bg-primary dark:data-[state=checked]:bg-brand-green"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                "Chi c'era oggi? Segna le presenze e gli esercizi svolti!"
-              </p>
-              {localTrainingNotificationEnabled && (
-                <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase">Orario Notifica</Label>
-                  <Input 
-                    type="time" 
-                    value={localTrainingNotificationTime}
-                    onChange={(e) => setLocalTrainingNotificationTime(e.target.value)}
-                    className="w-28 h-8 text-xs font-bold bg-background dark:bg-black border-border dark:border-brand-green/30"
-                  />
-                </div>
-              )}
-            </div>
-
-            <Button 
-                onClick={handleSaveNotifications}
-                className="w-full bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green hover:opacity-90 dark:hover:bg-brand-green/10 h-12 rounded-2xl font-black uppercase shadow-lg dark:shadow-theme-strong"
-            >
-                Salva Notifiche
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <NotificationsSettingsDialog
+        open={isNotificheOpen}
+        onOpenChange={setIsNotificheOpen}
+        matchEnabled={localMatchNotificationEnabled}
+        onMatchEnabledChange={setLocalMatchNotificationEnabled}
+        matchTime={localMatchNotificationTime}
+        onMatchTimeChange={setLocalMatchNotificationTime}
+        trainingEnabled={localTrainingNotificationEnabled}
+        onTrainingEnabledChange={setLocalTrainingNotificationEnabled}
+        trainingTime={localTrainingNotificationTime}
+        onTrainingTimeChange={setLocalTrainingNotificationTime}
+        onSave={handleSaveNotifications}
+      />
 
       {/* Privacy & Sicurezza Dialog */}
-      <Dialog open={isPrivacyOpen} onOpenChange={setIsPrivacyOpen}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-xl dark:shadow-theme text-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-foreground">Privacy & Dati</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Esporta i tuoi dati o formatta l'account.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 pt-2">
-
-            <div className="space-y-2">
-              <Button onClick={handleExport} disabled={isExporting} className="w-full font-black uppercase text-xs h-12 bg-primary dark:bg-black border border-primary dark:border-brand-green/30 text-white dark:text-white hover:opacity-90 dark:hover:bg-black/80 hover:border-primary dark:hover:border-brand-green shadow-sm dark:shadow-themesoft transition-all rounded-xl">
-                <Download className="mr-2 h-4 w-4 text-white dark:text-brand-green" />
-                {isExporting ? "Esportazione..." : "Esporta tutto (CSV)"}
-              </Button>
-              <p className="text-[10px] text-foreground/40 text-center px-4">Ricevi un file per la squadra e uno per le partite nel tuo dispositivo.</p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 space-y-3">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-5 w-5" />
-                <h4 className="font-black uppercase text-sm -mt-0.5">Zona Pericolo</h4>
-              </div>
-              <p className="text-[11px] text-foreground/60">Cancellare tutti i dati della stagione {activeSeason?.name}? Questa azione è irreversibile.</p>
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="w-full font-black uppercase text-xs rounded-xl h-10 mt-2">
-                    <RefreshCw className="mr-2 h-4 w-4" /> Reset Stagione
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-3xl bg-background border border-border dark:bg-black dark:border-brand-green/30 shadow-2xl dark:shadow-theme text-foreground max-w-[90vw]">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="uppercase font-black text-destructive">Resettare la stagione?</AlertDialogTitle>
-                    <AlertDialogDescription className="text-xs leading-relaxed text-muted-foreground font-bold">
-                      Cancellazione DEFINITIVA giocatori, partite e statistiche della stagione <strong>{activeSeason?.name}</strong>.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row gap-2 mt-4">
-                    <AlertDialogCancel className="flex-1 mt-0 rounded-xl font-bold text-xs bg-card/40 hover:bg-card/50 text-foreground border-none" disabled={isResetting}>Annulla</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleResetSeason} className="flex-1 bg-destructive hover:bg-destructive/90 rounded-xl font-bold text-xs uppercase border-none" disabled={isResetting}>
-                      {isResetting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Conferma Reset"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-
-            {/* Documenti Legali */}
-            <div className="space-y-2 border-t border-border/50 pt-4">
-              <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">Informativa Legale</h4>
-              <div className="grid grid-cols-1 gap-2">
-                <Link
-                  href="/privacy"
-                  className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted/70 dark:bg-card/30 dark:hover:bg-card/50 border border-border dark:border-brand-green/20 transition-all text-xs font-bold"
-                >
-                  <span className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary dark:text-brand-green" />
-                    Privacy Policy
-                  </span>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </Link>
-                <Link
-                  href="/termini"
-                  className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted/70 dark:bg-card/30 dark:hover:bg-card/50 border border-border dark:border-brand-green/20 transition-all text-xs font-bold"
-                >
-                  <span className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary dark:text-brand-green" />
-                    Termini di Servizio
-                  </span>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <PrivacyDataDialog
+        open={isPrivacyOpen}
+        onOpenChange={setIsPrivacyOpen}
+        activeSeason={activeSeason}
+        isExporting={isExporting}
+        onExport={handleExport}
+        isResetting={isResetting}
+        onResetSeason={handleResetSeason}
+      />
 
       {/* Join Season Dialog */}
       <Dialog open={isJoinDialogOpen} onOpenChange={setIsJoinDialogOpen}>
