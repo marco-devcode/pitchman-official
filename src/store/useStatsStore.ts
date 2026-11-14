@@ -243,15 +243,17 @@ export const useStatsStore = create<StatsState>((set, get) => ({
             } catch (error) {
                 console.error("Errore nel caricamento detailed stats:", error);
                 set({ loading: false, error: getErrorMessage(error) });
-            } finally {
-                if (inFlightDetailedLoads.get(activeSeasonId) === task) {
-                    inFlightDetailedLoads.delete(activeSeasonId);
-                }
             }
         })();
 
         inFlightDetailedLoads.set(activeSeasonId, task);
-        await task;
+        try {
+            await task;
+        } finally {
+            if (inFlightDetailedLoads.get(activeSeasonId) === task) {
+                inFlightDetailedLoads.delete(activeSeasonId);
+            }
+        }
     },
 
     setMatchFilter: (filter: FilterType) => {
