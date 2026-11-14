@@ -20,7 +20,13 @@ import {
 } from 'lucide-react';
 
 import type { TacticalAction, TacticalExercise, TacticalEntity, TacticalStep } from '@/lib/tactical-exercise';
-import { clampCoord, posizioniInizialiStep } from '@/lib/tactical-exercise';
+import {
+  clampCoord,
+  durataSegmenti,
+  posizioneAlTempo,
+  posizioniInizialiStep,
+  segmentiStep,
+} from '@/lib/tactical-exercise';
 import { cn } from '@/lib/utils';
 
 const FIELD_W = 320;
@@ -134,25 +140,15 @@ export default function ExercisePlayerInner({ data, className, editable = false,
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(1);
-  // True nella pausa fra uno step e il successivo: blocca i comandi, cosi' un
-  // doppio tap sul play non desincronizza indice e animazione.
-  const [inPausa, setInPausa] = useState(false);
-
-  /** Pausa fra uno step e il successivo, in ms. */
-  const PAUSA_TRA_STEP = 900;
 
   const frameRef = useRef<number | null>(null);
-  // ReturnType invece di number: in Node setTimeout restituisce un oggetto
-  // Timeout, e annotarlo come number non compila sotto tsconfig con i tipi Node.
-  const pausaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Il timer della pausa fra step va cancellato se l'utente cambia step o
-  // ferma il play: altrimenti il setTimeout sopravvive, avanza l'indice
-  // all'improvviso e l'indice si desincronizza da quello mostrato.
-  useEffect(() => {
-    return () => {
-      if (pausaRef.current !== null) clearTimeout(pausaRef.current);
-    };
+  // Copia sincrona di `progress`: il loop di animazione la legge per
+  // RIPRENDERE da dove era (pausa/play, cambio velocita') invece di ripartire
+  // da zero, che faceva tornare le pedine indietro di scatto.
+  const progressRef = useRef(0);
+  const impostaProgress = useCallback((valore: number) => {
+    progressRef.current = valore;
+    setProgress(valore);
   }, []);
 
   // Il modello può non avere step (o averne di strani): senza questo i
@@ -174,6 +170,9 @@ export default function ExercisePlayerInner({ data, className, editable = false,
   React.useEffect(() => {
     setScena(data?.initialEntities ?? []);
     setSelezionato(null);
+    setStepIndex(0);
+    impostaProgress(0);
+    setIsPlaying(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idEsercizio]);
 
@@ -306,38 +305,34 @@ export default function ExercisePlayerInner({ data, className, editable = false,
     [editable, scena, data?.initialEntities, currentStep, safeIndex, steps],
   );
 
-  /** Applica l'andamento richiesto al parametro 0..1. */
-  const ease = (t: number, kind?: string): number => {
-    switch (kind) {
-      case 'easeIn':
-        return t * t;
-      case 'easeOut':
-        return t * (2 - t);
-      case 'easeInOut':
-        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-      default:
-        return t;
-    }
-  };
-
-  /**
-   * Posizione di partenza di uno step: dove si trova ogni entita' quando lo
-   * step comincia, cioe' dove e' FINITA quella dello step precedente.
-   *
-   * Senza questo le pedine tornano tutte alla posizione iniziale a ogni step:
-   * il campo si teletrasporta indietro tre volte in un esercizio di tre passi, e
-   * l'animazione diventa illeggibile perche' non si capisce mai chi e' dove.
-   * Con questo, ogni entita' prosegue da dove si era fermata, che e' l'unica
-   * cosa che rende sensato guardare una sequenza.
-   *
-   * Si simula dall'inizio dell'esercizio, non si legge un indice "posizioni
-   * finali": cosi' resta corretto anche andando a uno step a caso con le frecce,
-   * e resta gratis in termini di costo (sono una decina di entita' e pochi
-   * step, e il risultato si memoizza per indice di step).
-   */
   const posizioniInizio = useMemo(
     () => posizioniInizialiStep(entities, steps, safeIndex),
     [entities, steps, safeIndex],
+  );
+
+  /**
+   * Tratti di movimento dello step corrente (modello ACTIONS). Calcolati con
+   * la stessa funzione che decide dove finisce ogni step: cosi' la fine di
+   * uno step coincide esattamente con l'inizio del successivo.
+   */
+  const segmenti = useMemo(
+    () =>
+      segmentiStep(
+        currentStep,
+        posizioniInizio,
+        entities.filter((e) => e.type === 'ball').map((e) => e.id),
+      ),
+    [currentStep, posizioniInizio, entities],
+  );
+
+  /**
+   * Durata TOTALE dello step, in secondi: la fine dell'ultimo tratto, non la
+   * durata massima. Un'azione che inizia dopo 2s e dura 1s finisce a 3s.
+   * Modello FRAME: durata fissa, tutti si muovono insieme.
+   */
+  const durataStep = useMemo(
+    () => (currentStep?.frame ? 2 : durataSegmenti(segmenti)),
+    [currentStep, segmenti],
   );
 
   const spostaEntita = useCallback(
@@ -386,19 +381,9 @@ export default function ExercisePlayerInner({ data, className, editable = false,
    *   precedente) e la posizione nel frame dello step corrente. Tutte le
    *   entità si muovono insieme, stessa durata, stesso easing. È il modello
    *   Tactical Pad: coerente e semplice.
-   * - ACTIONS: interpola per singola azione (from/to/duration/startAt).
-   *   Retrocompatibilità con l'AI.
+   * - ACTIONS: campiona i tratti calcolati da `segmentiStep`. Ogni tratto
+   *   parte dalla posizione reale dell'entita', quindi non ci sono scatti.
    */
-  const stepDuration = useCallback(() => {
-    // Modello FRAME: durata fissa, tutti si muovono insieme.
-    if (currentStep?.frame) return 2;
-    const azioni = currentStep?.actions ?? [];
-    if (!azioni.length) return 2;
-    const fine = azioni.map((a) => Math.max(0, a.startAt ?? 0) + Math.max(0.1, a.duration ?? 1));
-    const max = Math.max(...fine);
-    return Math.max(0.5, Math.min(8, max));
-  }, [currentStep]);
-
   const positionOf = useCallback(
     (entity: TacticalEntity) => {
       // Punto di partenza: fine dello step precedente, non l'origine.
@@ -416,70 +401,17 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         if (editable && !isPlaying && progress === 0) {
           return toPx(nelFrame);
         }
-        const t = Math.max(0, Math.min(1, progress / stepDuration()));
+        const t = Math.max(0, Math.min(1, progress / durataStep));
         return toPx({
           x: partenza.x + (nelFrame.x - partenza.x) * t,
           y: partenza.y + (nelFrame.y - partenza.y) * t,
         });
       }
 
-      // Modello ACTIONS (retrocompatibilità AI + animazioni multi-azione).
-      const stepActions = currentStep?.actions ?? [];
-      const ownActions = stepActions.filter((a) => a.entityId === entity.id);
-
-      let entityActions = ownActions;
-      if (entity.type === 'ball') {
-        // Quando il possessore conduce palla (`dribble`), il pallone lo segue
-        // negli intervalli in cui la palla non ha un'azione autonoma (pass/shoot).
-        const dribbleActions = stepActions.filter(
-          (a) =>
-            a.type === 'dribble' &&
-            a.entityId !== entity.id &&
-            !ownActions.some((o) => {
-              const aStart = Math.max(0, a.startAt ?? 0);
-              const aEnd = aStart + Math.max(0.1, a.duration ?? 1);
-              const oStart = Math.max(0, o.startAt ?? 0);
-              const oEnd = oStart + Math.max(0.1, o.duration ?? 1);
-              return aStart < oEnd && oStart < aEnd;
-            }),
-        );
-        if (dribbleActions.length > 0) {
-          entityActions = [...ownActions, ...dribbleActions];
-        }
-      }
-
-      if (entityActions.length === 0) return toPx(partenza);
-
-      const ordered = [...entityActions].sort(
-        (a, b) => Math.max(0, a.startAt ?? 0) - Math.max(0, b.startAt ?? 0),
-      );
-
-      let currentPoint = { x: partenza.x, y: partenza.y };
-      for (const action of ordered) {
-        const fx = action.from?.x ?? currentPoint.x;
-        const fy = action.from?.y ?? currentPoint.y;
-        const tx = action.to?.x ?? fx;
-        const ty = action.to?.y ?? fy;
-        const dur = Math.max(0.1, action.duration ?? 1);
-        const attesa = Math.max(0, action.startAt ?? 0);
-
-        if (progress < attesa) {
-          return toPx({ x: fx, y: fy });
-        }
-        if (progress <= attesa + dur) {
-          const locale = (progress - attesa) / dur;
-          const t = ease(Math.max(0, Math.min(1, locale)), action.easing);
-          return toPx({
-            x: fx + (tx - fx) * t,
-            y: fy + (ty - fy) * t,
-          });
-        }
-        currentPoint = { x: tx, y: ty };
-      }
-
-      return toPx(currentPoint);
+      // Modello ACTIONS (AI + animazioni multi-azione).
+      return toPx(posizioneAlTempo(segmenti.get(entity.id), partenza, progress));
     },
-    [currentStep, progress, posizioniInizio, stepDuration, editable, isPlaying],
+    [currentStep, progress, posizioniInizio, durataStep, segmenti, editable, isPlaying],
   );
 
   /**
@@ -494,79 +426,59 @@ export default function ExercisePlayerInner({ data, className, editable = false,
 
 
   useEffect(() => {
-    if (!isPlaying || inPausa) return;
+    if (!isPlaying) return;
+    if (steps.length === 0) {
+      setIsPlaying(false);
+      return;
+    }
 
     // `progress` e' il tempo trascorso NELLO STEP, in secondi di simulazione
-    // (gia' divisi per la velocita'), non una frazione 0..1. Serve perche'
-    // ogni azione abbia il proprio startAt e la propria duration: con una
-    // frazione unica tutte le azioni finirebbero insieme a fine step.
-    const totale = stepDuration();
+    // (gia' scalato per la velocita'). Riparte da `progressRef.current` cosi'
+    // pausa/riprendi e cambio velocita' proseguono senza scatti.
+    const totale = durataStep;
+    const baseProgress = progressRef.current >= totale ? 0 : progressRef.current;
     let start: number | null = null;
 
     const animate = (timestamp: number) => {
       if (start === null) start = timestamp;
-      const trascorso = ((timestamp - start) / 1000) * speed;
+      const trascorso = baseProgress + ((timestamp - start) / 1000) * speed;
       const next = Math.min(trascorso, totale);
-      setProgress(next);
+      impostaProgress(next);
 
       if (trascorso < totale) {
         frameRef.current = requestAnimationFrame(animate);
         return;
       }
 
-      // Fine dello step.
-      //
-      // Prima si fermava qui, e il play mostrava un solo step: era un bug, non
-      // una scelta. Ora si passa al successivo, ma con una pausa: senza, la
-      // descrizione dello step appena finito scorrerebbe via prima di essere
-      // letta, che e' proprio la parte che l'allenatore deve guardare.
+      // Fine dello step: passa subito allo step successivo senza pausa,
+      // mantenendo continuita' tra posizione finale di questo step e partenza
+      // del successivo.
       if (safeIndex >= steps.length - 1) {
-        // Fine dell'esercizio: si torna all'inizio, cosi' ripremere play
-        // riproduce tutto da capo.
-        setProgress(0);
+        // Fine dell'esercizio: resta fermo sulle posizioni finali invece di
+        // far scattare indietro le pedine.
+        impostaProgress(totale);
         setIsPlaying(false);
         return;
       }
 
-      setProgress(0);
-      // Pausa reale: si sospende l'animazione e si riparte dopo 900ms. Il
-      // timer e' tenuto in un ref cosi' puo' essere cancellato se l'utente
-      // cambia step nel frattempo.
-      setInPausa(true);
-      if (pausaRef.current !== null) clearTimeout(pausaRef.current);
-      pausaRef.current = setTimeout(() => {
-        pausaRef.current = null;
-        setInPausa(false);
-        setStepIndex((i) => i + 1);
-      }, PAUSA_TRA_STEP);
+      impostaProgress(0);
+      setStepIndex((i) => i + 1);
     };
 
     frameRef.current = requestAnimationFrame(animate);
     return () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
-  }, [isPlaying, safeIndex, speed, stepDuration, steps.length, inPausa]);
+  }, [isPlaying, safeIndex, speed, durataStep, steps.length, impostaProgress]);
 
   const goTo = (next: number) => {
-    // Cancella la pausa in corso: altrimenti il suo timer avanzerebbe
-    // l'indice DOPO che l'utente ha gia' scelto un altro step.
-    if (pausaRef.current !== null) {
-      clearTimeout(pausaRef.current);
-      pausaRef.current = null;
-    }
-    setInPausa(false);
     setStepIndex(Math.max(0, Math.min(steps.length - 1, next)));
-    setProgress(0);
+    impostaProgress(0);
     setIsPlaying(false);
   };
 
   const reset = () => {
-    if (pausaRef.current !== null) {
-      clearTimeout(pausaRef.current);
-      pausaRef.current = null;
-    }
-    setInPausa(false);
-    setProgress(0);
+    impostaProgress(0);
     setIsPlaying(false);
   };
 
@@ -777,35 +689,41 @@ export default function ExercisePlayerInner({ data, className, editable = false,
                 );
               })}
 
-            {/* Frecce tattiche dello step corrente */}
-            {(currentStep?.actions ?? []).map((action, idx) => {
-              if (!action.from || !action.to) return null;
-              const fp = toPx(action.from);
-              const rawTp = toPx(action.to);
-              const dx = rawTp.x - fp.x;
-              const dy = rawTp.y - fp.y;
-              const len = Math.hypot(dx, dy);
-              if (len < 2) return null;
-              const trim = action.type === 'pass' && len > 24 ? 11 : 0;
-              const tp =
-                trim > 0
-                  ? { x: rawTp.x - (dx / len) * trim, y: rawTp.y - (dy / len) * trim }
-                  : rawTp;
-              const style = arrowStyleForAction(action.type);
-              return (
-                <Arrow
-                  key={`${action.entityId}-${action.type}-${idx}`}
-                  points={[fp.x, fp.y, tp.x, tp.y]}
-                  stroke={style.stroke}
-                  fill={style.fill}
-                  strokeWidth={style.strokeWidth}
-                  dash={style.dash}
-                  pointerLength={style.pointerLength}
-                  pointerWidth={style.pointerWidth}
-                  listening={false}
-                />
-              );
-            })}
+            {/* Frecce tattiche dello step corrente: partono dalla posizione reale */}
+            {Array.from(segmenti.entries())
+              .flatMap(([entityId, lista]) =>
+                lista
+                  .filter((seg) => !seg.segue)
+                  .map((seg) => ({ entityId, seg })),
+              )
+              .sort((a, b) => a.seg.indiceAzione - b.seg.indiceAzione)
+              .map(({ entityId, seg }, idx) => {
+                const fp = toPx(seg.from);
+                const rawTp = toPx(seg.to);
+                const dx = rawTp.x - fp.x;
+                const dy = rawTp.y - fp.y;
+                const len = Math.hypot(dx, dy);
+                if (len < 2) return null;
+                const trim = seg.type === 'pass' && len > 24 ? 11 : 0;
+                const tp =
+                  trim > 0
+                    ? { x: rawTp.x - (dx / len) * trim, y: rawTp.y - (dy / len) * trim }
+                    : rawTp;
+                const style = arrowStyleForAction(seg.type);
+                return (
+                  <Arrow
+                    key={`${entityId}-${seg.type}-${seg.indiceAzione}-${idx}`}
+                    points={[fp.x, fp.y, tp.x, tp.y]}
+                    stroke={style.stroke}
+                    fill={style.fill}
+                    strokeWidth={style.strokeWidth}
+                    dash={style.dash}
+                    pointerLength={style.pointerLength}
+                    pointerWidth={style.pointerWidth}
+                    listening={false}
+                  />
+                );
+              })}
 
             {/* Pallone */}
             {entities
@@ -911,25 +829,20 @@ export default function ExercisePlayerInner({ data, className, editable = false,
               setIsPlaying(false);
               return;
             }
-            // Se l'esercizio e' finito riparte dal primo step: altrimenti
-            // ripremere play non farebbe nulla, perche' l'indice e' gia' all'
-            // ultimo e l'animazione si fermerebbe subito.
-            // progress e' in secondi, non una frazione: il confronto va con la
-            // durata dello step, non con 1. Con `progress >= 1` la condizione
-            // sarebbe vera quasi subito e ripremere play ripartirebbe sempre
-            // dall'inizio.
-            const aFineStep = progress >= stepDuration();
-            if (aFineStep || safeIndex >= steps.length - 1) {
+            // Se l'esercizio e' finito (fermo all'ultimo step sul fondo)
+            // riparte dal primo step.
+            const aFineEsercizio = safeIndex >= steps.length - 1 && progress >= durataStep;
+            if (aFineEsercizio) {
               setStepIndex(0);
-              setProgress(0);
+              impostaProgress(0);
             }
             setIsPlaying(true);
           }}
-          disabled={steps.length === 0 || inPausa}
-          aria-label={isPlaying && !inPausa ? 'Pausa' : 'Riproduci'}
+          disabled={steps.length === 0}
+          aria-label={isPlaying ? 'Pausa' : 'Riproduci'}
           className="p-3 bg-brand-green text-black rounded-full hover:opacity-90 font-bold disabled:opacity-30 disabled:pointer-events-none"
         >
-          {isPlaying && !inPausa ? <Pause size={20} /> : <Play size={20} />}
+          {isPlaying ? <Pause size={20} /> : <Play size={20} />}
         </button>
 
         {/* Aggiungi step: solo in modifica. Lo step nuovo parte dalle posizioni
@@ -956,6 +869,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
               const nuoviSteps = [...steps, nuovoStep];
               onChange?.({ ...data, steps: nuoviSteps });
               setStepIndex(nuoviSteps.length - 1);
+              impostaProgress(0);
               setIsPlaying(false);
             }}
             aria-label="Aggiungi step"

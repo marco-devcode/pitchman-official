@@ -44,7 +44,7 @@ COME INTERPRETARE IL DISEGNO:
 2. ATTREZZATURA E CAMPO:
    - Coni / cinesini / paletti disegnati -> kind: "cone".
    - Porte o porticine -> kind: "goal".
-   - Riquadri o zone tratteggiate -> kind: "zone" con width e height coerenti.
+   - Riquadri o zone tratteggiate -> kind: "zone" SOLO se realmente disegnati nella foto, con x e y al CENTRO esatto del riquadro e width/height coerenti (altrimenti non inserire "zone").
    - Pallone (o simbolo palla / giocatore da cui parte la prima freccia) -> kind: "ball" (id "ball") + hasBall: true sul possessore iniziale.
 3. MAPPATURA SPAZIALE 2D (0..100):
    - Converti fedelmente le posizioni relative visibili nella foto in coordinate x (8..92, da sinistra a destra) e y (8..92, dall'alto al basso). Mantieni l'orientamento generale del disegno.

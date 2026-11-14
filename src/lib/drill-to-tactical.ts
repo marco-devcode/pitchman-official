@@ -29,7 +29,7 @@ import type {
   TacticalPoint,
   TacticalStep,
 } from './tactical-exercise';
-import { clampDrillCoord, isBallAction, type Drill, type DrillObject, type DrillPoint } from './drill';
+import { clampDrillCoord, type Drill, type DrillObject, type DrillPoint } from './drill';
 
 const MS_PER_SECOND = 1000;
 
@@ -152,6 +152,19 @@ export function drillToTactical(drill: Drill): TacticalExercise {
     if (o.kind === 'goal') {
       e.width = o.width ?? 14;
       e.height = o.height ?? 4;
+    } else if (o.kind === 'zone') {
+      // Nel contratto Drill x,y di una zona indicano il CENTRO; il player Konva
+      // disegna i rettangoli dall'angolo in ALTO a SINISTRA.
+      const w = Math.max(5, Math.min(90, o.width ?? 20));
+      const h = Math.max(5, Math.min(90, o.height ?? 20));
+      const topLeft = round2({
+        x: Math.max(2, Math.min(98 - w, clampDrillCoord(o.x) - w / 2)),
+        y: Math.max(2, Math.min(98 - h, clampDrillCoord(o.y) - h / 2)),
+      });
+      e.width = w;
+      e.height = h;
+      e.x = topLeft.x;
+      e.y = topLeft.y;
     } else {
       if (o.width !== undefined) e.width = o.width;
       if (o.height !== undefined) e.height = o.height;
@@ -207,15 +220,6 @@ export function drillToTactical(drill: Drill): TacticalExercise {
       scene.set(action.subject, arrivo);
       if (type === 'dribble' && action.subject !== 'ball') {
         scene.set('ball', arrivo);
-      }
-      // Se e' la palla, il ricevente in scena acquisisce il possesso.
-      if (isBallAction(action)) {
-        const ricevente = drill.objects.find((o) => {
-          if (o.kind !== 'player') return false;
-          const pos = scene.get(o.id) ?? { x: o.x, y: o.y };
-          return Math.hypot(pos.x - arrivo.x, pos.y - arrivo.y) < 1.5;
-        });
-        if (ricevente) scene.set(ricevente.id, arrivo);
       }
     }
 

@@ -400,6 +400,126 @@ function repairSequence(
 }
 
 /**
+ * Valida, allinea e ripulisce gli oggetti `zone` rispetto a coni, giocatori e
+ * destinazioni delle azioni. Rimuove zone puramente decorative o vuote.
+ */
+function repairZones(
+  objects: DrillObject[],
+  sequence: DrillStep[],
+  fixes: string[],
+): DrillObject[] {
+  const zones = objects.filter((o) => o.kind === 'zone');
+  if (zones.length === 0) return objects;
+
+  const cones = objects.filter((o) => o.kind === 'cone');
+  const clampSize = (v: unknown, fallback = 20): number => {
+    const n = typeof v === 'number' ? v : Number(v);
+    if (!Number.isFinite(n) || n <= 0) return fallback;
+    return Math.max(5, Math.min(90, Math.round(n)));
+  };
+
+  // Rileva eventuale rettangolo delimitato da >= 4 coni.
+  let coneBox: { x: number; y: number; width: number; height: number } | null = null;
+  if (cones.length >= 4) {
+    const xs = cones.map((c) => c.x);
+    const ys = cones.map((c) => c.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const boxW = maxX - minX;
+    const boxH = maxY - minY;
+    if (boxW >= 12 && boxH >= 12) {
+      coneBox = {
+        x: Math.round(((minX + maxX) / 2) * 100) / 100,
+        y: Math.round(((minY + maxY) / 2) * 100) / 100,
+        width: clampSize(boxW),
+        height: clampSize(boxH),
+      };
+    }
+  }
+
+  // Punti tatticamente rilevanti sul campo: giocatori, coni, porte e arrivi azioni.
+  const puntiRilevanti: DrillPoint[] = [];
+  for (const o of objects) {
+    if (o.kind === 'player' || o.kind === 'cone' || o.kind === 'goal') {
+      puntiRilevanti.push({ x: o.x, y: o.y });
+    }
+  }
+  for (const step of sequence) {
+    for (const a of step.actions) {
+      if (a.to && typeof a.to === 'object') {
+        puntiRilevanti.push({ x: a.to.x, y: a.to.y });
+      }
+    }
+  }
+
+  const MARGIN = 4;
+  const valide: DrillObject[] = [];
+  const scartate = new Set<string>();
+
+  zones.forEach((z, idx) => {
+    let w = clampSize(z.width, 20);
+    let h = clampSize(z.height, 20);
+    let cx = clampDrillCoord(z.x);
+    let cy = clampDrillCoord(z.y);
+
+    if (coneBox && zones.length === 1 && idx === 0) {
+      const shifted =
+        Math.abs(cx - coneBox.x) > 2 ||
+        Math.abs(cy - coneBox.y) > 2 ||
+        Math.abs(w - coneBox.width) > 2 ||
+        Math.abs(h - coneBox.height) > 2;
+      cx = coneBox.x;
+      cy = coneBox.y;
+      w = coneBox.width;
+      h = coneBox.height;
+      if (shifted) {
+        fixes.push(`Zona "${z.id}" allineata al rettangolo dei coni (${cx}, ${cy}).`);
+      }
+    }
+
+    // Mantiene l'intero rettangolo centrato dentro il campo (2..98).
+    const minCx = Math.max(MIN_COORD, w / 2 + 2);
+    const maxCx = Math.min(MAX_COORD, 98 - w / 2);
+    const minCy = Math.max(MIN_COORD, h / 2 + 2);
+    const maxCy = Math.min(MAX_COORD, 98 - h / 2);
+    const nextCx = minCx <= maxCx ? Math.max(minCx, Math.min(maxCx, cx)) : 50;
+    const nextCy = minCy <= maxCy ? Math.max(minCy, Math.min(maxCy, cy)) : 50;
+    if (nextCx !== cx || nextCy !== cy) {
+      fixes.push(`Zona "${z.id}" ricentrata dentro i bordi del campo.`);
+      cx = nextCx;
+      cy = nextCy;
+    }
+
+    const halfW = w / 2 + MARGIN;
+    const halfH = h / 2 + MARGIN;
+    const dentro = puntiRilevanti.filter(
+      (p) => Math.abs(p.x - cx) <= halfW && Math.abs(p.y - cy) <= halfH,
+    ).length;
+
+    if (dentro < 2) {
+      fixes.push(`Zona "${z.id}" rimossa perche' decorativa (nessuna entita'/azione rilevante dentro).`);
+      scartate.add(z.id);
+      return;
+    }
+
+    if (valide.length >= 2) {
+      fixes.push(`Zona "${z.id}" rimossa (massimo 2 zone consentite).`);
+      scartate.add(z.id);
+      return;
+    }
+
+    valide.push({ ...z, x: cx, y: cy, width: w, height: h });
+  });
+
+  const byId = new Map(valide.map((z) => [z.id, z]));
+  return objects
+    .filter((o) => o.kind !== 'zone' || !scartate.has(o.id))
+    .map((o) => (o.kind === 'zone' ? (byId.get(o.id) ?? o) : o));
+}
+
+/**
  * Ripara un singolo Drill e restituisce il risultato con l'elenco delle
  * correzioni applicate.
  *
@@ -413,13 +533,15 @@ export function repairDrill(input: Drill | null | undefined): RepairResult | nul
   const drill = clone(input);
   const fixes: string[] = [];
 
-  const objects = repairObjects(drill, fixes);
+  let objects = repairObjects(drill, fixes);
   if (objects.filter((o) => o.kind === 'player').length === 0) {
     return null;
   }
 
   const sequence = repairSequence(drill, objects, fixes);
   if (sequence.length === 0) return null;
+
+  objects = repairZones(objects, sequence, fixes);
 
   // La scena finale (dopo la simulazione) e' quella che il player deve
   // mostrare ferma: se i giocatori si sono spostati durante l'esercizio, le

@@ -11,7 +11,14 @@
 import { drillToTactical } from './drill-to-tactical';
 import { repairDrill } from './repair-drill';
 import type { Drill } from './drill';
-import { posizioniInizialiStep, type TacticalExercise } from './tactical-exercise';
+import {
+  durataSegmenti,
+  posizioneAlTempo,
+  posizioniFineStep,
+  posizioniInizialiStep,
+  segmentiStep,
+  type TacticalExercise,
+} from './tactical-exercise';
 
 const base: Drill = {
   id: 'd1',
@@ -166,6 +173,36 @@ describe('drillToTactical', () => {
     })!.drill;
     expect(drillToTactical(senza).initialEntities.find((e) => e.id === 'x1')!.team).toBe('neutral');
   });
+
+  it('converte la zona dal centro (Drill) all\'angolo in alto a sinistra (TacticalEntity)', () => {
+    const zona = t.initialEntities.find((e) => e.id === 'z1')!;
+    expect(zona.width).toBe(20);
+    expect(zona.height).toBe(15);
+    expect(zona.x).toBe(40);
+    expect(zona.y).toBe(42.5);
+  });
+
+  it('non teletrasporta il ricevente verso la palla dopo un passaggio', () => {
+    const quasiAddosso: Drill = {
+      ...base,
+      sequence: [
+        {
+          id: 's1',
+          description: 'passaggio leggermente impreciso vicino a cc',
+          duration: 1500,
+          actions: [{ id: 'a1', type: 'pass', subject: 'ball', to: { x: 46, y: 50 }, duration: 700 }],
+        },
+        {
+          id: 's2',
+          description: 'cc scatta',
+          duration: 1500,
+          actions: [{ id: 'a2', type: 'run', subject: 'cc', to: { x: 70, y: 50 }, duration: 900 }],
+        },
+      ],
+    };
+    const res = drillToTactical(repairDrill(quasiAddosso)!.drill);
+    expect(res.steps[1].actions[0].from).toEqual({ x: 45, y: 50 });
+  });
 });
 
 const esercizioContinuita: TacticalExercise = {
@@ -272,5 +309,73 @@ describe('posizioniInizialiStep', () => {
       posizioniInizialiStep(initialEntities, steps, i).get('p1')!.x,
     );
     expect(posizioni).toEqual([20, 40, 60]);
+  });
+});
+
+describe('timeline continua (segmentiStep / posizioneAlTempo)', () => {
+  it('mantiene continuita\' perfetta fra fine step 0 e inizio step 1 anche con from incoerenti', () => {
+    const sporco: TacticalExercise = {
+      title: 'Sporco',
+      description: '',
+      playersShown: 2,
+      initialEntities: [
+        { id: 'p1', type: 'player', team: 'blue', x: 20, y: 50 },
+        { id: 'ball', type: 'ball', x: 20, y: 50 },
+      ],
+      steps: [
+        {
+          stepNumber: 1,
+          description: 'dribble',
+          actions: [
+            // `from` sbagliato di proposito: la pedina sta a (20,50)
+            { entityId: 'p1', type: 'dribble', from: { x: 5, y: 5 }, to: { x: 48, y: 50 }, duration: 1.5 },
+          ],
+        },
+        {
+          stepNumber: 2,
+          description: 'prosegue',
+          actions: [
+            // altro `from` incoerente nello step successivo
+            { entityId: 'p1', type: 'run', from: { x: 10, y: 10 }, to: { x: 75, y: 50 }, duration: 2 },
+          ],
+        },
+      ],
+    };
+
+    const start0 = posizioniInizialiStep(sporco.initialEntities, sporco.steps, 0);
+    const seg0 = segmentiStep(sporco.steps[0], start0, ['ball']);
+    const dur0 = durataSegmenti(seg0);
+    expect(posizioneAlTempo(seg0.get('p1'), start0.get('p1')!, 0)).toEqual({ x: 20, y: 50 });
+
+    const fineP1 = posizioneAlTempo(seg0.get('p1'), start0.get('p1')!, dur0);
+    const fineBall = posizioneAlTempo(seg0.get('ball'), start0.get('ball')!, dur0);
+    expect(fineP1).toEqual({ x: 48, y: 50 });
+    expect(fineBall).toEqual({ x: 48, y: 50 });
+
+    const start1 = posizioniInizialiStep(sporco.initialEntities, sporco.steps, 1);
+    const seg1 = segmentiStep(sporco.steps[1], start1, ['ball']);
+    expect(posizioneAlTempo(seg1.get('p1'), start1.get('p1')!, 0)).toEqual(fineP1);
+    expect(posizioniFineStep(sporco.initialEntities, sporco.steps, 1).get('p1')).toEqual({ x: 75, y: 50 });
+  });
+
+  it('non tronca step fino a 13 secondi (allineamento con startAt+duration del repair)', () => {
+    const lungo: TacticalExercise = {
+      title: 'Lungo',
+      description: '',
+      playersShown: 1,
+      initialEntities: [{ id: 'p1', type: 'player', team: 'blue', x: 15, y: 50 }],
+      steps: [
+        {
+          stepNumber: 1,
+          description: 'azione lunga',
+          actions: [
+            { entityId: 'p1', type: 'run', from: { x: 15, y: 50 }, to: { x: 80, y: 50 }, startAt: 4, duration: 6 },
+          ],
+        },
+      ],
+    };
+    const start0 = posizioniInizialiStep(lungo.initialEntities, lungo.steps, 0);
+    const seg0 = segmentiStep(lungo.steps[0], start0, []);
+    expect(durataSegmenti(seg0)).toBe(10);
   });
 });

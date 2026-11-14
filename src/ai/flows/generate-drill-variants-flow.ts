@@ -33,12 +33,12 @@ const ObjectSchema = z.object({
   x: z
     .number()
     .describe(
-      'Coordinata X iniziale sul campo da 5 a 95 (5=bordo sinistro, 50=centro, 95=bordo destro). OBBLIGATORIO.',
+      "Coordinata X iniziale sul campo da 5 a 95 (5=bordo sinistro, 50=centro, 95=bordo destro). Per kind 'zone' indica il CENTRO orizzontale della zona. OBBLIGATORIO.",
     ),
   y: z
     .number()
     .describe(
-      'Coordinata Y iniziale sul campo da 5 a 95 (5=alto, 50=centro, 95=basso). OBBLIGATORIO.',
+      "Coordinata Y iniziale sul campo da 5 a 95 (5=alto, 50=centro, 95=basso). Per kind 'zone' indica il CENTRO verticale della zona. OBBLIGATORIO.",
     ),
   team: z
     .enum(['red', 'blue', 'yellow', 'black', 'neutral'])
@@ -188,7 +188,7 @@ REGOLE OBBLIGATORIE:
 5. Un giocatore CON la palla che si muove usa type = "dribble" con subject = id del giocatore e to = {x, y}.
 6. Un giocatore SENZA palla che si muove usa type = "run" (corsa/smarcamento) o "move" con subject = id del giocatore e to = {x, y}.
 7. Il possesso deve restare coerente di step in step: chi riceve un passaggio diventa il possessore nello step successivo.
-8. Usa coni ("cone") o zone ("zone") per delimitare chiaramente quadrati, corridoi o aree di gioco, e porte ("goal") se ci sono porte o porticine.
+8. Usa "cone" o "goal" per coni e porte. Inserisci kind "zone" SOLO se l'esercizio richiede davvero un'area delimitata esplicita (es. quadrato di rondo, zona possesso, corridoio laterale, zona target di ricezione/tiro): altrimenti NON aggiungere nessuna zona. Quando usi una "zone", x e y sono il CENTRO esatto del rettangolo (centrato sui giocatori o coni che delimita) con width e height coerenti (al massimo 2 zone).
 9. Crea una sequenza animata fluida e leggibile di 3-5 step in "sequence", sfasando le azioni nello stesso step tramite "startAt" (0..2200ms) cosi' passaggi, ricezioni, smarcamenti e sovrapposizioni risultino sincronizzati.
 10. Un giocatore vicino a un cono sta ACCANTO al cono (scarto di 5 unita'), mai sopra.
 

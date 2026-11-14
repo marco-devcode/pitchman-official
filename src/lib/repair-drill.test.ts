@@ -114,6 +114,51 @@ describe('repairDrill — scena', () => {
   it('scarta un esercizio senza giocatori', () => {
     expect(repairDrill(drillWith([ball('ball', 50, 50)]))).toBeNull();
   });
+
+  it('rimuove una zona decorativa lontana da giocatori, coni e azioni', () => {
+    const r = repairDrill(
+      drillWith([
+        player('p1', 20, 20, true),
+        player('p2', 40, 20),
+        { id: 'z1', kind: 'zone', x: 80, y: 80, width: 15, height: 15 },
+      ]),
+    );
+    expect(r!.drill.objects.some((o) => o.kind === 'zone')).toBe(false);
+    expect(r!.fixes.join(' ')).toMatch(/rimossa/i);
+  });
+
+  it('allinea una zona singola al rettangolo formato da 4 coni', () => {
+    const r = repairDrill(
+      drillWith([
+        player('p1', 35, 35, true),
+        player('p2', 65, 65),
+        { id: 'c1', kind: 'cone', x: 30, y: 30 },
+        { id: 'c2', kind: 'cone', x: 70, y: 30 },
+        { id: 'c3', kind: 'cone', x: 70, y: 70 },
+        { id: 'c4', kind: 'cone', x: 30, y: 70 },
+        { id: 'z1', kind: 'zone', x: 18, y: 18, width: 20, height: 20 },
+      ]),
+    );
+    const zona = r!.drill.objects.find((o) => o.kind === 'zone')!;
+    expect(zona).toMatchObject({ x: 50, y: 50, width: 40, height: 40 });
+  });
+
+  it('limita a massimo 2 zone per esercizio', () => {
+    const r = repairDrill(
+      drillWith([
+        player('p1', 25, 50, true),
+        player('p2', 50, 50),
+        player('p3', 75, 50),
+        { id: 'c1', kind: 'cone', x: 25, y: 40 },
+        { id: 'c2', kind: 'cone', x: 50, y: 40 },
+        { id: 'c3', kind: 'cone', x: 75, y: 40 },
+        { id: 'z1', kind: 'zone', x: 25, y: 45, width: 16, height: 24 },
+        { id: 'z2', kind: 'zone', x: 50, y: 45, width: 16, height: 24 },
+        { id: 'z3', kind: 'zone', x: 75, y: 45, width: 16, height: 24 },
+      ]),
+    );
+    expect(r!.drill.objects.filter((o) => o.kind === 'zone')).toHaveLength(2);
+  });
 });
 
 describe('repairDrill — azioni', () => {

@@ -106,6 +106,217 @@ export function clampCoord(v: number): number {
 }
 
 /**
+ * Durata massima di uno step, in secondi. Allineata al repair dell'AI, che
+ * accetta startAt fino a 5s e durate fino a 8s: con un tetto piu' basso le
+ * azioni lunghe venivano troncate e "scattavano" all'arrivo allo step dopo.
+ */
+export const MAX_DURATA_STEP = 13;
+
+/** Durata di uno step senza azioni: il tempo per leggerne la descrizione. */
+export const DURATA_STEP_VUOTO = 2;
+
+type Posizioni = Map<string, { x: number; y: number }>;
+
+/**
+ * Tratto di movimento di UNA entita' dentro uno step, gia' pronto per
+ * essere campionato nel tempo.
+ *
+ * E' l'unica fonte di verita' dell'animazione a azioni: il player la usa per
+ * disegnare, `posizioniInizialiStep` per sapere dove finisce ogni step. Prima
+ * le due cose erano calcolate in modi diversi (il player partiva dal `from`
+ * salvato, la simulazione dalla posizione reale) e ogni differenza si vedeva
+ * come uno scatto della pedina.
+ */
+export interface SegmentoMoto {
+  /** Indice dell'azione nello step che ha generato il tratto. */
+  indiceAzione: number;
+  type: TacticalActionType;
+  /** Partenza: dove l'entita' si trova DAVVERO quando il tratto inizia. */
+  from: TacticalPoint;
+  to: TacticalPoint;
+  /** Inizio e fine in secondi dall'inizio dello step. */
+  start: number;
+  end: number;
+  easing?: TacticalEasing;
+  /** True quando la palla sta solo seguendo il dribble di un giocatore. */
+  segue: boolean;
+}
+
+/** Applica l'andamento richiesto al parametro 0..1. */
+export function applicaEasing(t: number, kind?: TacticalEasing): number {
+  switch (kind) {
+    case 'easeIn':
+      return t * t;
+    case 'easeOut':
+      return t * (2 - t);
+    case 'easeInOut':
+      return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    default:
+      return t;
+  }
+}
+
+function intervalloAzione(a: TacticalAction): { start: number; end: number } {
+  const start = typeof a.startAt === 'number' && Number.isFinite(a.startAt) ? Math.max(0, a.startAt) : 0;
+  const durata = typeof a.duration === 'number' && Number.isFinite(a.duration) ? Math.max(0.1, a.duration) : 1;
+  return { start, end: start + durata };
+}
+
+/**
+ * Costruisce i tratti di movimento di ogni entita' in uno step.
+ *
+ * Regole che garantiscono la continuita':
+ *  - il primo tratto parte dalla posizione reale dell'entita' a inizio step
+ *    (`partenze`), mai dal `from` salvato nell'azione;
+ *  - ogni tratto successivo parte dall'arrivo del precedente;
+ *  - se un'azione inizia prima che la precedente della stessa entita' sia
+ *    finita, aspetta la sua fine (senza questo la pedina salterebbe a meta'
+ *    della seconda azione);
+ *  - durante un dribble la palla segue il conduttore, salvo negli intervalli
+ *    in cui ha un'azione propria (passaggio/tiro).
+ */
+export function segmentiStep(
+  step: TacticalStep | undefined,
+  partenze: Posizioni,
+  idPalle: string[],
+): Map<string, SegmentoMoto[]> {
+  const risultato = new Map<string, SegmentoMoto[]>();
+  if (!step || step.frame) return risultato;
+
+  const azioni = (step.actions ?? [])
+    .map((a, indice) => ({ a, indice, ...intervalloAzione(a) }))
+    .filter(({ a }) => Boolean(a?.to) && typeof a.entityId === 'string')
+    .sort((x, y) => x.start - y.start || x.indice - y.indice);
+
+  type Grezzo = {
+    indice: number;
+    type: TacticalActionType;
+    to: TacticalPoint;
+    start: number;
+    end: number;
+    easing?: TacticalEasing;
+    segue: boolean;
+  };
+  const grezzi = new Map<string, Grezzo[]>();
+  const aggiungi = (id: string, g: Grezzo) => {
+    const lista = grezzi.get(id);
+    if (lista) lista.push(g);
+    else grezzi.set(id, [g]);
+  };
+
+  for (const { a, indice, start, end } of azioni) {
+    aggiungi(a.entityId, { indice, type: a.type, to: a.to, start, end, easing: a.easing, segue: false });
+  }
+
+  // La palla che segue chi conduce. Con piu' palloni segue quello piu' vicino
+  // al conduttore a inizio step.
+  const pallaDi = (conduttore: string): string | undefined => {
+    if (idPalle.length <= 1) return idPalle[0];
+    const p = partenze.get(conduttore);
+    if (!p) return idPalle[0];
+    let migliore: string | undefined;
+    let distanza = Infinity;
+    for (const id of idPalle) {
+      const b = partenze.get(id);
+      if (!b) continue;
+      const d = Math.hypot(b.x - p.x, b.y - p.y);
+      if (d < distanza) {
+        distanza = d;
+        migliore = id;
+      }
+    }
+    return migliore;
+  };
+
+  for (const { a, indice, start, end } of azioni) {
+    if (a.type !== 'dribble' || idPalle.includes(a.entityId)) continue;
+    const palla = pallaDi(a.entityId);
+    if (!palla) continue;
+    const sovrapposta = azioni.some(
+      (o) => o.a.entityId === palla && start < o.end && o.start < end,
+    );
+    if (sovrapposta) continue;
+    aggiungi(palla, { indice, type: a.type, to: a.to, start, end, easing: a.easing, segue: true });
+  }
+
+  for (const [id, lista] of grezzi) {
+    const iniziale = partenze.get(id);
+    // Azione su un'entita' che non esiste in scena: non c'e' niente da muovere.
+    if (!iniziale) continue;
+    lista.sort((x, y) => x.start - y.start || x.indice - y.indice);
+
+    let cursore: TacticalPoint = { x: iniziale.x, y: iniziale.y };
+    let finePrecedente = 0;
+    const segmenti: SegmentoMoto[] = [];
+    for (const g of lista) {
+      const start = Math.max(g.start, finePrecedente);
+      const end = Math.max(g.end, start + 0.1);
+      const to = { x: clampCoord(g.to.x), y: clampCoord(g.to.y) };
+      segmenti.push({
+        indiceAzione: g.indice,
+        type: g.type,
+        from: cursore,
+        to,
+        start,
+        end,
+        easing: g.easing,
+        segue: g.segue,
+      });
+      cursore = to;
+      finePrecedente = end;
+    }
+    risultato.set(id, segmenti);
+  }
+
+  return risultato;
+}
+
+/** Posizione di un'entita' al tempo `t` (secondi dall'inizio dello step). */
+export function posizioneAlTempo(
+  segmenti: SegmentoMoto[] | undefined,
+  partenza: { x: number; y: number },
+  t: number,
+): { x: number; y: number } {
+  if (!segmenti || segmenti.length === 0) return partenza;
+  for (const s of segmenti) {
+    if (t < s.start) return s.from;
+    if (t <= s.end) {
+      const locale = s.end > s.start ? (t - s.start) / (s.end - s.start) : 1;
+      const k = applicaEasing(Math.max(0, Math.min(1, locale)), s.easing);
+      return {
+        x: s.from.x + (s.to.x - s.from.x) * k,
+        y: s.from.y + (s.to.y - s.from.y) * k,
+      };
+    }
+  }
+  return segmenti[segmenti.length - 1].to;
+}
+
+/** Durata dello step, in secondi, calcolata sui tratti effettivi. */
+export function durataSegmenti(segmenti: Map<string, SegmentoMoto[]>): number {
+  let fine = 0;
+  for (const lista of segmenti.values()) {
+    for (const s of lista) fine = Math.max(fine, s.end);
+  }
+  if (fine === 0) return DURATA_STEP_VUOTO;
+  return Math.max(0.5, Math.min(MAX_DURATA_STEP, fine));
+}
+
+/** Posizioni a fine step: l'arrivo dell'ultimo tratto di ogni entita'. */
+function applicaSegmenti(partenze: Posizioni, segmenti: Map<string, SegmentoMoto[]>): Posizioni {
+  const fine = new Map(partenze);
+  for (const [id, lista] of segmenti) {
+    const ultimo = lista[lista.length - 1];
+    if (ultimo) fine.set(id, { x: ultimo.to.x, y: ultimo.to.y });
+  }
+  return fine;
+}
+
+function idPalleDi(entities: TacticalEntity[]): string[] {
+  return entities.filter((e) => e.type === 'ball').map((e) => e.id);
+}
+
+/**
  * Posizione di ogni entita' all'INIZIO di uno step.
  * Restituisce una Map entityId -> {x, y}.
  */
@@ -130,16 +341,12 @@ export function posizioniInizialiStep(
     return posizioni;
   }
 
+  const idPalle = idPalleDi(entities);
+  let correnti: Posizioni = posizioni;
   for (let i = 0; i < indiceStep; i++) {
-    for (const a of steps[i]?.actions ?? []) {
-      if (!a.to) continue;
-      posizioni.set(a.entityId, { x: a.to.x, y: a.to.y });
-      if (a.type === 'dribble' && a.entityId !== 'ball') {
-        posizioni.set('ball', { x: a.to.x, y: a.to.y });
-      }
-    }
+    correnti = applicaSegmenti(correnti, segmentiStep(steps[i], correnti, idPalle));
   }
-  return posizioni;
+  return correnti;
 }
 
 /**
@@ -162,13 +369,5 @@ export function posizioniFineStep(
     return fine;
   }
 
-  const fine = new Map(inizio);
-  for (const a of step.actions ?? []) {
-    if (!a.to) continue;
-    fine.set(a.entityId, { x: a.to.x, y: a.to.y });
-    if (a.type === 'dribble' && a.entityId !== 'ball') {
-      fine.set('ball', { x: a.to.x, y: a.to.y });
-    }
-  }
-  return fine;
+  return applicaSegmenti(inizio, segmentiStep(step, inizio, idPalleDi(entities)));
 }
