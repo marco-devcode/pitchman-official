@@ -122,23 +122,21 @@ export const FORMATION_COORDINATES: Record<string, { top: number, left: number }
 };
 
 /**
- * I moduli selezionabili in PARTITA, derivati da FORMATIONS invece che
- * hardcoded.
- *
- * Prima la lista viveva in tre file (match-lineup-tab, un dialog di lineup
- * rimosso, smart-lineup-dialog) con lo stesso array inline. Tre copie = tre
- * posti dove dimenticarsi un modulo, e il risultato e' un modulo disponibile in
- * meta' dell'app: il 3-4-3 era assente da tutte e tre, quindi irraggiungibile
- * nonostante le sue tabelle esistessero.
- *
- * Un'unica sorgente elimina la classe di bug. La lista vive in
- * formation-modules.ts (file base senza dipendenze, importato sia da qui sia
- * da types.ts) e qui e' solo un alias, cosi' i tre componenti di partita
- * parlano di "moduli" senza sapere da dove arriva. Il 3-4-3 era assente da
- * tutte e tre le copie hardcoded, quindi irraggiungibile in partita.
+ * Elenco canonico dei moduli selezionabili in PARTITA e in ROSA — UNICA fonte di verità.
  */
-export { MATCH_FORMATIONS, type MatchFormation } from './formation-modules';
-import { MATCH_FORMATIONS } from './formation-modules';
+export type MatchFormation =
+  | '4-4-2'
+  | '4-3-3'
+  | '4-2-3-1'
+  | '3-5-2'
+  | '3-4-3'
+  | '3-4-2-1'
+  | '3-4-1-2'
+  | '4-3-1-2';
+
+export const MATCH_FORMATIONS: MatchFormation[] = Object.freeze([
+  '4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3', '3-4-2-1', '3-4-1-2', '4-3-1-2',
+]) as MatchFormation[];
 
 /**
  * Verifica che ogni modulo selezionabile in partita abbia i dati completi.

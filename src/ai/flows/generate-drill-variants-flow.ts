@@ -1,373 +1,241 @@
 import 'server-only';
 /**
- * Generazione dell'esercizio: NOME delle varianti come il brief chiede, cioe'
- * l'esercizio richiesto piu' due progressioni.
+ * Generazione di esercizi tattici animati con Gemini 3.x tramite Genkit.
  *
- * Questo file non e' il posto dove si sceglie se usare il modello: quello e'
- * l'endpoint /api/generate, che e' l'unico contratto con il client. Qui c'e'
- * solo il lavoro che va fatto lato server: la catena di modelli, il timeout e
- * l'esempio demo.
+ * Modello stile FootballGPT: genera subito UN singolo esercizio animato ad
+ * alta precisione (`mode: 'base'`) e consente di richiedere on-demand le
+ * progressioni (`mode: 'easier' | 'harder'`) a partire dall'esercizio base.
  *
- * Le scelte sui modelli sono documentate sotto `CATENA_MODELLI` e vengono da
- * prove reali, non da supposizioni. Cambiarle senza evidenza costa una
- * richiesta persa.
+ * Condivide la catena di modelli 3.x e il runner resiliente con il flusso
+ * Vision (`generate-drill-from-image-flow.ts`).
  */
 
+import { z } from 'genkit';
 import { ai } from '@/ai/genkit';
-import { DrillSchema } from '@/lib/drill-schema';
 import type { Drill } from '@/lib/drill';
 import { DEMO_DRILL } from '@/lib/demo-drill';
 
-/**
- * Timeout per singolo modello.
- *
- * Il brief chiede 15-20 secondi, e il numero non e' un capriccio: e' il
- * tempo oltre il quale l'allenatore sulla panchina lascia il telefono e fa
- * l'esercizio a memoria. Oltre, la risposta arriva comunque e nessuno la
- * guarda. 18 secondi lascia margine a un 503 lento senza superarlo.
- *
- * Una volta scaduto, si passa al modello successivo invece di aspettare:
- * l'interfaccia non deve mai restare appesa.
- */
+// --- Schema Zod per output strutturato Gemini (senza $ref riusati né z.tuple) ---
+const PointTo = z.object({
+  x: z.number().describe('Coordinata X di arrivo, 0-100.'),
+  y: z.number().describe('Coordinata Y di arrivo, 0-100.'),
+});
+
+const ObjectSchema = z.object({
+  id: z.string().describe(
+    "ID univoco e stabile: 'ball' per la palla, poi 'gk', 'dc1', 'p2', 'c1', 'g1', 'z1'.",
+  ),
+  kind: z
+    .enum(['player', 'ball', 'cone', 'goal', 'zone'])
+    .describe(
+      "'player', 'ball', 'cone', 'goal' (porta o porticina), 'zone'.",
+    ),
+  x: z
+    .number()
+    .describe(
+      'Coordinata X iniziale sul campo da 5 a 95 (5=bordo sinistro, 50=centro, 95=bordo destro). OBBLIGATORIO.',
+    ),
+  y: z
+    .number()
+    .describe(
+      'Coordinata Y iniziale sul campo da 5 a 95 (5=alto, 50=centro, 95=basso). OBBLIGATORIO.',
+    ),
+  team: z
+    .enum(['red', 'blue', 'yellow', 'black', 'neutral'])
+    .optional()
+    .describe("Solo per kind 'player'. 'neutral' per jolly/sponde senza squadra."),
+  label: z.string().optional().describe('Etichetta breve dentro la pedina, 1-3 caratteri: "GK", "DC", "9", "J".'),
+  number: z.string().optional().describe('Numero di maglia, se diverso dalla label.'),
+  hasBall: z
+    .boolean()
+    .optional()
+    .describe('TRUE solo per l\'UNICO giocatore che parte con la palla tra i piedi.'),
+  width: z.number().optional().describe("Larghezza (5-90), per kind 'zone' o 'goal'."),
+  height: z.number().optional().describe("Altezza (5-90), per kind 'zone' o 'goal'."),
+});
+
+const ActionSchema = z.object({
+  id: z.string().describe("ID univoco dell'azione, es. 's1-a1'."),
+  type: z
+    .enum(['run', 'move', 'pass', 'shoot', 'dribble', 'wait'])
+    .describe(
+      "'pass' o 'shoot' sulla palla; 'dribble' per conduzione palla del possessore; 'run'/'move' per smarcamento o pressione senza palla.",
+    ),
+  subject: z
+    .string()
+    .describe(
+      "ID dell'oggetto che agisce. Per 'pass' e 'shoot' e' SEMPRE 'ball'. Per 'run'/'move'/'dribble' e' l'ID del giocatore.",
+    ),
+  to: PointTo.optional().describe(
+    "Punto {x, y} di arrivo (5..95). Obbligatorio per 'run', 'move', 'dribble', e per passaggi nello spazio/tiri in porta.",
+  ),
+  target: z
+    .string()
+    .optional()
+    .describe(
+      "ID del giocatore ricevente o della porta (es. 'a1', 'g1'). Usa 'target' per passaggi a compagno o tiri verso una porta.",
+    ),
+  duration: z
+    .number()
+    .describe('Durata in MILLISECONDI, fra 400 e 4000. Un passaggio rapido sta fra 600 e 1100.'),
+  startAt: z
+    .number()
+    .optional()
+    .describe(
+      'Ritardo in MILLISECONDI dall\'inizio dello step (0..3000) per sfasare passaggi e movimenti coordinati.',
+    ),
+  easing: z
+    .enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
+    .optional()
+    .describe("'easeOut' per passaggi/tiri, 'easeInOut' per corse e conduzioni."),
+});
+
+const StepSchema = z.object({
+  id: z.string().describe("ID dello step, es. 's1'."),
+  description: z
+    .string()
+    .describe(
+      'In italiano: cosa succede in questo step e PERCHE\' tatticamente. Due-tre frasi.',
+    ),
+  duration: z.number().describe('Durata dello step in MILLISECONDI.'),
+  actions: z.array(ActionSchema).describe('Cosa avviene dentro questo step.'),
+});
+
+const PitchSchema = z.object({
+  shape: z.enum(['full-pitch', 'half-pitch', 'rectangle']).describe('Forma del campo.'),
+  width: z.number().describe('Larghezza indicativa in METRI. Non e\' la scala di rendering.'),
+  height: z.number().describe('Altezza indicativa in METRI. Non e\' la scala di rendering.'),
+});
+
+export const DrillSchema = z.object({
+  id: z.string().describe("ID univoco della variante, es. 'variante-1'."),
+  name: z.string().describe("Titolo dell'esercizio, max 60 caratteri."),
+  description: z.string().describe("Descrizione in italiano, 2-4 frasi: obiettivo e come si esegue."),
+  category: z.string().describe('Categoria: costruzione, finalizzazione, pressing, transizione, possesso.'),
+  ageGroup: z.string().describe("Fascia d'eta': U8, U10, U12, U14, U16, Senior."),
+  pitch: PitchSchema,
+  objects: z.array(ObjectSchema).describe("TUTTI gli oggetti del campo, compresi quelli che entrano dopo."),
+  sequence: z.array(StepSchema).describe('I passi dell\'esercizio, in ordine.'),
+  cycles: z.number().describe('Quante volte si ripete la sequenza. 1 se non serve ripetere.'),
+});
+
 export const TIMEOUT_PER_MODELLO_MS = 18_000;
-
-/**
- * Catena di modelli, dal piu' affidabile al piu' lento.
- *
- * I due modelli si possono invertire da .env.local senza toccare il codice:
- * `GEMINI_MODEL` e `GEMINI_FALLBACK_MODEL`. Qui ci sono i default per quando
- * le variabili non ci sono.
- *
- * Verificati con la chiave del progetto (ottobre 2026), 200 con
- * responseSchema: `gemini-3.8-flash` e `gemini-3.7-flash` rispondono 503
- * "high demand" persistente, `gemini-2.5-flash` e' 404 per gli account
- * nuovi. Il `gemini-flash-lite-latest` risponde in ~1.4s ed e' il piu'
- * stabile; il `gemini-3.1-flash-lite` in ~1.5s con qualche 503 sporadico.
- *
- * Il terzo in catena e' il piu' lento (~9s) ma e' l'ultima rete prima del
- * demo: su una lavagna didattica un esercizio che arriva tardi batte un
- * esercizio che non arriva.
- */
-const MODELLO_PRINCIPALE =
-  process.env.GEMINI_MODEL || 'googleai/gemini-flash-lite-latest';
-const MODELLO_FALLBACK =
-  process.env.GEMINI_FALLBACK_MODEL || 'googleai/gemini-3.1-flash-lite';
-const MODELLO_TERZA_SCELTA =
-  process.env.GEMINI_MODEL_3 || 'googleai/gemini-3.5-flash-lite';
-
-/**
- * Tentativi per modello, con attesa crescente.
- *
- * I 503 "high demand" di Gemini sono spike brevi: si verificano a ondate, non
- * non in modo continuo. Su questo progetto, un singolo tentativo sbagliato fa
- * fallire la generazione mentre il modello era perfettamente in grado di
- * rispondere un secondo dopo. La generazione esercitata su questo progetto ha
- * gia' misurato che due tentativi su tre falliscono e il terzo passa: da li'
- * questi valori.
- *
- * L'attesa totale dei tre tentativi (3s + 8s) sta dentro il budget di 18s per
- * modello: il timeout scatta solo se anche il terzo tentativo e' lento, non
- * mentre si aspetta la prossima finestra.
- */
-const TENTATIVI_PER_MODELLO = 3;
-const ATTESA_TENTATIVI_MS = [0, 3000, 8000];
-
-/**
- * Tetto di tempo per TUTTA la generazione, non per una variante.
- *
- * Senza, la catena puo' arrivare a 3 varianti x 2 modelli x 3 tentativi, con
- * attese e timeout: ben oltre i 60 secondi che Vercel concede a una funzione
- * (maxDuration nell'endpoint). Superato quel limite Vercel taglia la richiesta e
- * risponde con una pagina HTML: l'allenatore vede un errore su una generazione
- * che in realta' stava funzionando.
- *
- * 45 secondi: sotto il tetto di Vercel con margine per la rete, e sopra
- * abbastanza per completare una variante vera (misurata in 14.6s). Scaduto il
- * budget, le varianti rimaste prendono il demo: e' comunque meglio di un
- * errore, e la UI lo dichiara.
- *
- * Da solo non basta: i tentativi non possono iniziare se non c'e' piu' tempo
- * utile. Per questo il budget si controlla ANCHE prima di ogni tentativo, e
- * non solo alla fine.
- */
+const TENTATIVI_PER_MODELLO = 2;
+const ATTESA_TENTATIVI_MS = [0, 2500];
 const BUDGET_TOTALE_MS = 45_000;
 
-/**
- * Un 429 NON si ritenta.
- *
- * Il messaggio di Gemini lo dice esplicitamente ("Please retry in 40.5s"):
- * la quota del free tier finisce in un tempo che nessun tentativo utile puo'
- * aspettare dentro una richiesta da interfaccia. Ritentare su 429 e' quindi
- * solo tempo perso e, peggio, consumo della quota residua degli altri modelli
- * nella stessa finestra.
- *
- * Un 503 invece SI ritenta: e' affollamento, non quota, e la finestra si
- * riapre in pochi secondi.
- */
-function eQuotaEsaurita(messaggio: string): boolean {
-  return /\[429\s*\]/.test(messaggio) || /quota/i.test(messaggio);
-}
+export type DrillGenerationMode = 'base' | 'easier' | 'harder';
 
-/** Espone la catena per il pannello di debug, senza esporre la chiave. */
-export function catenaModelli(): string[] {
-  return [MODELLO_PRINCIPALE, MODELLO_FALLBACK, MODELLO_TERZA_SCELTA].filter(
-    (m, i, a) => a.indexOf(m) === i,
-  );
+export interface GenerateDrillOptions {
+  mode?: DrillGenerationMode;
+  baseDrill?: Drill;
 }
 
 export interface GenerateResult {
   drills: Drill[];
   /** Modello che ha effettivamente risposto. */
   model: string;
-  /** Se ha risposto il modello di riserva. */
+  /** Se ha risposto un modello diverso dal primario. */
   fallbackUsed: boolean;
-  /** 'gemini' quando ha risposto il modello, 'demo' senza chiave. */
+  /** 'gemini' quando ha risposto un modello reale, 'demo' come riserva. */
   source: 'gemini' | 'demo';
-  /**
-   * Provenienza di ogni variante, allineata a `drills`.
-   *
-   * Senza questo la UI puo' sbagliare: `source` dice "gemini" se ALMENO UNA
-   * variante e' stata generata, ma la scheda attiva potrebbe essere una di
-   * quelle cadute sul demo. Il risultato era un esercizio scritto a mano
-   * etichettato "Generato con Gemini": non solo inutile, ma falso, e su una
-   * lavagna didattica una Provenienza sbagliata e' la cosa peggiore che si
-   * possa sbagliare.
-   */
+  /** Provenienza per ogni scheda, allineata a `drills`. */
   sources: ('gemini' | 'demo')[];
-  /**
-   * Token consumati dalle chiamate reali al modello.
-   *
-   * Aggregano tutte le varianti e i tentativi, NON solo quello che ha
-   * risposto: un tentativo fallito costa uguale. Senza questo il log dei costi
-   * avrebbe contato una chiamata su tre, e la fattura reale sarebbe stata il
-   * triplo di quella dichiarata.
-   */
+  /** Token consumati dalle chiamate reali al modello. */
   usage?: { inputTokens: number; outputTokens: number };
 }
 
 /**
- * I tre ruoli delle varianti.
- *
- * Ogni variante e' una richiesta SEPARATA al modello, non un elemento di un
- * array di una risposta sola. Questa non e' una scelta di comodo: e' il limite
- * reale del servizio, misurato.
- *
- * Con lo schema che chiede tre varianti in una risposta, gemini-3.6-flash
- * risponde 503 "high demand" oppure scade sui 18 secondi. Con lo stesso schema
- * ridotto a UNA variante risponde 200 in 14.6s. La differenza non e' lo schema,
- * e' il peso del JSON da generare: tre esercizi completi con azioni,
- * durate e descrizioni sono troppi token per una risposta singola entro un
- * timeout accettabile.
- *
- * Tre chiamate in parallelo invece che tre in sequenza: il tempo totale resta
- * quello di una generazione sola (~15s) invece di 45s, e le varianti non
- * dipendono l'una dall'altra. Il prezzo e' consumare tre richieste di quota
- * invece di una, cosa che il free tier regge (20 al minuto).
+ * Catena modelli Gemini 3.x: primari full per ragionamento spaziale 2D e
+ * Vision, seguiti dai 3.x lite veloci in fallback automatico.
  */
-const RUOLI: { id: string; richiesta: (brief: string) => string; progressione: boolean }[] = [
-  {
-    id: 'variante-1',
-    // La prima e' l'esercizio richiesto, senza interpretazioni. Se qui il
-    // modello "migliora" l'esercizio, l'allenatore riceve qualcosa che non
-    // ha chiesto e non lo nota: il difetto piu' subdolo che ci sia.
-    richiesta: (brief) =>
-      `${brief}\n\nQuesta e' la variante 1: l'esercizio ESATTAMENTE come richiesto sopra, senza aggiunte e senza semplificazioni. Se l'esercizio cita un numero di giocatori, rispettalo. Se cita porticine, porte, coni o zone, mettili.`,
-    progressione: false,
-  },
-  {
-    id: 'variante-2',
-    richiesta: (brief) =>
-      `${brief}\n\nQuesta e' la variante 2: una progressione PIU' FACILE dello stesso esercizio. Scegli UNA leva e cambia solo quella: un tocco in meno prima di ricevere, spazio piu' ampio, pressione solo passiva, un giocatore in meno che pressa. Togli un vincolo, non aggiungerne. L'esercizio resta lo stesso obiettivo.`,
-    progressione: true,
-  },
-  {
-    id: 'variante-3',
-    richiesta: (brief) =>
-      `${brief}\n\nQuesta e' la variante 3: una progressione PIU' DIFFICILE dello stesso esercizio. Scegli UNA leva e irrigidiscila: doppio pallone per la ricezione, pressione attiva con l'uscita del portiere, spazio ridotto, o un vincolo di tempo (la ricezione va fatta entro due passaggi). Un vincolo solo, cosi' si sa cosa e' cambiato.`,
-    progressione: true,
-  },
-];
-
-const SYSTEM_PROMPT = `Sei un allenatore di calcio professionista che progetta esercizi su lavagna tattica.
-
-Restituisci SOLO il JSON strutturato richiesto. Le coordinate sono percentuali da 0 a 100 con origine in ALTO a SINISTRA: x cresce verso destra, y cresce verso il basso. Tieni tutto dentro il campo. Descrizioni in italiano, brevi e concrete. Mantieni gli id degli oggetti stabili e il possesso della palla coerente.
-
-REGOLE OBBLIGATORIE:
-1. Esiste esattamente un oggetto con kind "ball", e il suo id e' "ball".
-2. Un giocatore non diventa e non sostituisce la palla.
-3. Le azioni "pass" e "shoot" hanno SEMPRE subject = "ball".
-4. Il giocatore con hasBall=true parte con la palla, e la palla parte dalla sua posizione esatta.
-5. Un giocatore CON la palla che si muove usa "dribble"; senza palla usa "run" o "move".
-6. Il possesso deve essere coerente da uno step al successivo: chi riceve diventa il possessore.
-7. Ogni subject, target e id citato deve esistere fra gli oggetti.
-8. Un giocatore non passa mai a se stesso.
-9. Un passaggio va a un GIOCATORE, mai a un cono e mai a una coordinata vuota se c'e' un ricevente valido.
-10. Un giocatore vicino a un cono sta ACCANTO al cono, mai sopra: usa uno scarto di 4-6 unita'.
-11. Clampa le coordinate dentro il campo ed evita sovrapposizioni impossibili.
-12. Restituisci UN esercizio completo e coerente, non una lista di varianti.
-
-Passaggio corretto:
-{"type":"pass","subject":"ball","target":"cb1","duration":700,"easing":"easeOut"}
-
-Passaggio sbagliato:
-{"type":"pass","subject":"gk","target":"cb1","duration":700}
-
-LE TRE VARIANTI:
-- variants[0] e' ESATTAMENTE l'esercizio richiesto, con i vincoli che ha citato l'allenatore. Non lo semplificare.
-- variants[1] e' una progressione piu' facile (un tocco in meno, spazio piu' ampio, pressione passiva).
-- variants[2] e' una progressione piu' difficile (doppio pallone, pressione attiva, spazio ridotto, vincolo di tempo).
-- Ogni variante e' un esercizio COMPLETO e AUTONOMO: i propri oggetti, i propri id, la propria sequenza. Non sono varianti parziali ne "patch" dell'esercizio base: l'allenatore deve poter salvare una progressione senza l'esercizio da cui dipende.
-
-ESEMPIO DI UN PASSAGGIO CORRETTO, 2v2 con due porticine (4 giocatori, pallone, due porticine):
-{
-  "id": "variante-1",
-  "name": "2v2 con ricezione spalle",
-  "description": "Due attaccanti ricevono spalle alla porta, scaricano e attaccano la profondita'.",
-  "category": "finalizzazione",
-  "ageGroup": "U12",
-  "pitch": { "shape": "rectangle", "width": 40, "height": 30 },
-  "cycles": 1,
-  "objects": [
-    { "id": "gk", "kind": "player", "team": "blue", "label": "GK", "x": 10, "y": 50, "hasBall": true },
-    { "id": "a1", "kind": "player", "team": "blue", "label": "9", "x": 45, "y": 30 },
-    { "id": "a2", "kind": "player", "team": "blue", "label": "11", "x": 45, "y": 70 },
-    { "id": "b1", "kind": "player", "team": "red", "label": "2", "x": 65, "y": 40 },
-    { "id": "b2", "kind": "player", "team": "red", "label": "3", "x": 65, "y": 60 },
-    { "id": "ball", "kind": "ball", "x": 10, "y": 50 },
-    { "id": "g1", "kind": "goal", "x": 92, "y": 30 },
-    { "id": "g2", "kind": "goal", "x": 92, "y": 70 }
-  ],
-  "sequence": [
-    {
-      "id": "s1",
-      "description": "Il portiere apre alla destra.",
-      "duration": 2000,
-      "actions": [
-        { "id": "s1-a1", "type": "pass", "subject": "ball", "target": "a1", "duration": 900, "easing": "easeOut" },
-        { "id": "s1-a2", "type": "move", "subject": "b1", "to": { "x": 70, "y": 35 }, "duration": 1500, "startAt": 300 }
-      ]
-    }
-  ]
+export function catenaModelli(): string[] {
+  const candidates = [
+    process.env.GEMINI_MODEL || 'googleai/gemini-3.5-flash',
+    process.env.GEMINI_FALLBACK_MODEL || 'googleai/gemini-3-flash-preview',
+    'googleai/gemini-3.1-flash-lite',
+    'googleai/gemini-3.5-flash-lite',
+    'googleai/gemini-flash-lite-latest',
+  ];
+  return candidates.filter((m, i, a) => Boolean(m) && a.indexOf(m) === i);
 }
-`;
 
-/**
- * Genera le tre varianti.
- *
- * Tre richieste indipendenti in PARALLELO, una per variante: vedi la nota su
- * RUOLI perche' non si chiede un array di tre esercizi in una risposta sola.
- *
- * Non lancia mai per un errore di servizio: risponde con quello che e'
- * riuscito, e se non e' rimasto niente risponde con il demo dichiarato come
- * tale. Un allenatore davanti a una lavagna vuole vedere qualcosa subito, e
- * "quello che non e' il tuo esercizio, guarda l'esempio" e' piu' utile di una
- * pagina vuota: dice subito che il problema e' il servizio e non l'app.
- */
-export async function generateDrillVariants(
-  prompt: string,
-): Promise<GenerateResult> {
-  const testo = prompt.trim();
-
-  // Senza chiave non si chiama nessun servizio: si risponde con il demo,
-  // dichiarato come tale.
-  const haChiave = !!(
+export function hasGeminiApiKey(): boolean {
+  return !!(
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_GENAI_API_KEY ||
     process.env.GOOGLE_API_KEY
   );
-
-  if (!haChiave) {
-    console.warn('[drill] nessuna GEMINI_API_KEY: rispondo con l\'esempio demo.');
-    return {
-      drills: [DEMO_DRILL],
-      model: 'demo',
-      fallbackUsed: false,
-      source: 'demo',
-      sources: ['demo'],
-    };
-  }
-
-  const avvio = Date.now();
-
-  // Promise.all e non allSettled perche' ogni variante promette gia' di
-  // risolvere: una che fallisce va sul demo, non deve far fallire le altre.
-  const esiti = await Promise.all(
-    RUOLI.map((ruolo) => generaUnaVariante(testo, ruolo, avvio)),
-  );
-
-  // I token si sommano su tutti gli esiti, compresi quelli caduti sul demo:
-  // il tentativo che ha fallito e' stata una chiamata a pagamento.
-  const usage = esiti.reduce(
-    (acc, e) => ({
-      inputTokens: acc.inputTokens + (e.usage?.inputTokens ?? 0),
-      outputTokens: acc.outputTokens + (e.usage?.outputTokens ?? 0),
-    }),
-    { inputTokens: 0, outputTokens: 0 },
-  );
-
-  const drills = esiti.map((e) => e.drill).filter(Boolean) as Drill[];
-
-  // Quante varianti sono davvero del modello. Il conteggio si fa sulle
-  // varianti, non sulla lunghezza dell'array: il fallback al demo produce
-  // comunque un esercizio, e dire "gemini" mentre si sta mostrando un esempio
-  // scritto a mano e' il peggior modo di mentire su una lavagna.
-  const risposteGemini = esiti.filter((e) => e.source === 'gemini');
-  const quanteGemini = risposteGemini.length;
-  const modelloUsato = risposteGemini[0]?.model ?? 'demo';
-
-  // Gli id dei demo sono tutti uguali (per tutte le varianti arriva lo stesso
-  // oggetto): senza rinumerarli la UI mostrerebbe tre schede con lo stesso
-  // identificatore e i "Salva" potrebbero sovrascriversi.
-  const drillFinali = drills.map((d, i) => ({
-    ...d,
-    id: risposteGemini.includes(esiti[i]) ? d.id : `demo-${i + 1}`,
-  }));
-
-  console.log(
-    `[drill] ${quanteGemini}/3 varianti da ${modelloUsato} in ${Date.now() - avvio}ms`,
-  );
-
-  return {
-    drills: drillFinali.length ? drillFinali : [DEMO_DRILL],
-    model: quanteGemini ? modelloUsato : 'demo',
-    fallbackUsed: quanteGemini
-      ? risposteGemini.some((e) => e.fallbackUsed)
-      : true,
-    source: quanteGemini ? 'gemini' : 'demo',
-    sources: esiti.map((e) => e.source),
-    usage,
-  };
 }
 
-/** Esito di una singola variante, incluso il fallback silenzioso al demo. */
-interface EsitoVariante {
+/** Errori non recuperabili con retry sullo stesso modello (429 quota o 404). */
+function shouldSkipRetriesOnError(message: string): boolean {
+  return /\[429\s*\]|quota|\[404\s*\]|not found|not supported for generateContent/i.test(
+    message,
+  );
+}
+
+export const DRILL_SYSTEM_PROMPT = `Sei un allenatore di calcio professionista UEFA Pro e un progettista di lavagne tattiche animate (stile FootballGPT).
+
+Restituisci SOLO il JSON strutturato richiesto dallo schema.
+Le coordinate sono percentuali da 0 a 100 con origine in ALTO a SINISTRA: x cresce verso destra (5..95), y cresce verso il basso (5..95). Tieni tutto ben spaziato dentro il campo (minimo 10-12 unita' di distanza tra i giocatori, mai sovrapposti). Descrizioni in italiano, chiare e concrete.
+
+REGOLE OBBLIGATORIE:
+1. Ogni oggetto in "objects" DEVE avere sempre "x" e "y" numeriche (fra 8 e 92).
+2. Esiste esattamente un oggetto con kind "ball" e id "ball", posizionato esattamente alle stesse coordinate del giocatore con hasBall=true.
+3. Un giocatore non diventa e non sostituisce la palla.
+4. Le azioni "pass" e "shoot" hanno SEMPRE subject = "ball", con target (id del giocatore ricevente o della porta) oppure to = {x, y}.
+5. Un giocatore CON la palla che si muove usa type = "dribble" con subject = id del giocatore e to = {x, y}.
+6. Un giocatore SENZA palla che si muove usa type = "run" (corsa/smarcamento) o "move" con subject = id del giocatore e to = {x, y}.
+7. Il possesso deve restare coerente di step in step: chi riceve un passaggio diventa il possessore nello step successivo.
+8. Usa coni ("cone") o zone ("zone") per delimitare chiaramente quadrati, corridoi o aree di gioco, e porte ("goal") se ci sono porte o porticine.
+9. Crea una sequenza animata fluida e leggibile di 3-5 step in "sequence", sfasando le azioni nello stesso step tramite "startAt" (0..2200ms) cosi' passaggi, ricezioni, smarcamenti e sovrapposizioni risultino sincronizzati.
+10. Un giocatore vicino a un cono sta ACCANTO al cono (scarto di 5 unita'), mai sopra.
+
+Esempio di step ricco e coerente (passaggio + smarcamento senza palla):
+{
+  "id": "s1",
+  "description": "Il centrale apre sul terzino mentre la mezzala attacca lo spazio tra le linee.",
+  "duration": 2600,
+  "actions": [
+    { "id": "s1-a1", "type": "pass", "subject": "ball", "target": "td", "duration": 800, "startAt": 0, "easing": "easeOut" },
+    { "id": "s1-a2", "type": "run", "subject": "cc", "to": { "x": 62, "y": 34 }, "duration": 1400, "startAt": 300, "easing": "easeInOut" },
+    { "id": "s1-a3", "type": "move", "subject": "pv1", "to": { "x": 42, "y": 26 }, "duration": 1200, "startAt": 400, "easing": "easeInOut" }
+  ]
+}`;
+
+export interface DrillChainResult {
   drill: Drill;
   model: string;
   fallbackUsed: boolean;
   source: 'gemini' | 'demo';
-  /** Token di QUESTA variante, per il log dei costi. */
   usage?: { inputTokens: number; outputTokens: number };
 }
 
 /**
- * Genera UNA variante.
- *
- * Percorre la catena di modelli finche' uno risponde. Sul 429 (quota) non
- * ritenta: il messaggio dice "retry in 40s", e aspettare 40 secondi dentro
- * una richiesta da interfaccia non e' un ritardo, e' un abbandono. Sul 503
- * (affollamento) ritenta, perche' li' la finestra si riapre in pochi secondi.
- *
- * Non lancia mai: se tutto fallisce restituisce il demo. Un errore qui
- * farebbe fallire l'intera generazione anche quando le altre due varianti
- * sono perfettamente usabili, e la risposta all'allenatore sarebbe "genera
- * di nuovo" per un esercizio che aveva gia' tre risposte buone.
+ * Esegue la generazione di un singolo Drill percorrendo la catena di modelli
+ * Gemini 3.x con timeout, retry mirati su 503 e fallback demo se tutto fallisce.
  */
-async function generaUnaVariante(
-  brief: string,
-  ruolo: { id: string; richiesta: (b: string) => string; progressione: boolean },
-  inizio: number,
-): Promise<EsitoVariante> {
+export async function executeDrillModelChain(params: {
+  roleId: string;
+  logPrefix: string;
+  invoke: (model: string) => Promise<{
+    output: unknown;
+    usage?: { inputTokens?: number; outputTokens?: number };
+  }>;
+}): Promise<DrillChainResult> {
+  if (!hasGeminiApiKey()) {
+    console.warn(`[${params.logPrefix}] nessuna GEMINI_API_KEY: rispondo con demo.`);
+    return {
+      drill: DEMO_DRILL,
+      model: 'demo',
+      fallbackUsed: false,
+      source: 'demo',
+    };
+  }
+
   const catena = catenaModelli();
+  const inizio = Date.now();
 
   for (let i = 0; i < catena.length; i++) {
     const modello = catena[i];
@@ -375,43 +243,40 @@ async function generaUnaVariante(
     for (let tentativo = 0; tentativo < TENTATIVI_PER_MODELLO; tentativo++) {
       const attesa = ATTESA_TENTATIVI_MS[tentativo] ?? 0;
 
-      // Non si comincia un tentativo che non puo' finire entro il budget: un
-      // timeout che scatta qui lascia un esercizio a meta' e fa perdere piu'
-      // tempo di quanto si sarebbe recuperato.
       if (Date.now() - inizio + attesa >= BUDGET_TOTALE_MS) {
-        console.warn(`[drill] ${ruolo.id}: budget di ${BUDGET_TOTALE_MS}ms esaurito, uso il demo`);
+        console.warn(
+          `[${params.logPrefix}] ${params.roleId}: budget di ${BUDGET_TOTALE_MS}ms esaurito, uso demo`,
+        );
         break;
       }
       if (attesa > 0) await new Promise((r) => setTimeout(r, attesa));
 
       try {
+        const timeoutMs = Math.max(
+          3000,
+          Math.min(TIMEOUT_PER_MODELLO_MS, BUDGET_TOTALE_MS - (Date.now() - inizio)),
+        );
         const { output, usage } = await withTimeout(
-          ai.generate({
-            model: modello,
-            system: SYSTEM_PROMPT,
-            prompt: `USER BRIEF:\n${ruolo.richiesta(brief)}`,
-            output: { schema: DrillSchema },
-            config: { temperature: 0.35 },
-          }),
-          // Il timeout per singolo modello non puo' superare il budget
-          // residuo: altrimenti l'ultima variante in coda aspetterebbe 18
-          // secondi e uscirebbe comunque oltre il tetto di Vercel.
-          Math.max(3000, Math.min(TIMEOUT_PER_MODELLO_MS, BUDGET_TOTALE_MS - (Date.now() - inizio))),
-          `${modello}/${ruolo.id}`,
+          params.invoke(modello),
+          timeoutMs,
+          `${modello}/${params.roleId}`,
         );
 
         const drill = output as unknown as Drill | undefined;
-        if (drill && Array.isArray(drill.objects) && drill.objects.length) {
+        const hasPlayers =
+          drill &&
+          Array.isArray(drill.objects) &&
+          drill.objects.some((o) => o.kind === 'player');
+        const hasSteps = drill && Array.isArray(drill.sequence) && drill.sequence.length > 0;
+
+        if (hasPlayers && hasSteps) {
           if (i > 0 || tentativo > 0) {
             console.warn(
-              `[drill] ${ruolo.id} da ${modello} (tentativo ${tentativo + 1}${i > 0 ? ', modello di riserva' : ''})`,
+              `[${params.logPrefix}] ${params.roleId} da ${modello} (tentativo ${tentativo + 1}${i > 0 ? ', fallback' : ''})`,
             );
           }
           return {
-            // Il modello puo' non dare un id alla variante: glielo diamo noi,
-            // cosi' l'id riflette il ruolo e non una scelta arbitraria del
-            // modello (che spesso mette "drill" in tutte e tre).
-            drill: { ...drill, id: drill.id || ruolo.id },
+            drill: { ...drill, id: drill.id || params.roleId },
             model: modello,
             fallbackUsed: i > 0,
             source: 'gemini',
@@ -422,25 +287,22 @@ async function generaUnaVariante(
           };
         }
 
-        console.warn(`[drill] ${ruolo.id}: ${modello} ha risposto vuoto`);
-      } catch (e: any) {
-        const testoErrore = String(e?.message || e);
+        console.warn(`[${params.logPrefix}] ${params.roleId}: ${modello} risposta incompleta.`);
+      } catch (e: unknown) {
+        const testoErrore = String(e instanceof Error ? e.message : e);
         console.warn(
-          `[drill] ${ruolo.id} ${modello} tentativo ${tentativo + 1}/${TENTATIVI_PER_MODELLO}: ${testoErrore.slice(0, 140)}`,
+          `[${params.logPrefix}] ${params.roleId} ${modello} tentativo ${tentativo + 1}/${TENTATIVI_PER_MODELLO}: ${testoErrore.slice(0, 140)}`,
         );
 
-        // 400 = schema rifiutato dal modello. Cambiare modello non lo risolve,
-        // e fallire qui sarebbe un bug: e' il caso in cui conviene che l'errore
-        // arrivi all'allenatore come messaggio, non che diventi un demo.
         if (/\[400\s*\]/.test(testoErrore)) {
           throw new Error(
             'Il generatore ha un problema tecnico nel formato dei dati. Riprova fra poco.',
           );
         }
 
-        if (eQuotaEsaurita(testoErrore)) {
+        if (shouldSkipRetriesOnError(testoErrore)) {
           console.warn(
-            `[drill] ${ruolo.id}: ${modello} in quota esaurita, passo al successivo senza ritentare`,
+            `[${params.logPrefix}] ${params.roleId}: ${modello} non disponibile/quota, passo al successivo`,
           );
           break;
         }
@@ -448,25 +310,112 @@ async function generaUnaVariante(
     }
   }
 
-  // Tutti i modelli hanno fallito per questa variante: si usa il demo, che e'
-  // un esercizio vero e animabile. Meglio un esempio che l'allenatore puo'
-  // salvare e modificare di una lavagna vuota.
   return {
-    drill: DEMO_DRILL,
+    drill: { ...DEMO_DRILL, id: `${params.roleId}-demo` },
     model: 'demo',
     fallbackUsed: true,
     source: 'demo',
   };
 }
 
+function summarizeBaseDrill(drill: Drill): string {
+  const compact = {
+    name: drill.name,
+    description: drill.description,
+    category: drill.category,
+    ageGroup: drill.ageGroup,
+    pitch: drill.pitch,
+    objects: drill.objects.map((o) => ({
+      id: o.id,
+      kind: o.kind,
+      team: o.team,
+      label: o.label,
+      x: Math.round(o.x),
+      y: Math.round(o.y),
+      hasBall: o.hasBall,
+    })),
+    sequence: drill.sequence.map((s) => ({
+      id: s.id,
+      description: s.description,
+      actions: s.actions,
+    })),
+  };
+  return JSON.stringify(compact);
+}
+
+function buildUserPrompt(brief: string, mode: DrillGenerationMode, baseDrill?: Drill): string {
+  const baseSummary = baseDrill ? summarizeBaseDrill(baseDrill) : null;
+
+  if (mode === 'easier') {
+    return [
+      `RICHIESTA ALLENATORE:\n${brief || baseDrill?.name || 'Esercizio tattico'}`,
+      baseSummary ? `ESERCIZIO BASE DI RIFERIMENTO (JSON):\n${baseSummary}` : '',
+      `OBIETTIVO: Crea una progressione PIU' SEMPLICE dello stesso esercizio.`,
+      `Scegli UNA leva didattica chiara (es. un difensore in meno che pressa o pressione solo passiva, spazio piu' ampio, un jolly di appoggio in piu', o tocco libero anziche' vincolato) e rigenera l'esercizio completo e animabile con le nuove coordinate e azioni coerenti.`,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
+  if (mode === 'harder') {
+    return [
+      `RICHIESTA ALLENATORE:\n${brief || baseDrill?.name || 'Esercizio tattico'}`,
+      baseSummary ? `ESERCIZIO BASE DI RIFERIMENTO (JSON):\n${baseSummary}` : '',
+      `OBIETTIVO: Crea una progressione PIU' DIFFICILE dello stesso esercizio.`,
+      `Scegli UNA leva tattica allenante (es. pressing attivo immediato, spazio ridotto, vincolo massimo 2 tocchi, oppure aggiunta di un difensore/transizione su porticina) e rigenera l'esercizio completo e animabile con le nuove coordinate e azioni coerenti.`,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
+  return [
+    `RICHIESTA ALLENATORE:\n${brief}`,
+    `Genera l'esercizio ESATTAMENTE come richiesto sopra, con disposizione spaziale realistica su tutto il campo (8..92) e 3-5 step di animazione fluidi e dettagliati.`,
+  ].join('\n\n');
+}
+
 /**
- * Applica un timeout a una promise.
- *
- * Non annulla l'operazioneunderlying: una richiesta a Gemini che arriva dopo
- * il timeout consuma quota per un risultato che nessuno guardera'. E' uno
- * spreco accettato rispetto a tenere aperta la connessione del client, e il
- * retry successivo copre il caso in cui la risposta tardiva era quella buona.
+ * Genera UN esercizio animato (`base`, oppure la progressione `easier`/`harder`
+ * richiesta su domanda a partire dall'esercizio base).
  */
+export async function generateDrillVariants(
+  prompt: string,
+  options: GenerateDrillOptions = {},
+): Promise<GenerateResult> {
+  const testo = prompt.trim();
+  const mode: DrillGenerationMode = options.mode ?? 'base';
+  const roleId = mode === 'base' ? 'variante-base' : `variante-${mode}`;
+  const avvio = Date.now();
+
+  const userPrompt = buildUserPrompt(testo, mode, options.baseDrill);
+
+  const esito = await executeDrillModelChain({
+    roleId,
+    logPrefix: 'drill',
+    invoke: (modello) =>
+      ai.generate({
+        model: modello,
+        system: DRILL_SYSTEM_PROMPT,
+        prompt: userPrompt,
+        output: { schema: DrillSchema },
+        config: { temperature: 0.35 },
+      }),
+  });
+
+  console.log(
+    `[drill] mode=${mode} source=${esito.source} model=${esito.model} in ${Date.now() - avvio}ms`,
+  );
+
+  return {
+    drills: [esito.drill],
+    model: esito.model,
+    fallbackUsed: esito.fallbackUsed,
+    source: esito.source,
+    sources: [esito.source],
+    usage: esito.usage,
+  };
+}
+
 function withTimeout<T>(
   promise: Promise<T>,
   ms: number,

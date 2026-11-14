@@ -185,10 +185,20 @@ export const chatbotInputSchema = z.object({
   formation: z.string().max(120).optional(),
 });
 
-export const generateInputSchema = z.object({
-  seasonId: z.string().min(1).max(120),
-  prompt: z.string().min(1).max(2000),
-});
+export const generateInputSchema = z
+  .object({
+    seasonId: z.string().min(1).max(120),
+    prompt: z.string().max(2000).optional().default(''),
+    imageDataUrl: z.string().max(8 * 1024 * 1024).optional(),
+    mode: z.enum(['base', 'easier', 'harder']).optional().default('base'),
+    baseDrill: z.unknown().optional(),
+  })
+  .refine(
+    (d) =>
+      (d.prompt && d.prompt.trim().length > 0) ||
+      (d.imageDataUrl && d.imageDataUrl.startsWith('data:image/')),
+    { message: 'Inserisci una descrizione o carica una foto della lavagna.' },
+  );
 
 export const importImageSchema = z.object({
   seasonId: z.string().min(1).max(120),

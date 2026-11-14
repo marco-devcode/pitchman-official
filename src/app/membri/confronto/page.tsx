@@ -8,6 +8,7 @@ import { ArrowLeft, User, Shield, Sword, Zap, Clock, AlertTriangle, Target, Cale
 
 import { usePlayersStore } from "@/store/usePlayersStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
+import { useStatsStore } from "@/store/useStatsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useThemeChartPalette } from "@/lib/design-tokens";
 import { computeOnPitchGoals } from "@/lib/on-pitch";
@@ -136,7 +137,9 @@ function ConfrontoContent() {
   useEffect(() => {
     const init = async () => {
       if (!activeSeason) await fetchSeasons();
-      await fetchPlayers();
+      if (usePlayersStore.getState().players.length === 0) {
+        await fetchPlayers();
+      }
     };
     init();
   }, [fetchPlayers, fetchSeasons, activeSeason]);
@@ -148,9 +151,20 @@ function ConfrontoContent() {
     if (!user || !activeSeason || !p1Id) return;
 
     const loadData = async () => {
-      setLoading(true);
+      const statsStore = useStatsStore.getState();
+      const cached =
+        !statsStore.statsDirty && statsStore.loadedSeasonId === activeSeason.id
+          ? statsStore.detailedContext
+          : null;
+
+      if (!cached) setLoading(true);
       try {
-        const context = await aggregationRepository.getDetailedContext(user.id, activeSeason.id);
+        let context = cached;
+        if (!context) {
+          await statsStore.loadDetailedStats(activeSeason.id);
+          context = useStatsStore.getState().detailedContext ??
+            await aggregationRepository.getDetailedContext(user.id, activeSeason.id);
+        }
         const playerStats = aggregationRepository.getPlayersAggregatedStatsFromContext(context);
 
         if (p1Id) {

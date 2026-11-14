@@ -86,11 +86,6 @@
 | Tool | Pro | Contro |
 |------|-----|--------|
 | **[Stripe](https://stripe.com)** | Standard del settore, SDK Next.js, webhook facili | Serve P.IVA per incassare |
-| **[LemonSqueezy](https://lemonsqueezy.com)** | Merchant of Record (gestisce IVA per te), perfetto per indie | Commissioni leggermente più alte (5%+50¢) |
-| **[Paddle](https://paddle.com)** | Come Lemon ma più enterprise | Approvazione manuale |
-| **[Gumroad](https://gumroad.com)** | Semplicissimo per iniziare | Meno professionale |
-
-> **💡 Consiglio**: Parti con **LemonSqueezy** se non hai P.IVA. Gestisce fatturazione, IVA e conformità fiscale per te. Puoi migrare a Stripe quando cresci.
 
 ### Implementazione tecnica (Next.js)
 

@@ -11,6 +11,7 @@
 import { drillToTactical } from './drill-to-tactical';
 import { repairDrill } from './repair-drill';
 import type { Drill } from './drill';
+import { posizioniInizialiStep, type TacticalExercise } from './tactical-exercise';
 
 const base: Drill = {
   id: 'd1',
@@ -122,6 +123,31 @@ describe('drillToTactical', () => {
     expect(drillToTactical(conWait).steps[0].actions).toHaveLength(0);
   });
 
+  it('mappa le porte (goal) e aggiorna la posizione della palla dopo un dribble per lo step successivo', () => {
+    const conPorta: Drill = {
+      ...base,
+      objects: [
+        ...base.objects,
+        { id: 'g1', kind: 'goal', x: 92, y: 50 },
+      ],
+      sequence: [
+        ...base.sequence,
+        {
+          id: 's3',
+          description: 'Tiro in porta dopo la conduzione',
+          duration: 1500,
+          actions: [{ id: 'a3', type: 'shoot', subject: 'ball', target: 'g1', duration: 800 }],
+        },
+      ],
+    };
+    const res = drillToTactical(repairDrill(conPorta)!.drill);
+    const goal = res.initialEntities.find((e) => e.id === 'g1');
+    expect(goal?.type).toBe('goal');
+    expect(res.playersShown).toBe(6);
+    expect(res.steps[2].actions[0].from).toEqual({ x: 55, y: 50 });
+    expect(res.steps[2].actions[0].to).toEqual({ x: 92, y: 50 });
+  });
+
   it('mappa un giocatore senza squadra su neutral', () => {
     const senza = repairDrill({
       ...base,
@@ -139,5 +165,112 @@ describe('drillToTactical', () => {
       ],
     })!.drill;
     expect(drillToTactical(senza).initialEntities.find((e) => e.id === 'x1')!.team).toBe('neutral');
+  });
+});
+
+const esercizioContinuita: TacticalExercise = {
+  title: '3 passi',
+  description: '',
+  playersShown: 2,
+  initialEntities: [
+    { id: 'p1', type: 'player', team: 'blue', label: '1', x: 20, y: 20 },
+    { id: 'p2', type: 'player', team: 'blue', label: '2', x: 80, y: 80 },
+    { id: 'ball', type: 'ball', x: 20, y: 20 },
+  ],
+  steps: [
+    {
+      stepNumber: 1,
+      description: 'p1 corre in avanti',
+      actions: [
+        { entityId: 'p1', type: 'run', from: { x: 20, y: 20 }, to: { x: 40, y: 40 }, duration: 1 },
+        { entityId: 'ball', type: 'pass', from: { x: 20, y: 20 }, to: { x: 40, y: 40 }, duration: 1 },
+      ],
+    },
+    {
+      stepNumber: 2,
+      description: 'p1 continua a correre',
+      actions: [
+        { entityId: 'p1', type: 'run', from: { x: 40, y: 40 }, to: { x: 60, y: 60 }, duration: 1 },
+      ],
+    },
+    {
+      stepNumber: 3,
+      description: 'p1 arriva in fondo',
+      actions: [
+        { entityId: 'p1', type: 'run', from: { x: 60, y: 60 }, to: { x: 75, y: 75 }, duration: 1 },
+      ],
+    },
+  ],
+};
+
+describe('posizioniInizialiStep', () => {
+  const { initialEntities, steps } = esercizioContinuita;
+
+  it('al primo step ogni entita\' parte dalla sua posizione iniziale', () => {
+    const p = posizioniInizialiStep(initialEntities, steps, 0);
+    expect(p.get('p1')).toEqual({ x: 20, y: 20 });
+    expect(p.get('p2')).toEqual({ x: 80, y: 80 });
+  });
+
+  it('al secondo step p1 parte da dove e\' finito il primo', () => {
+    const p = posizioniInizialiStep(initialEntities, steps, 1);
+    expect(p.get('p1')).toEqual({ x: 40, y: 40 });
+  });
+
+  it('al terzo step p1 parte da dove e\' finito il secondo', () => {
+    const p = posizioniInizialiStep(initialEntities, steps, 2);
+    expect(p.get('p1')).toEqual({ x: 60, y: 60 });
+  });
+
+  it('un\'entita\' che non si e\' mossa resta dov\'era', () => {
+    for (const i of [0, 1, 2]) {
+      expect(posizioniInizialiStep(initialEntities, steps, i).get('p2')).toEqual({ x: 80, y: 80 });
+    }
+  });
+
+  it('la palla segue il passaggio come un giocatore', () => {
+    const p = posizioniInizialiStep(initialEntities, steps, 1);
+    expect(p.get('ball')).toEqual({ x: 40, y: 40 });
+  });
+
+  it('la palla segue il dribble del portatore fra uno step e il successivo', () => {
+    const conDribble: TacticalExercise = {
+      ...esercizioContinuita,
+      steps: [
+        {
+          stepNumber: 1,
+          description: 'p1 conduce palla',
+          actions: [
+            { entityId: 'p1', type: 'dribble', from: { x: 20, y: 20 }, to: { x: 52, y: 38 }, duration: 1 },
+          ],
+        },
+      ],
+    };
+    const p = posizioniInizialiStep(conDribble.initialEntities, conDribble.steps, 1);
+    expect(p.get('p1')).toEqual({ x: 52, y: 38 });
+    expect(p.get('ball')).toEqual({ x: 52, y: 38 });
+  });
+
+  it('andare a uno step a ritroso non lascia residui', () => {
+    const avanti = posizioniInizialiStep(initialEntities, steps, 2);
+    posizioniInizialiStep(initialEntities, steps, 0);
+    const indietro = posizioniInizialiStep(initialEntities, steps, 2);
+    expect(indietro.get('p1')).toEqual(avanti.get('p1'));
+  });
+
+  it('uno step senza azioni lascia la scena com\'era', () => {
+    const vuoto: TacticalExercise = {
+      ...esercizioContinuita,
+      steps: [{ stepNumber: 1, description: 'nessuna azione', actions: [] }],
+    };
+    const p = posizioniInizialiStep(vuoto.initialEntities, vuoto.steps, 1);
+    expect(p.get('p1')).toEqual({ x: 20, y: 20 });
+  });
+
+  it('l\'avanzamento e\' monotono: ogni posizione successiva e\' piu\' avanti', () => {
+    const posizioni = [0, 1, 2].map((i) =>
+      posizioniInizialiStep(initialEntities, steps, i).get('p1')!.x,
+    );
+    expect(posizioni).toEqual([20, 40, 60]);
   });
 });

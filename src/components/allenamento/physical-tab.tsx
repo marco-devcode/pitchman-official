@@ -1,17 +1,12 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { useTestsStore } from '@/store/useTestsStore';
-import { usePlayersStore } from '@/store/usePlayersStore';
-import { useAuthStore } from '@/store/useAuthStore';
-import { useThemeStore } from '@/store/useThemeStore';
-import { testRepository } from '@/lib/repositories/test-repository';
-import { formatValue, formatDate, computeDelta, isDescendingUnit } from '@/lib/test-utils';
-import type { PhysicalTest, Player } from '@/lib/types';
-import { Activity, Trophy, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
+import { formatValue, formatDate, isDescendingUnit } from '@/lib/test-utils';
+import { Activity, Trophy, TrendingUp, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useThemeChartPalette } from '@/lib/design-tokens';
@@ -65,26 +60,16 @@ const LineChart = dynamic<{ data: { date: string; value: number }[]; colors: any
 export function PhysicalTab() {
   const { id: playerId } = useParams();
   const { tests } = useTestsStore();
-  const { players } = usePlayersStore();
-  const { user } = useAuthStore();
   const chartColors = useChartColors();
 
-  const player = players.find(p => p.id === playerId);
-
-  // Fetch all tests for this season and filter by player
-  const [fetchedTests, setFetchedTests] = useState<PhysicalTest[] | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    const seasonId = tests[0]?.seasonId;
-    if (!seasonId) { setLoading(false); return; }
-    testRepository.getTestsByPlayer(seasonId, playerId as string)
-      .then(setFetchedTests)
-      .finally(() => setLoading(false));
-  }, [user, playerId, tests]);
-
-  const testsForPlayer = fetchedTests ?? [];
+  // Usa direttamente lo store `tests` mantenuto sincronizzato da usePrefetch via onSnapshot,
+  // evitando una query Firestore ridondante su `physicalTests` ad ogni apertura scheda.
+  const testsForPlayer = useMemo(() => {
+    const pid = playerId as string;
+    return tests
+      .filter(t => t.results.some(r => r.playerId === pid))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [tests, playerId]);
 
   // Group by test name
   const byTestName = useMemo(() => {
@@ -129,10 +114,6 @@ export function PhysicalTab() {
       };
     });
   }, [byTestName, tests, playerId]);
-
-  if (loading) {
-    return <Skeleton className="h-60 w-full" />;
-  }
 
   if (testsForPlayer.length === 0) {
     return (

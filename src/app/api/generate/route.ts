@@ -23,7 +23,11 @@
  */
 
 import { NextResponse } from 'next/server';
-import { generateDrillVariants } from '@/ai/flows/generate-drill-variants-flow';
+import {
+  generateDrillVariants,
+  type DrillGenerationMode,
+} from '@/ai/flows/generate-drill-variants-flow';
+import { generateDrillFromImage } from '@/ai/flows/generate-drill-from-image-flow';
 import { repairVariants } from '@/lib/repair-drill';
 import { aiGuardWithBody, generateInputSchema, readJson } from '@/lib/server/ai-guard';
 import { cacheGet, cacheSet, hashKey, logUsage, normalizeForCache } from '@/lib/server/ai-log';
@@ -62,23 +66,30 @@ export async function POST(request: Request) {
   });
   if (!guard.ok) return guard.response;
 
-  const promptTesto = guard.data.prompt;
+  const promptTesto = guard.data.prompt ?? '';
+  const imageDataUrl = guard.data.imageDataUrl;
+  const mode: DrillGenerationMode = guard.data.mode ?? 'base';
+  const baseDrill =
+    guard.data.baseDrill && typeof guard.data.baseDrill === 'object'
+      ? (guard.data.baseDrill as Drill)
+      : undefined;
 
   const started = Date.now();
 
-  // Cache su prompt normalizzato + uid. La chiave include l'uid perche' il
-  // risultato dipende dalla squadra a cui si riferisce, non solo dal testo: due
-  // allenatori che scrivono "4-3-3" per due squadre diverse non possono
-  // condividere la stessa risposta.
-  const cacheKey = hashKey('drill', guard.uid, normalizeForCache(promptTesto));
+  // Cache distinta per modalita' (`base` | `easier` | `harder` | `vision`),
+  // uid, prompt normalizzato e firma di immagine / esercizio base.
+  const cacheKey = imageDataUrl
+    ? hashKey('drill-vision', guard.uid, hashKey(imageDataUrl), normalizeForCache(promptTesto))
+    : hashKey(
+        'drill',
+        guard.uid,
+        mode,
+        normalizeForCache(promptTesto),
+        baseDrill ? hashKey(JSON.stringify(baseDrill).slice(0, 12000)) : 'no-base',
+      );
   const cached = await cacheGet<GeneratePayload>(cacheKey);
 
   if (cached.hit && cached.value) {
-    // Il costo e' gia' stato pagato da chi ha fatto la cache. Si registra
-    // comunque una riga, con `cached: true` e zero token: senza, il tetto
-    // globale conterebbe una chiamata che non e' avvenuta, e l'utente che ha
-    // fatto la cache vedrebbe il proprio budget consumato da un risultato che
-    // ha gia' ottenuto.
     await logUsage({
       uid: guard.uid,
       seasonId: guard.seasonId,
@@ -93,7 +104,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await generateDrillVariants(promptTesto);
+    const result = imageDataUrl
+      ? await generateDrillFromImage({ imageDataUrl, notes: promptTesto })
+      : await generateDrillVariants(promptTesto, { mode, baseDrill });
 
     // Il repair gira SEMPRE, anche sull'output del modello principale e anche
     // sul demo. Il demo e' gia' pulito e non produrra' correzioni: e' un test
@@ -166,8 +179,8 @@ export async function POST(request: Request) {
       cached: false,
       durationMs: Date.now() - started,
     });
-    if (/troppo lunga|vuoto|descrivi/i.test(String(error?.message ?? ''))) {
-      return apiError(400, 'VALIDATION_ERROR', 'Controlla la descrizione e riprova.');
+    if (/troppo lunga|vuoto|descrivi|Formato immagine non supportato/i.test(String(error?.message ?? ''))) {
+      return apiError(400, 'VALIDATION_ERROR', String(error?.message || 'Controlla i dati e riprova.'));
     }
     return NextResponse.json(
       { error: error?.message || 'Generazione non riuscita. Riprova.' },

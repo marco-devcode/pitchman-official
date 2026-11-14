@@ -65,7 +65,7 @@ function mapTeam(drill: DrillObject): TacticalEntity['team'] {
   }
 }
 
-/** kind del Drill -> type del player. `goal` non ha un tipo: e' decorazione. */
+/** kind del Drill -> type del player. */
 function mapKind(kind: DrillObject['kind']): TacticalEntity['type'] {
   switch (kind) {
     case 'player':
@@ -74,12 +74,11 @@ function mapKind(kind: DrillObject['kind']): TacticalEntity['type'] {
       return 'ball';
     case 'cone':
       return 'cone';
+    case 'goal':
+      return 'goal';
     case 'zone':
       return 'zone';
     default:
-      // 'goal': le porte vengono disegnate come marcatori statici dal player,
-      // non come entita' animabili. Qui non finiscono nella scena perche'
-    // il player non le sa muovere e le conterebbe fra i giocatori.
       return 'zone';
   }
 }
@@ -137,25 +136,28 @@ function round2(p: DrillPoint) {
  * iniziale dell'oggetto, cosi' l'animazione parte comunque da qualche parte.
  */
 export function drillToTactical(drill: Drill): TacticalExercise {
-  const entities: TacticalEntity[] = drill.objects
-    .filter((o) => o.kind !== 'goal')
-    .map((o) => {
-      const e: TacticalEntity = {
-        id: o.id,
-        type: mapKind(o.kind),
-        x: clampDrillCoord(o.x),
-        y: clampDrillCoord(o.y),
-      };
-      const team = mapTeam(o);
-      if (team) e.team = team;
-      // Numero di maglia se c'e', altrimenti la label. Sul pallino c'e' una
-      // riga sola: metterci entrambi la renderebbe illeggibile.
-      const label = o.number ?? o.label;
-      if (label) e.label = label;
+  const entities: TacticalEntity[] = drill.objects.map((o) => {
+    const e: TacticalEntity = {
+      id: o.id,
+      type: mapKind(o.kind),
+      x: clampDrillCoord(o.x),
+      y: clampDrillCoord(o.y),
+    };
+    const team = mapTeam(o);
+    if (team) e.team = team;
+    // Numero di maglia se c'e', altrimenti la label. Sul pallino c'e' una
+    // riga sola: metterci entrambi la renderebbe illeggibile.
+    const label = o.number ?? o.label;
+    if (label) e.label = label;
+    if (o.kind === 'goal') {
+      e.width = o.width ?? 14;
+      e.height = o.height ?? 4;
+    } else {
       if (o.width !== undefined) e.width = o.width;
       if (o.height !== undefined) e.height = o.height;
-      return e;
-    });
+    }
+    return e;
+  });
 
   const byId = new Map(drill.objects.map((o) => [o.id, o]));
   // Scena simulata: da dove si parte e dove si arriva, azione dopo azione.
@@ -166,7 +168,16 @@ export function drillToTactical(drill: Drill): TacticalExercise {
   const steps: TacticalStep[] = drill.sequence.map((step, i) => {
     const actions: TacticalAction[] = [];
 
-    for (const action of step.actions) {
+    const sortedActions = step.actions
+      .map((action, index) => ({
+        action,
+        index,
+        start: action.startAt ?? 0,
+      }))
+      .sort((a, b) => a.start - b.start || a.index - b.index)
+      .map((entry) => entry.action);
+
+    for (const action of sortedActions) {
       const type = mapActionType(action.type);
       const to = typeof action.to === 'string' ? undefined : action.to;
       // Nel Drill riparato `to` e' SEMPRE un punto: resolveTo ha gia' risolto
@@ -194,12 +205,16 @@ export function drillToTactical(drill: Drill): TacticalExercise {
       // Avanza la simulazione con il punto d'arrivo.
       const arrivo = { x: clampDrillCoord(destinazione.x), y: clampDrillCoord(destinazione.y) };
       scene.set(action.subject, arrivo);
-      // Se e' la palla, il possessore la segue: altrimenti a meta' esercizio
-      // la palla viaggia sola e nessun giocatore risulta palla-piedi.
+      if (type === 'dribble' && action.subject !== 'ball') {
+        scene.set('ball', arrivo);
+      }
+      // Se e' la palla, il ricevente in scena acquisisce il possesso.
       if (isBallAction(action)) {
-        const ricevente = drill.objects.find(
-          (o) => o.kind === 'player' && Math.hypot(o.x - arrivo.x, o.y - arrivo.y) < 1.5,
-        );
+        const ricevente = drill.objects.find((o) => {
+          if (o.kind !== 'player') return false;
+          const pos = scene.get(o.id) ?? { x: o.x, y: o.y };
+          return Math.hypot(pos.x - arrivo.x, pos.y - arrivo.y) < 1.5;
+        });
         if (ricevente) scene.set(ricevente.id, arrivo);
       }
     }

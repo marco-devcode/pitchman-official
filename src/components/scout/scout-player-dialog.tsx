@@ -2,16 +2,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSWRConfig } from "swr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useUser } from "@/firebase";
 import { PlayerRole, getPrimaryRole } from '@/lib/types';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
-import { scoutRepository } from '@/lib/repositories/scout-repository';
+import { useScoutStore } from '@/store/useScoutStore';
 import type { ScoutPlayer, ScoutCategory } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Check, Loader2, Shirt } from "lucide-react";
@@ -28,11 +26,10 @@ interface ScoutPlayerDialogProps {
 }
 
 export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: ScoutPlayerDialogProps) {
-  const { user } = useUser();
   const { activeSeason } = useSeasonsStore();
   const seasonId = activeSeason?.id ?? null;
+  const { add, update } = useScoutStore();
   const { toast } = useToast();
-  const { mutate } = useSWRConfig();
 
   const [loading, setLoading] = useState(false);
   const [isRolesDialogOpen, setIsRolesDialogOpen] = useState(false);
@@ -70,7 +67,7 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
   const handleSave = async () => {
     // Gli osservati stanno sulla stagione attiva: senza, non c'e' squadra a cui
     // appartenerli e il salvataggio non avrebbe dove andare.
-    if (!user || !formData.name || !seasonId) return;
+    if (!formData.name || !seasonId) return;
 
     setLoading(true);
     try {
@@ -83,11 +80,10 @@ export function ScoutPlayerDialog({ open, onOpenChange, player, categories }: Sc
         notes: formData.notes ?? '',
       };
       if (player) {
-        await scoutRepository.update(user.uid, seasonId, player.id, payload);
+        await update(player.id, payload);
       } else {
-        await scoutRepository.create(user.uid, seasonId, payload);
+        await add(payload);
       }
-      await mutate(`teams/${seasonId}/scouts`);
       onOpenChange(false);
     } catch (e: any) {
       console.error("Save Player Error:", e);

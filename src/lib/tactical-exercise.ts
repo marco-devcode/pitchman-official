@@ -13,14 +13,14 @@
 
 export interface TacticalEntity {
   id: string;
-  type: 'player' | 'ball' | 'cone' | 'zone';
+  type: 'player' | 'ball' | 'cone' | 'zone' | 'goal';
   /** Solo per i giocatori. 'gk' e' il portiere, 'neutral' un senza squadra. */
   team?: 'blue' | 'red' | 'yellow' | 'gk' | 'neutral';
   /** Etichetta corta mostrata dentro il pallino. */
   label?: string;
   x: number;
   y: number;
-  /** Solo per type 'zone'. */
+  /** Solo per type 'zone' o 'goal'. */
   width?: number;
   height?: number;
 }
@@ -103,4 +103,72 @@ export interface TacticalExercise {
 export function clampCoord(v: number): number {
   if (!Number.isFinite(v)) return 50;
   return Math.max(0, Math.min(100, v));
+}
+
+/**
+ * Posizione di ogni entita' all'INIZIO di uno step.
+ * Restituisce una Map entityId -> {x, y}.
+ */
+export function posizioniInizialiStep(
+  entities: TacticalEntity[],
+  steps: TacticalStep[],
+  indiceStep: number,
+): Map<string, { x: number; y: number }> {
+  const posizioni = new Map<string, { x: number; y: number }>();
+  for (const e of entities) posizioni.set(e.id, { x: e.x, y: e.y });
+
+  const usaFrame = steps.some((s) => s.frame);
+  if (usaFrame) {
+    for (let i = indiceStep - 1; i >= 0; i--) {
+      const frame = steps[i]?.frame;
+      if (!frame) continue;
+      for (const e of frame) {
+        posizioni.set(e.id, { x: e.x, y: e.y });
+      }
+      break;
+    }
+    return posizioni;
+  }
+
+  for (let i = 0; i < indiceStep; i++) {
+    for (const a of steps[i]?.actions ?? []) {
+      if (!a.to) continue;
+      posizioni.set(a.entityId, { x: a.to.x, y: a.to.y });
+      if (a.type === 'dribble' && a.entityId !== 'ball') {
+        posizioni.set('ball', { x: a.to.x, y: a.to.y });
+      }
+    }
+  }
+  return posizioni;
+}
+
+/**
+ * Posizione di OGNI entità alla FINE dello step richiesto.
+ */
+export function posizioniFineStep(
+  entities: TacticalEntity[],
+  steps: TacticalStep[],
+  indiceStep: number,
+): Map<string, { x: number; y: number }> {
+  const inizio = posizioniInizialiStep(entities, steps, indiceStep);
+  const step = steps[indiceStep];
+  if (!step) return inizio;
+
+  if (step.frame) {
+    const fine = new Map(inizio);
+    for (const e of step.frame) {
+      fine.set(e.id, { x: e.x, y: e.y });
+    }
+    return fine;
+  }
+
+  const fine = new Map(inizio);
+  for (const a of step.actions ?? []) {
+    if (!a.to) continue;
+    fine.set(a.entityId, { x: a.to.x, y: a.to.y });
+    if (a.type === 'dribble' && a.entityId !== 'ball') {
+      fine.set('ball', { x: a.to.x, y: a.to.y });
+    }
+  }
+  return fine;
 }

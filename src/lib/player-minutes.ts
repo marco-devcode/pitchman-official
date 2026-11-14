@@ -41,7 +41,17 @@
  */
 
 import type { MatchEvent, MatchType } from '@/lib/types';
-import type { StoppageByPeriod } from '@/lib/stoppage-time';
+
+/** Minuti di recupero (added time) per singolo periodo. */
+export type StoppagePeriod = '1TS' | '2TS';
+
+export type StoppageByPeriod = Partial<Record<StoppagePeriod, number>>;
+
+/** Recupero per periodo, con fallback a 0. */
+export function getStoppage(addedTime: StoppageByPeriod | undefined, period: StoppagePeriod): number {
+    const value = addedTime?.[period];
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
 
 /** Periodo di un evento. `1TS`/`2TS` sono i tempi supplementari. */
 export type Period = '1T' | '2T' | '1TS' | '2TS';

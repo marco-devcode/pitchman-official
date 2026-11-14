@@ -17,6 +17,7 @@ e uno per quello scuro. Sono i colori che Tailwind espone come utility.
 | Token | Uso |
 |---|---|
 | `brand-green` | **Il verde PitchMan.** Non è `emerald-500`: quello è un verde di Tailwind e non è il verde del brand. |
+| `brand-lime` | **Verde lime PitchMan** (`hsl(74 96% 46%)`), definito in `:root` e `.dark` dentro `src/app/globals.css`. |
 | `brand-yellow`, `brand-cyan`, `brand-pink` | Accenti, gradienti |
 | `win`, `win-deep` | Esito positivo |
 | `loss`, `loss-deep` | Esito negativo |
@@ -34,14 +35,6 @@ porta un colore che non esiste nel tema.
 `tailwind.config.ts` espone i colori sotto `colors.brand.*` (`brand.win-deep`,
 non `win-deep` da solo). Una classe come `bg-win-deep` non esiste e non dà
 errore.
-
-### Un token dichiarato ma senza variabile: `brand-lime`
-
-`tailwind.config.ts` dichiara `brand.lime: 'hsl(var(--brand-lime))'`, ma
-`--brand-lime` **non è definito in `globals.css`** e `brand-lime` non compare
-in nessun file di `src/`. Una classe `bg-brand-lime` oggi non darebbe errore e
-non avrebbe colore. È un token pronto all'uso o da usare: se serve il lime,
-va definita la variabile nei due blocchi tema.
 
 ## 🔠 Tipografia e Layout
 
@@ -75,11 +68,21 @@ fonte dei colori del tema e devono restare letterali.
 
 ## 📏 Token del tema in TypeScript
 
-I colori che il tema non può esprimere in CSS (lo slider del minutaggio, i
-riempimenti dei grafici) stanno in
-**[src/lib/design-tokens.ts](../src/lib/design-tokens.ts)**, che espone
-`useChartColors()` e costruisce gli rgba dal tema a runtime.
+I colori dinamici del tema personalizzabile (`--a1` e `--a2`) vengono scritti a
+runtime su `document.documentElement` dal motore del tema tramite il selettore
+in **[src/components/theme/theme-color-panel.tsx](../src/components/theme/theme-color-panel.tsx)**
+(collegato a `useThemeStore` e `src/lib/theme-engine.ts`).
+
+I colori che il tema non può esprimere solo con utility CSS (lo slider del
+minutaggio, le serie e i riempimenti dei grafici) stanno in
+**[src/lib/design-tokens.ts](../src/lib/design-tokens.ts)**, che legge `--a1` e
+`--a2` a runtime costruendo gli `rgba` dal tema ed espone:
+
+- `useChartColors()` — espone `series1`, `series2`, `halo1`, `halo2`, `gradient`, `textColor`, `dotColor`, `glowColor` reagendo ai cambi tema tramite `MutationObserver`;
+- `useThemeCharts()` — versione reattiva di `COLORS.charts` per i grafici (es. Recharts);
+- `useThemeChartPalette()` — palette completa (`primary`, `primaryFill`, `accent`, `accentFill`, tooltip, griglia) aggiornata automaticamente al cambio tema;
+- `readThemeChartPalette(isDark)` — lettura puntuale (con fallback SSR) per componenti che non devono osservare cambi dinamici.
 
 Le classi costruite a runtime (`dark:shadow-${x}`) **non entrano nel CSS**:
-Tailwind le scansione come sorgente, e una classe che esiste solo al runtime
+Tailwind le scansiona come sorgente, e una classe che esiste solo al runtime
 non viene generata. Vedi `src/lib/score-box.ts:78`.

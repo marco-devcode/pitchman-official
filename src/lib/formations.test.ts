@@ -1,6 +1,5 @@
-import { FORMATION_SLOT_ROLES, FORMATION_COORDINATES as COORD_LM } from '@/lib/lineup-mapping';
+import { FORMATION_SLOT_ROLES, FORMATION_COORDINATES as COORD_LM, MATCH_FORMATIONS } from '@/lib/lineup-mapping';
 import { FORMATION_ROLES, FORMATION_SLOT_COORDS as COORD_TYPES } from '@/lib/types';
-import { MATCH_FORMATIONS } from '@/lib/formation-modules';
 
 describe('Formation Roles and Coordinates Alignment', () => {
     it('matches roles identically between FORMATION_SLOT_ROLES and FORMATION_ROLES', () => {

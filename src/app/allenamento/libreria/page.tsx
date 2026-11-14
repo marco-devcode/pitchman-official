@@ -4,14 +4,14 @@ import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Search, Filter, Globe, Lock, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Search, Filter, Globe, Lock, Loader2, Sparkles, Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PiTrafficCone } from "react-icons/pi";
 import { useExerciseStore } from "@/store/useExerciseStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ExerciseCard } from "@/components/allenamento/exercise-card";
 import { ExerciseDialog } from "../../../components/allenamento/exercise-dialog";
-import { AiExerciseGenerator } from "@/components/allenamento/ai-exercise-generator";
+import { AiExerciseGenerator, VisionExerciseScanner } from "@/components/allenamento/ai-exercise-generator";
 import { ExerciseViewDialog } from "../../../components/allenamento/exercise-view-dialog";
 import { ExerciseFilterDialog } from "../../../components/allenamento/exercise-filter-dialog";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export default function ExerciseLibraryPage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
+  const [isVisionScannerOpen, setIsVisionScannerOpen] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
 
   useEffect(() => {
@@ -118,10 +119,10 @@ export default function ExerciseLibraryPage() {
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={handleAdd}
-            className="h-11 px-6 rounded-2xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase tracking-widest text-[10px] shadow-lg dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all gap-2"
+            className="h-11 px-5 sm:px-6 rounded-2xl bg-primary dark:bg-black border border-primary dark:border-brand-green text-white dark:text-brand-green font-black uppercase tracking-widest text-[10px] shadow-lg dark:shadow-theme-strong hover:scale-[1.02] active:scale-95 transition-all gap-2"
           >
             <Plus className="h-4 w-4" /> Nuovo Esercizio
           </Button>
@@ -130,11 +131,23 @@ export default function ExerciseLibraryPage() {
               tattici per l'animazione, quindi lo salva con lo stesso store. */}
           <Button
             onClick={() => setIsAiGeneratorOpen(true)}
-            className="h-11 px-4 sm:px-6 rounded-2xl border border-brand-green/40 bg-brand-green/10 text-brand-green font-black uppercase tracking-widest text-[10px] hover:bg-brand-green/20 transition-all hover:scale-[1.02] active:scale-95 gap-2"
+            className="h-11 px-4 sm:px-5 rounded-2xl border border-brand-green/40 bg-brand-green/10 text-brand-green font-black uppercase tracking-widest text-[10px] hover:bg-brand-green/20 transition-all hover:scale-[1.02] active:scale-95 gap-2"
           >
             <Sparkles className="h-4 w-4" />
             <span className="hidden sm:inline">Crea con AI</span>
             <span className="sm:hidden">AI</span>
+          </Button>
+
+          {/* Vision: converte la foto di un disegno su foglio o lavagna
+              tattica in un esercizio animato modificabile. */}
+          <Button
+            onClick={() => setIsVisionScannerOpen(true)}
+            variant="outline"
+            className="h-11 px-4 sm:px-5 rounded-2xl border-border dark:border-brand-green/40 bg-card dark:bg-black/40 text-foreground dark:text-brand-green font-black uppercase tracking-widest text-[10px] hover:bg-brand-green/10 hover:border-brand-green transition-all hover:scale-[1.02] active:scale-95 gap-2"
+          >
+            <Camera className="h-4 w-4" />
+            <span className="hidden sm:inline">Scansiona Lavagna</span>
+            <span className="sm:hidden">Scansiona</span>
           </Button>
         </div>
       </div>
@@ -142,6 +155,11 @@ export default function ExerciseLibraryPage() {
       <AiExerciseGenerator
         open={isAiGeneratorOpen}
         onOpenChange={setIsAiGeneratorOpen}
+      />
+
+      <VisionExerciseScanner
+        open={isVisionScannerOpen}
+        onOpenChange={setIsVisionScannerOpen}
       />
 
       <ExerciseFilterDialog 

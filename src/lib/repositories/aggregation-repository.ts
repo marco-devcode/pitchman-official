@@ -134,12 +134,26 @@ export const aggregationRepository = {
 
     /**
      * Carica tutti i dati, inclusi eventi, formazioni e statistiche di ogni partita.
-     * Usato per i grafici e le leaderboard.
+     * Usato per i grafici e le leaderboard. Accetta eventuali collezioni già in
+     * memoria per evitare letture ridondanti su Firestore.
      */
-    async getDetailedContext(userId: string, seasonId: string): Promise<SeasonDataContext> {
+    async getDetailedContext(
+        userId: string,
+        seasonId: string,
+        preloaded?: { matches?: Match[]; players?: Player[] }
+    ): Promise<SeasonDataContext> {
+        const hasPreloadedMatches = Boolean(
+            preloaded?.matches?.length &&
+            preloaded.matches.every((m) => !m.seasonId || m.seasonId === seasonId)
+        );
+        const hasPreloadedPlayers = Boolean(
+            preloaded?.players?.length &&
+            preloaded.players.every((p) => !p.seasonId || p.seasonId === seasonId)
+        );
+
         const [matches, players] = await Promise.all([
-            matchRepository.getAll(userId, seasonId),
-            playerRepository.getAll(userId, seasonId)
+            hasPreloadedMatches ? Promise.resolve(preloaded!.matches!) : matchRepository.getAll(userId, seasonId),
+            hasPreloadedPlayers ? Promise.resolve(preloaded!.players!) : playerRepository.getAll(userId, seasonId),
         ]);
 
         const completedMatches = matches.filter(m => m.status === 'completed');

@@ -14,14 +14,13 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Stage, Layer, Rect, Circle, Line, Text as KonvaText, Group } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Line, Arrow, Text as KonvaText, Group } from 'react-konva';
 import {
   Play, Pause, ChevronLeft, ChevronRight, RotateCcw, Plus, Trash2, Undo2,
 } from 'lucide-react';
 
-import type { TacticalExercise, TacticalEntity, TacticalStep } from '@/lib/tactical-exercise';
-import { clampCoord } from '@/lib/tactical-exercise';
-import { posizioniInizialiStep } from '@/lib/step-continuity';
+import type { TacticalAction, TacticalExercise, TacticalEntity, TacticalStep } from '@/lib/tactical-exercise';
+import { clampCoord, posizioniInizialiStep } from '@/lib/tactical-exercise';
 import { cn } from '@/lib/utils';
 
 const FIELD_W = 320;
@@ -40,6 +39,46 @@ const TEAM_FILL: Record<string, string> = {
   // non si prende un colore di squadra: si prende il colore dell'assenza.
   neutral: '#9ca3af',
 };
+
+function arrowStyleForAction(type: TacticalAction['type']) {
+  switch (type) {
+    case 'pass':
+      return {
+        stroke: 'rgba(255,255,255,0.65)',
+        fill: 'rgba(255,255,255,0.65)',
+        strokeWidth: 1.8,
+        pointerLength: 6,
+        pointerWidth: 6,
+      };
+    case 'shoot':
+      return {
+        stroke: '#facc15',
+        fill: '#facc15',
+        strokeWidth: 2.2,
+        pointerLength: 7,
+        pointerWidth: 7,
+      };
+    case 'dribble':
+      return {
+        stroke: 'rgba(172,229,4,0.85)',
+        fill: 'rgba(172,229,4,0.85)',
+        strokeWidth: 1.8,
+        dash: [3, 3],
+        pointerLength: 5,
+        pointerWidth: 5,
+      };
+    case 'run':
+    default:
+      return {
+        stroke: 'rgba(255,255,255,0.5)',
+        fill: 'rgba(255,255,255,0.5)',
+        strokeWidth: 1.6,
+        dash: [5, 4],
+        pointerLength: 5,
+        pointerWidth: 5,
+      };
+  }
+}
 
 // 0.5 / 1 / 1.5 / 2 come nella guida di riferimento. La velocità moltiplica il
 // tempo simulato, non cambia le durate nel JSON: raddoppiando la velocità
@@ -169,7 +208,7 @@ export default function ExercisePlayerInner({ data, className, editable = false,
    * giocatore, che e' esattamente il difetto che il repair corregge a valle.
    */
   const aggiungiEntita = useCallback(
-    (tipo: 'player' | 'ball' | 'cone' | 'zone') => {
+    (tipo: TacticalEntity['type']) => {
       // Nessun limite sul numero di palle: un esercizio puo' averne piu'
       // di una (es. doppio pallone per la ricezione). Il blocco "una sola
       // palla" era una regola dell'AI, non della lavagna manuale: qui
@@ -205,6 +244,9 @@ export default function ExercisePlayerInner({ data, className, editable = false,
       if (tipo === 'player') {
         nuova.team = 'blue';
         nuova.label = String(indice);
+      } else if (tipo === 'goal') {
+        nuova.width = 14;
+        nuova.height = 4;
       }
       aggiornaScena([...scena, nuova]);
       setSelezionato(nuova.id);
@@ -381,24 +423,61 @@ export default function ExercisePlayerInner({ data, className, editable = false,
         });
       }
 
-      // Modello ACTIONS (retrocompatibilità AI).
-      const action = currentStep?.actions?.find((a) => a.entityId === entity.id);
-      if (!action) return toPx(partenza);
+      // Modello ACTIONS (retrocompatibilità AI + animazioni multi-azione).
+      const stepActions = currentStep?.actions ?? [];
+      const ownActions = stepActions.filter((a) => a.entityId === entity.id);
 
-      const fx = action.from?.x ?? partenza.x;
-      const fy = action.from?.y ?? partenza.y;
-      const tx = action.to?.x ?? fx;
-      const ty = action.to?.y ?? fy;
+      let entityActions = ownActions;
+      if (entity.type === 'ball') {
+        // Quando il possessore conduce palla (`dribble`), il pallone lo segue
+        // negli intervalli in cui la palla non ha un'azione autonoma (pass/shoot).
+        const dribbleActions = stepActions.filter(
+          (a) =>
+            a.type === 'dribble' &&
+            a.entityId !== entity.id &&
+            !ownActions.some((o) => {
+              const aStart = Math.max(0, a.startAt ?? 0);
+              const aEnd = aStart + Math.max(0.1, a.duration ?? 1);
+              const oStart = Math.max(0, o.startAt ?? 0);
+              const oEnd = oStart + Math.max(0.1, o.duration ?? 1);
+              return aStart < oEnd && oStart < aEnd;
+            }),
+        );
+        if (dribbleActions.length > 0) {
+          entityActions = [...ownActions, ...dribbleActions];
+        }
+      }
 
-      const dur = Math.max(0.1, action.duration ?? 1);
-      const attesa = Math.max(0, action.startAt ?? 0);
-      const locale = (progress - attesa) / dur;
-      const t = ease(Math.max(0, Math.min(1, locale)), action.easing);
+      if (entityActions.length === 0) return toPx(partenza);
 
-      return toPx({
-        x: fx + (tx - fx) * t,
-        y: fy + (ty - fy) * t,
-      });
+      const ordered = [...entityActions].sort(
+        (a, b) => Math.max(0, a.startAt ?? 0) - Math.max(0, b.startAt ?? 0),
+      );
+
+      let currentPoint = { x: partenza.x, y: partenza.y };
+      for (const action of ordered) {
+        const fx = action.from?.x ?? currentPoint.x;
+        const fy = action.from?.y ?? currentPoint.y;
+        const tx = action.to?.x ?? fx;
+        const ty = action.to?.y ?? fy;
+        const dur = Math.max(0.1, action.duration ?? 1);
+        const attesa = Math.max(0, action.startAt ?? 0);
+
+        if (progress < attesa) {
+          return toPx({ x: fx, y: fy });
+        }
+        if (progress <= attesa + dur) {
+          const locale = (progress - attesa) / dur;
+          const t = ease(Math.max(0, Math.min(1, locale)), action.easing);
+          return toPx({
+            x: fx + (tx - fx) * t,
+            y: fy + (ty - fy) * t,
+          });
+        }
+        currentPoint = { x: tx, y: ty };
+      }
+
+      return toPx(currentPoint);
     },
     [currentStep, progress, posizioniInizio, stepDuration, editable, isPlaying],
   );
@@ -667,6 +746,66 @@ export default function ExercisePlayerInner({ data, className, editable = false,
                   />
                 );
               })}
+
+            {/* Porte / porticine */}
+            {entities
+              .filter((e) => e.type === 'goal')
+              .map((goal) => {
+                const p = toPx(goal);
+                const sideGoal = (goal.x <= 18 || goal.x >= 82) && goal.y > 18 && goal.y < 82;
+                const gwPct = sideGoal ? (goal.height ?? 4) : (goal.width ?? 14);
+                const ghPct = sideGoal ? (goal.width ?? 14) : (goal.height ?? 4);
+                const gw = (gwPct / 100) * INNER_W;
+                const gh = (ghPct / 100) * INNER_H;
+                return (
+                  <Rect
+                    key={goal.id}
+                    x={p.x - gw / 2}
+                    y={p.y - gh / 2}
+                    width={gw}
+                    height={gh}
+                    fill={selezionato === goal.id ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.18)'}
+                    stroke="#ffffff"
+                    strokeWidth={selezionato === goal.id ? 2.5 : 1.8}
+                    cornerRadius={2}
+                    draggable={editable}
+                    onDragStart={() => setSelezionato(goal.id)}
+                    onDragEnd={(e) => spostaEntita(goal.id, e.target.x() + gw / 2, e.target.y() + gh / 2)}
+                    onClick={() => editable && setSelezionato(goal.id)}
+                    onTap={() => editable && setSelezionato(goal.id)}
+                  />
+                );
+              })}
+
+            {/* Frecce tattiche dello step corrente */}
+            {(currentStep?.actions ?? []).map((action, idx) => {
+              if (!action.from || !action.to) return null;
+              const fp = toPx(action.from);
+              const rawTp = toPx(action.to);
+              const dx = rawTp.x - fp.x;
+              const dy = rawTp.y - fp.y;
+              const len = Math.hypot(dx, dy);
+              if (len < 2) return null;
+              const trim = action.type === 'pass' && len > 24 ? 11 : 0;
+              const tp =
+                trim > 0
+                  ? { x: rawTp.x - (dx / len) * trim, y: rawTp.y - (dy / len) * trim }
+                  : rawTp;
+              const style = arrowStyleForAction(action.type);
+              return (
+                <Arrow
+                  key={`${action.entityId}-${action.type}-${idx}`}
+                  points={[fp.x, fp.y, tp.x, tp.y]}
+                  stroke={style.stroke}
+                  fill={style.fill}
+                  strokeWidth={style.strokeWidth}
+                  dash={style.dash}
+                  pointerLength={style.pointerLength}
+                  pointerWidth={style.pointerWidth}
+                  listening={false}
+                />
+              );
+            })}
 
             {/* Pallone */}
             {entities

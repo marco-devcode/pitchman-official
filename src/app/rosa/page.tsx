@@ -3,14 +3,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { usePlayersStore } from '@/store/usePlayersStore';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
-import { scoutRepository } from '@/lib/repositories/scout-repository';
+import { useScoutStore } from '@/store/useScoutStore';
 import {
   FormationModule,
   FORMATIONS,
   DEFAULT_FORMATION,
   PlayerRole,
   Player,
-  ScoutPlayer,
   FORMATION_ROLES,
 } from '@/lib/types';
 import { calculateCoverage, getFirstCriticalSlot, FormationCoverage } from '@/lib/rosa-coverage';
@@ -20,9 +19,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, AlertCircle, RotateCcw, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import { ScoutPlayerSchema } from '@/lib/schemas';
 
 // ── Formation state ──────────────────────────────────────
 interface FormationState {
@@ -41,8 +37,7 @@ const FORMATION_KEY = 'rosa-overview-formation';
 export default function RosaOverviewPage() {
   const { players } = usePlayersStore();
   const { activeSeason } = useSeasonsStore();
-  const { user } = useUser();
-  const firestore = useFirestore();
+  const { scouts: scoutPlayers } = useScoutStore();
 
   const [formation, setFormation] = useState<FormationModule>(() => {
     try {
@@ -119,17 +114,7 @@ export default function RosaOverviewPage() {
     [players, formation]
   );
 
-  // ── Scout / Observed players ──────────────────────────
-  const scoutPlayersQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !activeSeason) return null;
-    return scoutRepository.ref(activeSeason.id);
-  }, [firestore, user, activeSeason]);
-
-  const { data: scoutPlayers } = useCollection<ScoutPlayer>(
-    scoutPlayersQuery,
-    ScoutPlayerSchema as any
-  );
-
+  // ── Scout / Observed players (from useScoutStore) ───────
   const observedPlayers = useMemo(() => {
     if (!scoutPlayers) return [];
     return scoutPlayers.map(sp => ({

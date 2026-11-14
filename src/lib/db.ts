@@ -1,10 +1,9 @@
 
-import Dexie, { type EntityTable, type Table } from 'dexie';
-import type { Player, Match, PlayerMatchStats, MatchLineup, MatchEvent, Season } from './types';
+import Dexie, { type EntityTable } from 'dexie';
 
 export type SyncMutation = {
   id?: number;
-  collection: 'players' | 'matches' | 'playerMatchStats' | 'matchLineups' | 'matchEvents' | 'seasons';
+  collection: 'players' | 'matches' | 'playerMatchStats' | 'matchLineups' | 'matchEvents' | 'seasons' | 'scouts';
   docId: string;
   action: 'add' | 'update' | 'delete' | 'upsert';
   payload: unknown;
@@ -16,17 +15,11 @@ export type SyncMutation = {
 };
 
 class PitchManDB extends Dexie {
-    players!: EntityTable<Player, 'id'>;
-    matches!: EntityTable<Match, 'id'>;
-    playerMatchStats!: Table<PlayerMatchStats, [string, string]>;
-    matchLineups!: EntityTable<MatchLineup, 'matchId'>;
-    matchEvents!: EntityTable<MatchEvent, 'id'>;
-    seasons!: EntityTable<Season, 'id'>;
     syncQueue!: EntityTable<SyncMutation, 'id'>;
 
     constructor() {
         super('PitchManDB');
-        // Versione 9: Aggiunta tabella matchLineups mancante e supporto multi-utente
+        // Versione 9: Schema storico multi-tabella (mantenuto per compatibilità upgrade)
         this.version(9).stores({
             players: 'id, userId, seasonId, name',
             matches: 'id, userId, seasonId, date, status',
@@ -40,9 +33,15 @@ class PitchManDB extends Dexie {
         this.version(10).stores({
             syncQueue: '++id, collection, docId, createdAt'
         });
-        // Versione 11: Rimozione tabella morta matchAttendances
+        // Versione 11: Cache entità affidata a Firestore persistentLocalCache + Zustand persist; Dexie conserva solo syncQueue
         this.version(11).stores({
-            matchAttendances: null
+            players: null,
+            matches: null,
+            matchAttendances: null,
+            playerMatchStats: null,
+            matchLineups: null,
+            matchEvents: null,
+            seasons: null
         });
     }
 }

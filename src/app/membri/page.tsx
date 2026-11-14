@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Edit, Trash2, ChevronUp, ChevronDown, Sparkles, Search, Plus, ChevronRight, Globe, Hospital, Save, Users, Frame, Shield, Network, TrendingUp } from "lucide-react";
+import { PlusCircle, Edit, Trash2, ChevronUp, ChevronDown, Sparkles, Search, Plus, ChevronRight, Globe, Hospital, Save, Users, Frame, Shield, Network, TrendingUp, ClipboardList } from "lucide-react";
 import type { Player, Role, PlayerRole, RoleCategory } from "@/lib/types";
 import type { PlayerCreateData } from "@/lib/repositories/player-repository";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useUserRole } from "@/hooks/useUserRole";
+import { initializeFirebase } from "@/firebase";
 import { migrateRole, getPrimaryRole, ROLE_CATEGORIES } from "@/lib/types";
 import dynamic from "next/dynamic";
 
@@ -16,6 +18,7 @@ const PlayerFormDialog = dynamic(() => import("@/components/squadra/player-form-
 const SmartPlayerDialog = dynamic(() => import("@/components/giocatori/smart-player-dialog").then(mod => mod.SmartPlayerDialog), { ssr: false });
 const ImportTuttocampoDialog = dynamic(() => import("@/components/squadra/import-tuttocampo-dialog").then(mod => mod.ImportTuttocampoDialog), { ssr: false });
 const InjuryFormDialog = dynamic(() => import("@/components/squadra/injury-form-dialog").then(mod => mod.InjuryFormDialog), { ssr: false });
+const PollsDialog = dynamic(() => import("@/components/squadra/polls-dialog").then(mod => mod.PollsDialog), { ssr: false });
 import { FaUserSecret } from "react-icons/fa";
 
 import {
@@ -68,6 +71,7 @@ const STILE_BOX: Record<string, { box: string; testo: string; badge: string }> =
 
 export default function RosaPage() {
   const router = useRouter();
+  const { isCoachOrAbove } = useUserRole();
   const { players, loading: playersLoading, error: playersError, fetchAll, add, update, remove, bulkAdd, removeAll } = usePlayersStore();
   const { activeSeason, loading: seasonsLoading, error: seasonsError, fetchAll: fetchSeasons } = useSeasonsStore();
 
@@ -78,6 +82,9 @@ export default function RosaPage() {
   const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [isInjuryFormOpen, setIsInjuryFormOpen] = useState(false);
+  const [isPollsOpen, setIsPollsOpen] = useState(false);
+  const [pollsInitialView, setPollsInitialView] = useState<'list' | 'create'>('list');
+  const [openPollsCount, setOpenPollsCount] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -90,6 +97,41 @@ export default function RosaPage() {
     };
     initialize();
   }, [fetchAll, fetchSeasons]);
+
+  useEffect(() => {
+    if (!activeSeason?.id || !isCoachOrAbove) {
+      setOpenPollsCount(null);
+      return;
+    }
+    let cancelled = false;
+    const loadCount = async () => {
+      try {
+        const user = initializeFirebase().auth.currentUser;
+        if (!user) return;
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/seasons/${encodeURIComponent(activeSeason.id)}/polls`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data?.polls)) {
+          const openCount = data.polls.filter((p: { status?: string }) => p.status === 'open').length;
+          setOpenPollsCount(openCount);
+        }
+      } catch {
+        // Offline o errore transitorio: non blocca la schermata Rosa
+      }
+    };
+    void loadCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSeason?.id, isCoachOrAbove]);
+
+  const openPollsModal = (view: 'list' | 'create') => {
+    setPollsInitialView(view);
+    setIsPollsOpen(true);
+  };
 
   const handleOpenForm = (player: Player | null) => {
     setSelectedPlayer(player);
@@ -230,6 +272,18 @@ export default function RosaPage() {
               <div className="flex gap-2">
                 {!isEditMode ? (
                   <>
+                    {isCoachOrAbove && (
+                      <Button
+                        type="button"
+                        onClick={() => openPollsModal('list')}
+                        variant="ghost"
+                        className="h-12 w-12 rounded-full p-0 flex-shrink-0 bg-background dark:bg-black border border-primary/20 dark:border-brand-green/20 text-primary dark:text-brand-green shadow-sm hover:bg-primary/5 dark:hover:bg-brand-green/5 transition-all hover:scale-105 active:scale-95"
+                        title="Sondaggi Spogliatoio"
+                        aria-label="Apri Sondaggi Spogliatoio"
+                      >
+                        <ClipboardList className="h-5 w-5" />
+                      </Button>
+                    )}
                     <Button
                       onClick={() => router.push('/scout')}
                       variant="ghost"
@@ -288,8 +342,9 @@ export default function RosaPage() {
           </div>
 
           {/* Link to Rosa Overview */}
-          <div className="px-3">
+          <div className="px-3 space-y-2">
             <button
+              type="button"
               onClick={() => router.push('/rosa')}
               className="flex items-center gap-3 w-full p-3 rounded-2xl bg-muted/30 dark:bg-card/20 border border-border dark:border-brand-green/20 hover:bg-muted/50 dark:hover:bg-card/30 transition-all"
             >
@@ -304,6 +359,42 @@ export default function RosaPage() {
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>
+
+            {isCoachOrAbove && (
+              <div className="flex items-center gap-2.5 w-full p-3 rounded-2xl bg-muted/30 dark:bg-card/20 border border-border dark:border-brand-green/20">
+                <button
+                  type="button"
+                  onClick={() => openPollsModal('list')}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-brand-green/10 flex items-center justify-center shrink-0">
+                    <ClipboardList className="h-5 w-5 text-primary dark:text-brand-green" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black uppercase tracking-tight truncate">Sondaggi Spogliatoio</span>
+                      {openPollsCount !== null && openPollsCount > 0 && (
+                        <span className="rounded-full bg-primary/15 dark:bg-brand-green/15 px-2 py-0.5 text-[10px] font-black text-primary dark:text-brand-green shrink-0">
+                          {openPollsCount} {openPollsCount === 1 ? 'attivo' : 'attivi'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[9px] font-bold uppercase text-muted-foreground dark:text-muted-foreground/60 tracking-widest truncate">
+                      Link gruppo WhatsApp o individuali per i giocatori
+                    </p>
+                  </div>
+                </button>
+                <Button
+                  type="button"
+                  onClick={() => openPollsModal('create')}
+                  size="sm"
+                  className="h-9 rounded-xl bg-primary dark:bg-brand-green text-white dark:text-black font-black uppercase text-[10px] tracking-wider px-3 shrink-0 hover:opacity-90"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Crea Sondaggio
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2 px-3">
@@ -467,6 +558,15 @@ export default function RosaPage() {
         open={isInjuryFormOpen}
         onOpenChange={setIsInjuryFormOpen}
       />
+
+      {isCoachOrAbove && (
+        <PollsDialog
+          open={isPollsOpen}
+          onOpenChange={setIsPollsOpen}
+          initialView={pollsInitialView}
+          onPollsChanged={setOpenPollsCount}
+        />
+      )}
     </div>
   );
 }

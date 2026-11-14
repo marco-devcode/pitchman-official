@@ -254,6 +254,36 @@ describe('repairDrill — azioni', () => {
     expect(r!.drill.sequence.length).toBeLessThanOrEqual(6);
   });
 
+  it('trasferisce il possesso dopo un passaggio e converte la corsa successiva in dribble', () => {
+    const r = repairDrill(
+      drillWith(
+        [player('p1', 20, 50, true), player('p2', 55, 50), ball('ball', 20, 50)],
+        [
+          {
+            id: 's1',
+            description: 'p1 passa a p2 e p2 si sposta in avanti nello stesso step',
+            duration: 3000,
+            actions: [
+              { id: 'a1', type: 'pass', subject: 'ball', target: 'p2', startAt: 0, duration: 700 },
+              { id: 'a2', type: 'run', subject: 'p2', to: { x: 75, y: 50 }, startAt: 900, duration: 1000 },
+            ],
+          },
+          {
+            id: 's2',
+            description: 'p1 fa una sovrapposizione senza palla',
+            duration: 2000,
+            actions: [
+              { id: 'a3', type: 'run', subject: 'p1', to: { x: 60, y: 20 }, startAt: 0, duration: 1200 },
+            ],
+          },
+        ],
+      ),
+    );
+    expect(r).not.toBeNull();
+    expect(r!.drill.sequence[0].actions[1].type).toBe('dribble');
+    expect(r!.drill.sequence[1].actions[0].type).toBe('run');
+  });
+
   it('non muta il drill di ingresso', () => {
     const ingresso = drillWith([player('p1', 140, 140, true), player('p2', 60, 60)]);
     const copia = JSON.stringify(ingresso);

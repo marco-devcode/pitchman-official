@@ -43,7 +43,7 @@ interface AuthState {
   signUp: (email: string, password: string, username?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  setAuth: (user: FirebaseUser | null) => Promise<void>;
+  setAuth: (user: FirebaseUser | null, forceRefresh?: boolean) => Promise<void>;
 }
 
 if (typeof window !== 'undefined') {
@@ -159,8 +159,8 @@ export const useAuthStore = create<AuthState>()(
             headers: { 'Authorization': `Bearer ${idToken}` }
           });
 
-          // Force immediate state update to prevent race conditions during navigation
-          await useAuthStore.getState().setAuth(result.user);
+          // Force immediate state update with refreshed claims to prevent race conditions during navigation
+          await useAuthStore.getState().setAuth(result.user, true);
 
           return { success: true };
         } catch (error: any) {
@@ -185,11 +185,11 @@ export const useAuthStore = create<AuthState>()(
           console.error("Logout error:", error);
         }
       },
-      setAuth: async (firebaseUser) => {
+      setAuth: async (firebaseUser, forceRefresh = false) => {
         if (firebaseUser) {
           const username = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Utente';
           try {
-            const tokenResult = await firebaseUser.getIdTokenResult(true);
+            const tokenResult = await firebaseUser.getIdTokenResult(forceRefresh);
             const role = (tokenResult.claims.role as AccountRole) || 'coach';
             set({ 
               isAuthenticated: true, 

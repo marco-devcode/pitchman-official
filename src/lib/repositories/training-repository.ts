@@ -104,17 +104,29 @@ export const trainingRepository = {
     return snapshot.docs.map(doc => ({ ...doc.data(), playerId: doc.id } as TrainingAttendance));
   },
 
-  async getAllAttendanceForSeason(seasonId: string, sessionIds: string[]) {
+  async getAllAttendanceForSeason(seasonId: string, sessionIds: string[], sessions?: TrainingSession[]) {
     if (!seasonId) return [];
-    const db = getFirestore();
-    const allAttendance: { sessionId: string, attendance: TrainingAttendance[] }[] = [];
-    
-    // Per un numero limitato di sessioni carichiamo in parallelo
+    const sessionsById = new Map(sessions?.map((s) => [s.id, s]) ?? []);
+    const allAttendance: { sessionId: string; attendance: TrainingAttendance[] }[] = [];
+
+    // Usa le presenze già denormalizzate sul documento sessione quando presenti,
+    // evitando N query Firestore sulle sottocollezioni per ogni sessione.
     await Promise.all(sessionIds.map(async (sid) => {
+      const cachedSession = sessionsById.get(sid);
+      if (cachedSession && Array.isArray(cachedSession.attendances)) {
+        allAttendance.push({
+          sessionId: sid,
+          attendance: cachedSession.attendances.map((a) => ({
+            playerId: a.playerId,
+            status: a.status,
+          })),
+        });
+        return;
+      }
       const att = await this.getAttendance(seasonId, sid);
       allAttendance.push({ sessionId: sid, attendance: att });
     }));
-    
+
     return allAttendance;
   },
 

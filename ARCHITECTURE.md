@@ -26,12 +26,17 @@ query. Non duplicare query tra store.
 | `useStatsStore` | `teams/{seasonId}/aggregates` |
 | `useSettingsStore` | `settings/{uid}` |
 | `useTestsStore` | `teams/{seasonId}/physicalTests` |
+| `useScoutStore` | `teams/{seasonId}/scouts` (+ `scoutCategories`) |
 | `useExerciseStore` | `exercises` (libreria esercizi, per utente) |
 | `usePresenceStore` | `teams/{seasonId}/presence` |
 
-Gli **osservati non hanno uno store**: `scout-repository` li legge e scrive
-direttamente nelle schermate che li mostrano (`/scout`, il riepilogo in
-`/rosa`). `teams/{seasonId}/scouts` e `scoutCategories`.
+Gli **osservati** usano `useScoutStore` (con persistenza Zustand e
+sottoscrizione real-time in `usePrefetch`, come `usePlayersStore`), leggendo e
+scrivendo `teams/{seasonId}/scouts` e `scoutCategories` per singola squadra.
+Quando il direttore sportivo (in `/director`, tramite `/api/director/seasons`)
+o un utente multi-stagione (in `/scout`) accede a più squadre, i profili vengono
+presentati anche in **visione unificata cross-squadra** con il tag del nome
+della squadra che li tiene in osservazione.
 
 I path non sono qui per documentazione: `src/lib/season-collections.ts` e' il
 registro unico di tutte le collection di stagione, con un test che lo
@@ -74,6 +79,10 @@ Tutta la logica "use-case" (chiamate AI, aggregazioni, business rules) vive in
 I repository (`src/lib/repositories/*`) sono il livello CRUD Firestore puro,
 senza logica di dominio. Le AI flow (`src/ai/flows/*`) sono i prompt Genkit.
 
+### Offline e persistenza (architettura semplificata)
+- **Lettura e stato offline**: affidati alla coppia **Firestore `persistentLocalCache`** + **Zustand `persist`** (`localStorage` su store critici come giocatori, osservati e statistiche).
+- **Scritture differite**: Dexie/IndexedDB (`src/lib/db.ts`, schema v11) mantiene esclusivamente la tabella `syncQueue` per registrare mutazioni offline puntuali (`matchLineups`, `matchEvents`, update su `players`, `matches`, `scouts` e `playerMatchStats`) e scaricarle automaticamente via `flushQueue` al ritorno online (`src/lib/sync-queue.ts`). Tutte le vecchie tabelle entità duplicate in Dexie sono state rimosse.
+
 ## Gestione errori / loading (centralizzata)
 Prima ogni dialogo AI gestiva `isLoading`/`isAnalyzing`/`console.error` a modo
 suo. Ora c'è un pattern unico:
@@ -93,12 +102,12 @@ sono coperte dal pattern sopra).
 ## Struttura directory
 ```
 src/
-  app/            # routes (App Router, 24 pagine + 21 API) + error.tsx per sezione
+  app/            # routes (App Router, 25 pagine + 24 API) + error.tsx per sezione
   ai/             # flussi Genkit + genkit.ts
   components/
     ui/           # primitivi shadcn + async-feedback
     layout/       # header, bottom-nav, auth/role guard
-    ai/ giocatori/ partite/ allenamento/ calendario/ scout/ statistiche/ legal/  # componenti di dominio
+    ai/ giocatori/ partite/ allenamento/ calendario/ squadra/ scout/ statistiche/ legal/  # componenti di dominio
   lib/
     repositories/ # CRUD Firestore
     hooks/        # useAsyncAction
@@ -115,9 +124,17 @@ src/
   membership/ownership per stagione (`isMember(seasonId)`, `isOwnerOf(seasonId)`,
   `isSeasonDirector(seasonId)`), riservano al server `create`/`delete` su
   `/teams/{seasonId}` e bloccano lato client le collection server-only
-  (`invites`, `rateLimits`, `aiUsage`, `aiCache`, `feedback`).
+  (`invites`, `rateLimits`, `aiUsage`, `aiCache`, `feedback`, e per catch-all
+  anche la collection `polls/{pollId}`).
+- **Sondaggi Spogliatoio (`polls/{pollId}`)**: gestiti esclusivamente via
+  Admin SDK. L'allenatore crea e consulta i sondaggi da Rosa (`/membri` tramite
+  `PollsDialog` -> `/api/seasons/[seasonId]/polls`), mentre i giocatori rispondono
+  senza account OAuth dalla pagina pubblica `/sondaggio/[pollId]` tramite token di
+  gruppo (`?g=...`) o token individuale (`?t=...`) validati server-side da
+  `/api/polls/[pollId]`. In modalità anonima `completedPlayerIds` traccia la
+  consegna ma `responses` omette `playerId`/`playerName`.
 - Gating UI: `RoleGuard` + `useUserRole` (`AuthGuard` lascia pubbliche senza
-  login `/login`, `/landing`, `/privacy`, `/termini`).
+  login `/login`, `/landing`, `/privacy`, `/termini` e `/sondaggio/*`).
 - `middleware.ts` (preventivo): rifiuta le richieste a `/api/admin/*` prive di
   header `Authorization`. La verifica vera del token/ruolo resta nelle route
   handler (es. `set-role` controlla `role === 'developer'`). Le page autenticate

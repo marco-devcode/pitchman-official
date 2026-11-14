@@ -1,103 +1,45 @@
 # 🗺️ PitchMan — Roadmap & Miglioramenti
 
-> **Come leggerlo.** Le voci con `[x]` sono fatte e c'è il path del codice.
-> Quelle senza sono proposte. Quando una voce è già nel codice ma qui sembra
-> da fare, il documento è il problema, non il lavoro: la Roadmap non è lo
-> stato dell'app.
->
-> **Stato verificato al 2026-10-05** contro `main` @ `668755f`.
-
-Customer assistance in ? Research su documentazione FAQ e in ultima battuta cliccando su Non ho trovato la risposta apre chat con AI con accesso a documentazione e può rispondere solo a domande inerenti a come usare l'app e a che cosa fa l'app.
-
-## 🔴 Bug & Fix Immediati
-- [ ] **Hydration Errors nei Modali**: Con React 19 / Next.js e componenti headless (Radix UI), verificare e prevenire avvisi di mismatch HTML tra il server rendering e la visualizzazione locale.
+> **Come leggerlo.** Questo file raccoglie esclusivamente le ottimizzazioni e le
+> nuove funzionalità **ancora da sviluppare**. Le attività già completate sono
+> state rimosse per mantenere la roadmap snella e allineata allo stato reale del
+> codice (aggiornato al `2026-11-14`).
 
 ---
 
-## 🟡 Ottimizzazioni
+## 🟡 Ottimizzazioni & Sicurezza
 
-### Developer mode
-- Il developer ha accesso alle funzioni di import da tuttocampo con login, per rosa e calendario. Poi bisogna aggiornare la cronaca eventi, la proposta è uno scraping settimanale automatizzato con cronjob
-
-### Sicurezza
-- [x] **Validazione password al signup** — Implementata in `src/app/login/page.tsx` (`validatePassword`: minimo 8 caratteri, numero e carattere speciale) con feedback nell'UI di registrazione.
-- [ ] **Firebase App Check**
-
-### Codice
-
-- [x] **Gestione Errori Globali (Global Error Boundary)** — 6 file: `app/error.tsx`, `app/global-error.tsx` e un `error.tsx` per `allenamento`, `calendario`, `membri`, `statistiche`.
-- [x] **Design Pattern "Service Layer" per l'AI** — `src/services/ai.service.ts` con test, più `stats-advanced-service.ts`. I flussi Genkit non sono più chiamati dal componente.
-- [x] **Condivisione formazione come PNG** — Implementata in `src/lib/lineup-share.ts` e collegata in `match-lineup-tab.tsx` (resta opzionale verifica visiva finale sul campo reale).
-- [x] **Import da immagine (OCR)** — `src/lib/ai/file-extractor.ts`, usato dai flussi di import.
-- [ ] **Ruolo `player`** — `AccountRole` lo dichiara, `assign-role` lo assegna e `useUserRole().isPlayer` lo calcola, ma nessuna route né nessun guard lo tratta come caso proprio: un account con quel ruolo si comporta come un coach che non ha ancora ricevuto inviti. Serve decidere cosa può vedere un giocatore.
+- [ ] **Developer mode — Cronjob Tuttocampo**: automatizzare con un cronjob settimanale l'aggiornamento post-partita della cronaca eventi (l'import manuale di rosa e calendario è già attivo).
+- [ ] **Firebase App Check**: proteggere endpoint API, quota Firestore e flussi AI tramite reCAPTCHA Enterprise e verifica client.
+- [ ] **Ruolo `player` (Portale Giocatore)**: definire permessi, guard e interfaccia dedicata per gli account con `AccountRole = 'player'` (già predisposto in `src/lib/types.ts`, `src/hooks/useUserRole.ts`, `/api/admin/set-role` e `/api/private/assign-role`, ma al momento privo di viste dedicate).
 
 ---
 
-## 🟢 Nuove Funzionalità
-Scheda percentuali di lavoro per focus minuti/su totale allenamento.
+## 🟢 Nuove Funzionalità (Roadmap)
 
-Elabora logica quando nascondere navbar e barra sopra
+### 💬 Assistenza & Supporto
+- [ ] **Customer Assistance / Help Center AI**: ricerca su FAQ e documentazione interna con fallback a chat AI vincolata a rispondere esclusivamente su funzionamento e uso di PitchMan.
 
-Aggiungi freccia in basso dettagli aggiuntivi in cronaca: Aggiungi dove è entrato il pallone per gol
-Aggiungi da dove è partito il tiro
+### 🏋️ Allenamenti
+- [ ] **Percentuali lavoro per focus**: scheda riepilogativa con ripartizione percentuale dei minuti per focus sul totale dell'allenamento.
+- [ ] **Calendario mensile allenamenti**: vista calendario con scheda del giorno e anteprima di presenze e focus (direttamente nella cella o nel pannello sottostante al click).
+- [ ] **Collegamento partite ↔ allenamenti**: navigazione bidirezionale tra partita disputata, formazione utilizzata e allenamento pre-gara.
+- [ ] **Editor esercizi avanzato**: creazione e generazione di esercizi tramite AI / vision e miglioramenti all'editor tattico.
 
-Test toolbar vercel
+### ⚽ Cronaca & Partite
+- [ ] **Dettagli avanzati gol in cronaca**: freccia espandibile sui gol in cronaca per registrare punto di partenza del tiro e zona della porta in cui è entrato il pallone.
 
-Offline-first reale
-Hai già IndexedDB via Dexie e sei una PWA, ma il valore si realizza solo se la formazione si può inserire e inviare anche senza connessione, con sync automatico al ritorno online. Un allenatore in uno spogliatoio spesso non ha segnale. Zustand + Dexie sono già lì — manca la logica di sync queue.
+### 📊 Spogliatoio & Statistiche
+- [ ] **Referto pagelle partita AI**: generazione assistita delle pagelle post-partita.
+- [ ] **Export statistiche in PDF**: report stampabile di fine stagione.
 
-Stato disponibilità giocatori integrato nel flusso
-Da membri/ gestisci la rosa, ma al momento dell'inserimento formazione probabilmente non vedi subito chi è infortunato o diffidato. Quell'informazione deve entrare dentro la schermata di formazione, non stare su un'altra pagina.
-
-allenamenti e formazioni non si linkano tra loro (es. clicchi una partita → vedi formazione usata → vedi allenamento pre-gara)
-
-"Formazione tipo" emergente
-Analisi automatica delle ultime N partite per rilevare qual è la formazione che statisticamente hai usato di più, con quali giocatori fissi e quali variabili. Presentata come insight in statistiche in un tab 11.
-
-Opzionale:
-Visualizza gli allenamenti su un calendario con all'interno del giorno la scheda allenamento, clicca sul giorno per vedere la scheda sotto al calendario con anteprima presenza e focus oppure se riusciamo a mettere direttamente dentro al giorno questi dati.
-
-Futuro app:
-Editor esercizi
-Crea esercizi con AI, addestra un vision e un replica
-Modalità spogliatoio con sondaggi e questionari privati
-
-### ⚽ Gestione Partite
-- [x] **Condivisione formazione** — Implementata con `src/lib/lineup-share.ts` (generazione immagine PNG del layout tattico da `match-lineup-tab.tsx`).
-
-### 📊 Statistiche Avanzate
-- [ ] **Export statistiche in PDF** — Report di fine stagione stampabile.
-
-### 🤖 AI & Automazione
-- [x] **Import rosa da foto** — Implementata tramite `src/lib/ai/file-extractor.ts` e flussi AI di importazione rosa/calendario da immagine/documento.
-
-### 📱 Mobile & PWA
-- [ ] **Estensione Leggera Smartwatch** — Esplorare lo sviluppo di un mini target layout indossabile per prendere presenze on-the-go o far scattare un cronometro partita live dall'orologio da polso.
-
-### 🔧 Impostazioni & UX
-- [x] **Redesign Neon High-Viz** — Applicare il nuovo tema scuro/chiaro con i colori ufficiali del brand a tutte le schermate principali.
-- [ ] **Profilo allenatore** — Aggiungere logo, colori sociali personalizzabili nelle impostazioni.
-- [ ] **Multi-lingua** — L'app è tutta in italiano. Aggiungere supporto `i18n` (almeno IT/EN) con `next-intl`.
-- [ ] **Onboarding automatizzato** — Tour interattivo alla prima apertura con micro-animazioni.
-- [ ] **Esportazioni Dati Aggregate** — Pulsante di Export Excel / CSV immediato basato sulle tabelle statistiche, necessario per presidenti / scouting manager che preferiscono la carta.
-- [ ] **Backup automatico (Cloud Scheduling)** — Esportazione periodica programmata dei database critici verso Google Cloud Storage / Drive come disaster recovery di primo livello.
-
----
-
-## 🚀 Feature Rivoluzionarie (Game Changers)
-
-### 🧩 Automazione & Campo
-- [x] **Cronometro Match con Eventi** — Implementata con `src/components/partite/floating-match-timer.tsx`, `live-match-tracker.tsx` e `useLiveTimerStore`.
-
-### 🧠 Intelligenza Artificiale
-- [x] **AI Assistant "Best 11"** — Implementata con `src/ai/flows/suggest-lineup-flow.ts`, `AIService.suggestLineup` e `src/components/partite/smart-lineup-dialog.tsx`.
-
-## 🛠️ Ottimizzazioni Tecniche e Architetturali
-
-### 🎨 Design System
-- [x] **Standardizzazione Design Tokens** — Implementata in `src/app/globals.css` (incluso `--brand-lime`) e `src/lib/design-tokens.ts`.
-
-### 🏗️ Codice & Stabilità
+### 🔧 Impostazioni, UX & Piattaforma
+- [ ] **Logo squadra personalizzato**: upload del logo del club nelle impostazioni del profilo (i colori tema personalizzabili sono già presenti).
+- [ ] **Auto-hide barre di navigazione**: rifinire la logica di scomparsa/comparsa di navbar e barra superiore durante scroll e flussi operativi.
+- [ ] **Multi-lingua (`i18n`)**: supporto italiano/inglese tramite `next-intl`.
+- [ ] **Onboarding interattivo**: tour guidato alla prima apertura dell'app.
+- [ ] **Backup automatico su Cloud**: esportazione periodica programmata verso Google Cloud Storage / Drive.
+- [ ] **Companion Smartwatch (WearOS / Apple Watch)**: layout leggero da polso per presenze rapide e controllo del cronometro live a bordo campo.
 
 ---
 
@@ -105,10 +47,9 @@ Modalità spogliatoio con sondaggi e questionari privati
 
 | Priorità | Attività | Impatto |
 |----------|----------|---------|
-| 🔴 Alta | Implementazione Caching (SWR/React Query) | Riduzione costi Firestore e UI responsiva |
-| 🔴 Alta | Prevenzione Hydration Errors e Global Error Boundary | Resilienza PWA ed eliminazione freeze improvvisi |
-| 🟡 Media | Cronometro Live e Gestione formati Export Dati | UX ad alte aspettative per direttori sportivi |
-| 🟡 Media | Integrazione Vector Search AI per Scouting | Differenziazione competitiva assoluta |
-| 🟡 Media | Firebase App Check | Sicurezza budget as a service |
-| 🟢 Bassa | Layout companion WearOS / Apple Watch | WOW Factor / Usability "a bordo campo" |
-| 🟢 Bassa | Generazione referto pagelle partita by AI | Engagement Premium / Giocatori |
+| 🟡 Media | Firebase App Check | Protezione API, quote AI e accesso Firestore |
+| 🟡 Media | Portale ruolo `player` | Accesso dedicato in sola lettura per i calciatori della rosa |
+| 🟡 Media | Export statistiche di fine stagione in PDF | Reportistica stampabile per società e dirigenti |
+| 🟡 Media | Integrazione Vector Search AI per Scouting | Ricerca semantica e confronto profili osservati |
+| 🟢 Bassa | Companion Smartwatch (WearOS / Apple Watch) | Operatività rapida "a bordo campo" |
+| 🟢 Bassa | Generazione referto pagelle partita AI | Engagement post-gara |

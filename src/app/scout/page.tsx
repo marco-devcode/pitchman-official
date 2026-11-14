@@ -2,42 +2,42 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
-import { useSWRConfig } from "swr";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Tag, Search, Filter, Trash2, Edit, UserPlus, Info } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, doc, deleteDoc } from "firebase/firestore";
+import { PlusCircle, Tag, Search, Filter, Trash2, Edit, UserPlus, Shield } from "lucide-react";
 import { ScoutPlayerDialog } from "@/components/scout/scout-player-dialog";
 import { ScoutCategoryDialog } from "@/components/scout/scout-category-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ScoutPlayerSchema, ScoutCategorySchema } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import * as React from "react";
-import type { ScoutPlayer, ScoutCategory } from "@/lib/types";
+import type { ScoutPlayer } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
 import { displayPlayerName } from "@/lib/utils";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
-import { scoutRepository } from "@/lib/repositories/scout-repository";
+import { useScoutStore } from "@/store/useScoutStore";
 
 // Sub-component to safely use useSearchParams
 function ScoutContent() {
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const { mutate } = useSWRConfig();
   const searchParams = useSearchParams();
-  // Gli osservati sono un dato di SQUADRA: senza stagione attiva non c'e' nulla
-  // da mostrare, e con il path sotto `users/{uid}` non c'era piu' nulla da
-  // condividere col direttore sportivo.
-  const { activeSeason } = useSeasonsStore();
+  // Gli osservati sono gestiti per squadra/stagione tramite useScoutStore (simile a usePlayersStore).
+  const { activeSeason, seasons } = useSeasonsStore();
   const seasonId = activeSeason?.id ?? null;
+  const {
+    scouts,
+    categories,
+    allTeamsScouts,
+    loading: playersLoading,
+    fetchAllTeamsScouts,
+    remove,
+  } = useScoutStore();
 
+  const [viewScope, setViewScope] = useState<'active' | 'all'>('active');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [isPlayerDialogOpen, setIsPlayerDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -49,6 +49,13 @@ function ScoutContent() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [visibleCount, setVisibleCount] = useState(12);
   const observerTarget = React.useRef<HTMLDivElement>(null);
+
+  // Carica la visione cross-squadra quando richiesta e sincronizza su variazioni degli osservati attivi
+  React.useEffect(() => {
+    if (viewScope === 'all') {
+      void fetchAllTeamsScouts();
+    }
+  }, [viewScope, scouts, seasons.length, fetchAllTeamsScouts]);
 
   // Check URL params specifically on mount or when they change
   React.useEffect(() => {
@@ -83,25 +90,23 @@ function ScoutContent() {
     setVisibleCount(12);
   }, [debouncedSearchTerm, selectedCategoryIds]);
 
-  // Queries Firestore
-  const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || !seasonId) return null;
-    return scoutRepository.categoriesRef(seasonId);
-  }, [firestore, seasonId]);
-
-  const playersQuery = useMemoFirebase(() => {
-    if (!firestore || !seasonId) return null;
-    return scoutRepository.ref(seasonId);
-  }, [firestore, seasonId]);
-
-  const { data: categories, isLoading: catLoading } = useCollection<ScoutCategory>(categoriesQuery, ScoutCategorySchema as any);
-  const { data: players, isLoading: playersLoading } = useCollection<ScoutPlayer>(playersQuery, ScoutPlayerSchema as any);
+  // Sorgente dati da useScoutStore (stagione attiva o tutte le squadre accessibili)
+  const players = useMemo(() => {
+    if (viewScope === 'all' && seasons.length > 1) {
+      return allTeamsScouts;
+    }
+    return scouts.map((s) => ({
+      ...s,
+      seasonId: s.seasonId || seasonId || '',
+      seasonName: activeSeason?.name || '',
+    }));
+  }, [viewScope, seasons.length, allTeamsScouts, scouts, seasonId, activeSeason?.name]);
 
   const filteredPlayers = useMemo(() => {
-    if (!players) return [];
     return players.filter(p => {
       const matchCat = selectedCategoryIds.length === 0 || selectedCategoryIds.every(catId => p.categoryIds?.includes(catId));
-      const matchSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (p.seasonName && p.seasonName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
       return matchCat && matchSearch;
     });
   }, [players, selectedCategoryIds, debouncedSearchTerm]);
@@ -115,10 +120,9 @@ function ScoutContent() {
   };
 
   const confirmDeletePlayer = async () => {
-    if (!playerToDelete || !user || !seasonId) return;
+    if (!playerToDelete || !seasonId) return;
     try {
-      await scoutRepository.remove(seasonId, playerToDelete.id);
-      await mutate(`teams/${seasonId}/scouts`);
+      await remove(playerToDelete.id);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Errore", description: "Impossibile eliminare l'osservato." });
       console.error("Delete Error:", err);
@@ -154,12 +158,40 @@ function ScoutContent() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary dark:text-brand-green" />
             <Input
-              placeholder="Cerca osservato per nome..."
+              placeholder="Cerca osservato per nome o squadra..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 h-10 w-full rounded-2xl border-border dark:border-brand-green/30 bg-card dark:bg-black/40 text-foreground dark:text-white font-bold text-sm focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-brand-green shadow-sm dark:shadow-themesoft placeholder:text-muted-foreground dark:text-muted-foreground/30 dark:placeholder:text-white/20"
             />
           </div>
+          {seasons.length > 1 && (
+            <div className="flex items-center gap-1.5 bg-card dark:bg-black/40 border border-border dark:border-brand-green/30 p-1 rounded-2xl shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewScope('active')}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                  viewScope === 'active'
+                    ? "bg-primary dark:bg-brand-green text-white dark:text-black"
+                    : "text-muted-foreground hover:text-foreground dark:hover:text-white"
+                )}
+              >
+                {activeSeason?.name || 'Squadra attiva'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewScope('all')}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                  viewScope === 'all'
+                    ? "bg-primary dark:bg-brand-green text-white dark:text-black"
+                    : "text-muted-foreground hover:text-foreground dark:hover:text-white"
+                )}
+              >
+                Tutte le squadre ({seasons.length})
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 px-1">
@@ -220,8 +252,10 @@ function ScoutContent() {
           </Card>
         ) : (
           <>
-            {visiblePlayers.map((player) => (
-              <Card key={player.id} className="overflow-hidden border border-border dark:border-brand-green/30 bg-card dark:bg-black/40 backdrop-blur-sm shadow-sm dark:shadow-theme rounded-3xl transition-all group hover:opacity-90">
+            {visiblePlayers.map((player) => {
+              const isOwnSeason = !player.seasonId || player.seasonId === seasonId;
+              return (
+              <Card key={`${player.seasonId || seasonId}-${player.id}`} className="overflow-hidden border border-border dark:border-brand-green/30 bg-card dark:bg-black/40 backdrop-blur-sm shadow-sm dark:shadow-theme rounded-3xl transition-all group hover:opacity-90">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col">
@@ -229,28 +263,42 @@ function ScoutContent() {
                         {displayPlayerName(player as any)}
                       </h4>
                       <span className="text-[9px] font-bold text-muted-foreground dark:text-muted-foreground/60 dark:text-white/30 uppercase tracking-wider mt-0.5">
-                        {player.role} • {player.currentTeam}
+                        {player.role} {player.currentTeam ? `• ${player.currentTeam}` : ''}
                       </span>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 dark:hover:text-brand-green dark:hover:bg-brand-green/10 transition-all"
-                        onClick={(e) => { e.stopPropagation(); setEditingPlayer(player); setIsPlayerDialogOpen(true); }}
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:text-red-500 dark:hover:bg-red-500/10 transition-all"
-                        onClick={(e) => { e.stopPropagation(); setPlayerToDelete(player); }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    {isOwnSeason && (
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 dark:hover:text-brand-green dark:hover:bg-brand-green/10 transition-all"
+                          onClick={(e) => { e.stopPropagation(); setEditingPlayer(player); setIsPlayerDialogOpen(true); }}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:text-red-500 dark:hover:bg-red-500/10 transition-all"
+                          onClick={(e) => { e.stopPropagation(); setPlayerToDelete(player); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
+
+                  {player.seasonName && (
+                    <div className="mb-2">
+                      <Badge
+                        variant="outline"
+                        className="inline-flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded-md border-primary/30 dark:border-brand-green/30 bg-primary/5 dark:bg-brand-green/10 text-primary dark:text-brand-green"
+                      >
+                        <Shield className="h-2.5 w-2.5" />
+                        {player.seasonName}
+                      </Badge>
+                    </div>
+                  )}
 
                   {player.notes && (
                     <p className="text-[10px] text-foreground/70 dark:text-white/70 leading-relaxed mb-3 line-clamp-2 italic select-text">
@@ -259,7 +307,7 @@ function ScoutContent() {
                   )}
 
                   <div className="flex flex-wrap gap-1 mt-auto">
-                    {player.categoryIds?.map((catId: string) => {
+                    {isOwnSeason && player.categoryIds?.map((catId: string) => {
                       const cat = categories?.find(c => c.id === catId);
                       if (!cat) return null;
                       return (
@@ -275,7 +323,7 @@ function ScoutContent() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );})}
             {/* Observer Target per Infinite Scroll */}
             {visiblePlayers.length < filteredPlayers.length && (
               <div ref={observerTarget} className="col-span-full h-10 flex items-center justify-center">

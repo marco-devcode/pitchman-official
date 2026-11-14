@@ -5,9 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { SplashScreen } from '@/components/layout/splash-screen';
-import { usePlayersStore } from '@/store/usePlayersStore';
-import { useMatchesStore } from '@/store/useMatchesStore';
-import { useTrainingStore } from '@/store/useTrainingStore';
 import { useStatsStore } from '@/store/useStatsStore';
 import { useSeasonsStore } from '@/store/useSeasonsStore';
 import { useAppStore } from '@/store/useAppStore';
@@ -22,14 +19,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const { hasInitialized, setHasInitialized } = useAppStore();
 
-  // Pagine pubbliche (legali + landing page): non richiedono autenticazione
-  const isPublicLegal = pathname === '/termini' || pathname === '/privacy' || pathname === '/landing';
+  // Pagine pubbliche (legali, landing e sondaggi giocatore via token): non richiedono autenticazione
+  const isPublicLegal =
+    pathname === '/termini' ||
+    pathname === '/privacy' ||
+    pathname === '/landing' ||
+    pathname.startsWith('/sondaggio');
 
   const { fetchSettings } = useSettingsStore();
-  const { fetchAll: fetchSeasons } = useSeasonsStore();
-  const { fetchAll: fetchPlayers } = usePlayersStore();
-  const { fetchAll: fetchMatches } = useMatchesStore();
-  const { fetchAll: fetchTrainings } = useTrainingStore();
+  const { fetchAll: fetchSeasons, resetSeasons } = useSeasonsStore();
   const { loadDetailedStats } = useStatsStore();
 
   useEffect(() => {
@@ -37,35 +35,71 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const initData = async () => {
-      if (mounted && isInitialized && isAuthenticated && user && !hasInitialized) {
-        try {
-          // 1. Settings e Stagioni
-          await Promise.all([
-            fetchSettings(user.id),
-            fetchSeasons()
-          ]);
+    if (!mounted || !isInitialized) return;
 
-          // 2. I dati che dipendono dalla stagione attiva
-          const season = useSeasonsStore.getState().activeSeason;
-          if (season) {
-            await Promise.all([
-              fetchPlayers(),
-              fetchMatches(season.id),
-              fetchTrainings(),
-              loadDetailedStats(season.id)
-            ]);
-          }
-        } catch (error) {
-          console.error("Global init error:", error);
-        } finally {
+    if (!isAuthenticated || !user) {
+      resetSeasons();
+      return;
+    }
+
+    if (hasInitialized) return;
+
+    let cancelled = false;
+    // Garanzia hard-cap: lo splash screen non deve mai bloccarsi oltre 3s su reti lente
+    const safetyTimer = setTimeout(() => {
+      if (!cancelled) setHasInitialized(true);
+    }, 3000);
+
+    const scheduleBackgroundWarmup = () => {
+      setTimeout(() => {
+        if (cancelled) return;
+        const seasonId = useSeasonsStore.getState().activeSeason?.id;
+        if (seasonId) {
+          void loadDetailedStats(seasonId);
+        }
+      }, 250);
+    };
+
+    const initData = async () => {
+      const seasonsState = useSeasonsStore.getState();
+      const sameUserCachedSeason =
+        seasonsState.ownerUserId === user.id && seasonsState.activeSeason !== null;
+
+      if (seasonsState.ownerUserId && seasonsState.ownerUserId !== user.id) {
+        resetSeasons();
+      }
+
+      if (sameUserCachedSeason) {
+        // Ingresso immediato con stagione in cache; refresh e stats partono in background
+        setHasInitialized(true);
+        void Promise.allSettled([fetchSettings(user.id), fetchSeasons()]).then(() => {
+          scheduleBackgroundWarmup();
+        });
+        return;
+      }
+
+      try {
+        await Promise.all([
+          fetchSettings(user.id),
+          fetchSeasons(),
+        ]);
+      } catch (error) {
+        console.error("Global init error:", error);
+      } finally {
+        if (!cancelled) {
           setHasInitialized(true);
+          scheduleBackgroundWarmup();
         }
       }
     };
 
-    initData();
-  }, [mounted, isInitialized, isAuthenticated, user, hasInitialized, fetchSettings, fetchSeasons, fetchPlayers, fetchMatches, fetchTrainings, loadDetailedStats, setHasInitialized]);
+    void initData();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(safetyTimer);
+    };
+  }, [mounted, isInitialized, isAuthenticated, user, hasInitialized, fetchSettings, fetchSeasons, resetSeasons, loadDetailedStats, setHasInitialized]);
 
   useEffect(() => {
     if (mounted && isInitialized && !isAuthenticated && pathname !== '/login' && !isPublicLegal) {

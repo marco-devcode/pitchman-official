@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { apiError, requireAuth, roleOf } from '@/lib/server/auth';
 import { SEASON_COLLECTIONS, USER_TOP_LEVEL_COLLECTIONS } from '@/lib/season-collections';
-import { DELETE_CONFIRMATION, REAUTH_MAX_AGE_SECONDS } from '@/lib/account-deletion';
 
 export const runtime = 'nodejs';
 
 /** La stringa che l'utente deve digitare. Scelta corta e non ambigua. */
+const DELETE_CONFIRMATION = 'ELIMINA';
+
+/** Token meno vecchio di questo per poter cancellare l'account. */
+const REAUTH_MAX_AGE_SECONDS = 5 * 60;
 /**
  * POST /api/account/delete — elimina l'account e i dati che lo riguardano.
  *

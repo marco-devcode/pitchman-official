@@ -2,6 +2,7 @@
 "use client";
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { seasonRepository } from '@/lib/repositories/season-repository';
 import { activeSeasonRepository } from '@/lib/repositories/active-season-repository';
 import type { Season } from '@/lib/types';
@@ -11,6 +12,7 @@ import { getErrorMessage } from '@/lib/error-utils';
 interface SeasonsState {
     seasons: Season[];
     activeSeason: Season | null;
+    ownerUserId: string | null;
     loading: boolean;
     error: string | null;
     fetchAll: () => Promise<void>;
@@ -19,47 +21,50 @@ interface SeasonsState {
     removeSeason: (id: string) => Promise<void>;
     renameSeason: (id: string, name: string) => Promise<void>;
     joinSeason: (id: string) => Promise<void>;
+    resetSeasons: () => void;
 }
 
-export const useSeasonsStore = create<SeasonsState>((set, get) => ({
+export const useSeasonsStore = create<SeasonsState>()(
+  persist(
+    (set, get) => ({
     seasons: [],
     activeSeason: null,
-    loading: true,
+    ownerUserId: null,
+    loading: false,
     error: null,
+
+    resetSeasons: () => set({ seasons: [], activeSeason: null, ownerUserId: null, loading: false, error: null }),
 
     fetchAll: async () => {
         const user = useAuthStore.getState().user;
         if (!user) {
-            set({ loading: false, seasons: [], activeSeason: null, error: null });
+            set({ loading: false, seasons: [], activeSeason: null, ownerUserId: null, error: null });
             return;
+        }
+
+        if (get().ownerUserId && get().ownerUserId !== user.id) {
+            set({ seasons: [], activeSeason: null, ownerUserId: user.id });
         }
 
         if (get().seasons.length === 0) set({ loading: true, error: null });
         try {
-            const active = await seasonRepository.ensureDefaultSeason(user.id);
-            const all = await seasonRepository.getAll(user.id);
+            const { active, all } = await seasonRepository.ensureDefaultAndGetAll(user.id);
 
             // Ordiniamo le stagioni per data di creazione (dalla più recente alla meno recente)
-            const sorted = all.sort((a, b) =>
+            const sorted = [...all].sort((a, b) =>
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
 
             // Una sola stagione attiva, e la sua identita' viene dalla
             // scelta PERSONALE salvata nel documento utente, non dal campo
             // `isActive` di ogni stagione.
-            //
-            // Il campo isActive esiste ancora sui documenti delle stagioni ma
-            // e' STANTIO: era la sorgente unica quando la stagione non era
-            // condivisa, e su piu' stagioni porta a piu' righe con il badge
-            // "Attiva" contemporaneamente — perche' nessuno le puliva piu'. La
-            // sorgente vera e' activeSeasonId, quindi si DERIVA isActive da
-            // qui invece di leggerlo dal documento.
             const activeId = active?.id ?? (sorted.length > 0 ? sorted[0].id : null);
             const seasonsWithActive = sorted.map((s) => ({ ...s, isActive: s.id === activeId }));
 
             set({
                 seasons: seasonsWithActive,
                 activeSeason: activeId ? seasonsWithActive.find((s) => s.id === activeId) ?? null : null,
+                ownerUserId: user.id,
                 loading: false,
                 error: null,
             });
@@ -158,4 +163,14 @@ export const useSeasonsStore = create<SeasonsState>((set, get) => ({
         await activeSeasonRepository.set(user.id, id);
         await get().fetchAll();
     }
-}));
+    }),
+    {
+      name: 'pitchman-seasons-storage',
+      partialize: (state) => ({
+        seasons: state.seasons,
+        activeSeason: state.activeSeason,
+        ownerUserId: state.ownerUserId,
+      }),
+    }
+  )
+);

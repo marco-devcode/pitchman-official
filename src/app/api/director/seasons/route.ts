@@ -35,7 +35,7 @@ type Riassunto = {
   /** Totale rosa, per il numero in grande. */
   totRosa: number;
   /** Osservati non ancora promossi in rosa. */
-  osservati: { nome: string; ruolo: string; squadra: string }[];
+  osservati: { id: string; nome: string; ruolo: string; squadra: string; note: string }[];
   /** Infortunati attivi al giorno di oggi (o con infortunio senza data fine). */
   infortunati: number;
   /** Calcolato lato server: il client non sa quando e' scaduto un infortunio. */
@@ -100,11 +100,13 @@ export async function GET(request: Request) {
 
       const osservati = scoutsSnap.docs
         .map((d) => {
-          const s = d.data() as { name?: string; role?: string; currentTeam?: string };
+          const s = d.data() as { name?: string; role?: string; currentTeam?: string; notes?: string };
           return {
+            id: d.id,
             nome: s.name ?? '',
             ruolo: s.role ?? '—',
             squadra: s.currentTeam ?? '',
+            note: s.notes ?? '',
           };
         })
         .filter((s) => s.nome !== '')

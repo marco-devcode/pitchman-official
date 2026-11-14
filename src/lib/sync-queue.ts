@@ -4,7 +4,8 @@ import { eventRepository } from './repositories/event-repository';
 import { playerRepository } from './repositories/player-repository';
 import { matchRepository } from './repositories/match-repository';
 import { statsRepository } from './repositories/stats-repository';
-import { countGoals } from './goal-utils';
+import { scoutRepository } from './repositories/scout-repository';
+import { countGoals } from './on-pitch';
 /**
  * Queue a mutation when the device is offline. The mutation is persisted in
  * Dexie and flushed to Firestore when connectivity returns.
@@ -59,6 +60,8 @@ export async function flushQueue(userId: string): Promise<number> {
         } else {
           await statsRepository.upsert(mutation.matchId, mutation.seasonId!, mutation.playerId, mutation.payload as any, userId);
         }
+      } else if (mutation.collection === 'scouts' && mutation.action === 'update') {
+        await scoutRepository.update(userId, mutation.seasonId!, mutation.docId, mutation.payload as any);
       } else {
         // Not yet wired for offline — drop to avoid applying with wrong signature
         console.warn(`[sync] dropping unhandled offline mutation for ${mutation.collection}`);

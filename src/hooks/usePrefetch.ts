@@ -7,6 +7,7 @@ import { usePlayersStore } from '@/store/usePlayersStore';
 import { useMatchesStore } from '@/store/useMatchesStore';
 import { useTrainingStore } from '@/store/useTrainingStore';
 import { useTestsStore } from '@/store/useTestsStore';
+import { useScoutStore } from '@/store/useScoutStore';
 
 /**
  * Prefetches critical data (players, matches, trainings, tests) via Firestore
@@ -19,6 +20,7 @@ export function usePrefetch() {
   const subscribeMatches = useMatchesStore((s) => s.subscribe);
   const subscribeTraining = useTrainingStore((s) => s.subscribe);
   const subscribeTests = useTestsStore((s) => s.subscribe);
+  const subscribeScouts = useScoutStore((s) => s.subscribe);
 
   const unsubscribersRef = useRef<(() => void)[]>([]);
   const lastKeyRef = useRef<string | null>(null);
@@ -40,12 +42,13 @@ export function usePrefetch() {
     const unsubMatches = subscribeMatches(userId, seasonId);
     const unsubTraining = subscribeTraining(userId, seasonId);
     const unsubTests = subscribeTests(userId, seasonId);
+    const unsubScouts = subscribeScouts(userId, seasonId);
 
-    unsubscribersRef.current = [unsubPlayers, unsubMatches, unsubTraining, unsubTests];
+    unsubscribersRef.current = [unsubPlayers, unsubMatches, unsubTraining, unsubTests, unsubScouts];
 
     return () => {
       unsubscribersRef.current.forEach((unsub) => unsub());
       unsubscribersRef.current = [];
     };
-  }, [user?.id, activeSeason?.id, subscribePlayers, subscribeMatches, subscribeTraining, subscribeTests]);
+  }, [user?.id, activeSeason?.id, subscribePlayers, subscribeMatches, subscribeTraining, subscribeTests, subscribeScouts]);
 }

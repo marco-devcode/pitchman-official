@@ -16,7 +16,7 @@ export function initializeFirebase() {
   return getSdks(getApp());
 }
 
-let isPersistenceEnabled = false;
+let isNetworkEnabled = false;
 
 export function getSdks(firebaseApp: FirebaseApp) {
   // Use regular getFirestore on server (SSR/prerendering) to avoid
@@ -39,16 +39,9 @@ export function getSdks(firebaseApp: FirebaseApp) {
     }
   }
 
-  if (!isServer && !isPersistenceEnabled) {
-    isPersistenceEnabled = true;
-    import('firebase/firestore').then(({ enableIndexedDbPersistence, enableNetwork }) => {
-      enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code === 'failed-precondition') {
-          console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-        } else if (err.code === 'unimplemented') {
-          console.warn('The current browser does not support all of the features required to enable persistence');
-        }
-      });
+  if (!isServer && !isNetworkEnabled) {
+    isNetworkEnabled = true;
+    import('firebase/firestore').then(({ enableNetwork }) => {
       enableNetwork(db).catch(() => {});
     });
   }

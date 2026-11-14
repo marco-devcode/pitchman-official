@@ -2,15 +2,12 @@
 "use client";
 
 import { useState } from "react";
-import { useSWRConfig } from "swr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUser } from "@/firebase";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
-import { scoutRepository } from "@/lib/repositories/scout-repository";
-import { doc, setDoc, deleteDoc } from "firebase/firestore";
+import { useScoutStore } from "@/store/useScoutStore";
 import { Trash2, Plus, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -32,10 +29,9 @@ interface ScoutCategoryDialogProps {
 }
 
 export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCategoryDialogProps) {
-  const { user } = useUser();
   const { activeSeason } = useSeasonsStore();
   const seasonId = activeSeason?.id ?? null;
-  const { mutate } = useSWRConfig();
+  const { addCategory, removeCategory } = useScoutStore();
   
   const [loading, setLoading] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -43,15 +39,14 @@ export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCat
 
   // Le categorie stanno sulla stagione, come gli osservati che etichettano.
   const handleAddCategory = async () => {
-    if (!user || !seasonId || !newCatName.trim()) return;
+    if (!seasonId || !newCatName.trim()) return;
 
     setLoading(true);
     try {
-      await scoutRepository.createCategory(seasonId, {
+      await addCategory({
         name: newCatName.trim(),
         colorHex: selectedColor,
       });
-      await mutate(`teams/${seasonId}/scoutCategories`);
       setNewCatName("");
     } catch (e) {
       console.error(e);
@@ -61,9 +56,8 @@ export function ScoutCategoryDialog({ open, onOpenChange, categories }: ScoutCat
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!user || !seasonId) return;
-    await scoutRepository.removeCategory(seasonId, id);
-    await mutate(`teams/${seasonId}/scoutCategories`);
+    if (!seasonId) return;
+    await removeCategory(id);
   };
 
   return (

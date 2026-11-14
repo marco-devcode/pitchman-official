@@ -10,10 +10,12 @@ import { IoSquare } from "react-icons/io5";
 
 import { usePlayersStore } from "@/store/usePlayersStore";
 import { useSeasonsStore } from "@/store/useSeasonsStore";
+import { useStatsStore } from "@/store/useStatsStore";
+import { useTrainingStore } from "@/store/useTrainingStore";
 import { PhysicalTab } from "@/components/allenamento/physical-tab";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useThemeStore } from "@/store/useThemeStore";
-import { aggregationRepository, type SeasonDataContext } from "@/lib/repositories/aggregation-repository";
+import { type SeasonDataContext } from "@/lib/repositories/aggregation-repository";
 import { trainingRepository } from "@/lib/repositories/training-repository";
 import { filterContextByType, type FilterType } from "@/lib/aggregators/filter";
 import { getMatchUsage } from "@/lib/player-usage";
@@ -520,9 +522,20 @@ export default function PlayerDetailPage() {
   const { user } = useAuthStore();
   const chartColors = useChartColors();
 
-  const [loadingData, setLoadingData] = useState(true);
-  const [playerContext, setPlayerContext] = useState<SeasonDataContext | null>(null);
-  const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
+  const initialStatsState = useStatsStore.getState();
+  const initialContext =
+    activeSeason &&
+    !initialStatsState.statsDirty &&
+    initialStatsState.loadedSeasonId === activeSeason.id
+      ? initialStatsState.detailedContext
+      : null;
+
+  const [loadingData, setLoadingData] = useState(!initialContext);
+  const [playerContext, setPlayerContext] = useState<SeasonDataContext | null>(initialContext);
+  const [rawTrainingData, setRawTrainingData] = useState<{
+    sessions: TrainingSession[];
+    allAtt: { sessionId: string; attendance: TrainingAttendance[] }[];
+  } | null>(null);
   const [statsFilter, setStatsFilter] = useState<FilterType>('all');
   const [filterTouched, setFilterTouched] = useState(false);
   const statsDefaultFilter = useSettingsStore((s) => s.statsDefaultFilter);
@@ -545,50 +558,89 @@ export default function PlayerDetailPage() {
   useEffect(() => {
     const init = async () => {
       if (!activeSeason) await fetchSeasons();
-      await fetchPlayers();
+      if (usePlayersStore.getState().players.length === 0) {
+        await fetchPlayers();
+      }
     };
     init();
   }, [fetchPlayers, fetchSeasons, activeSeason]);
 
   useEffect(() => {
     if (!user || !activeSeason) return;
+    let cancelled = false;
 
     const loadStats = async () => {
-      setLoadingData(true);
+      const statsStore = useStatsStore.getState();
+      const cachedContext =
+        !statsStore.statsDirty && statsStore.loadedSeasonId === activeSeason.id
+          ? statsStore.detailedContext
+          : null;
+
+      if (cachedContext) {
+        setPlayerContext(cachedContext);
+        setLoadingData(false);
+      } else {
+        setLoadingData(true);
+      }
+
       try {
-        // Aggregazione ottimizzata per SOLO questo giocatore.
-        // Il contesto greggio viene tenuto in stato: il filtro per tipo partita
-        // viene applicato DOPO, in un useMemo, così cambiare tab non rifetcha nulla.
-        const context = await aggregationRepository.getPlayerDetailedContext(user.id, activeSeason.id, playerId);
-        setPlayerContext(context);
+        const loadContextPromise = cachedContext
+          ? Promise.resolve(cachedContext)
+          : statsStore.loadDetailedStats(activeSeason.id).then(() => useStatsStore.getState().detailedContext);
 
-        // Storico presenze allenamenti (indipendente dal tipo partita)
-        const sessions = await trainingRepository.getAll(activeSeason.id);
-        const sortedSessions = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
-        const sessionIds = sortedSessions.map((s) => s.id);
-        const allAtt = await trainingRepository.getAllAttendanceForSeason(activeSeason.id, sessionIds);
+        const loadTrainingPromise = (async () => {
+          const storeSessions = useTrainingStore.getState().sessions;
+          const hasMatchingSessions =
+            storeSessions.length > 0 &&
+            storeSessions.every((s) => !s.seasonId || s.seasonId === activeSeason.id);
+          const sessions = hasMatchingSessions
+            ? storeSessions
+            : await trainingRepository.getAll(activeSeason.id);
+          const sortedSessions = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+          const sessionIds = sortedSessions.map((s) => s.id);
+          const allAtt = await trainingRepository.getAllAttendanceForSeason(
+            activeSeason.id,
+            sessionIds,
+            sortedSessions
+          );
+          return { sessions: sortedSessions, allAtt };
+        })();
 
-        const records: TrainingRecord[] = sortedSessions.map((session) => {
-          const attRecord = allAtt.find((a) => a.sessionId === session.id);
-          const playerAtt = attRecord?.attendance.find((a) => a.playerId === playerId);
-          let status = playerAtt?.status ?? null;
+        const [resolvedContext, resolvedTraining] = await Promise.all([
+          loadContextPromise,
+          loadTrainingPromise,
+        ]);
 
-          if (isInjuredAtDate(session.date, player?.injuries) && (!status || status === "assente")) {
-             status = "infortunato" as any;
-          }
-
-          return { session, status };
-        });
-        setTrainingRecords(records);
+        if (cancelled) return;
+        if (resolvedContext) setPlayerContext(resolvedContext);
+        setRawTrainingData(resolvedTraining);
       } catch (e) {
         console.error("Errore caricamento dettaglio giocatore:", e);
       } finally {
-        setLoadingData(false);
+        if (!cancelled) setLoadingData(false);
       }
     };
 
-    loadStats();
+    void loadStats();
+    return () => {
+      cancelled = true;
+    };
   }, [user, activeSeason, playerId]);
+
+  const trainingRecords: TrainingRecord[] = useMemo(() => {
+    if (!rawTrainingData) return [];
+    return rawTrainingData.sessions.map((session) => {
+      const attRecord = rawTrainingData.allAtt.find((a) => a.sessionId === session.id);
+      const playerAtt = attRecord?.attendance.find((a) => a.playerId === playerId);
+      let status = playerAtt?.status ?? null;
+
+      if (isInjuredAtDate(session.date, player?.injuries) && (!status || status === "assente")) {
+        status = "infortunato" as any;
+      }
+
+      return { session, status };
+    });
+  }, [rawTrainingData, playerId, player?.injuries]);
 
   // La tab scelta vale finche l'utente non ne sceglie un'altra: la preferenza salvata
   // in Gestione Squadra e' il default, non un override di una scelta esplicita.

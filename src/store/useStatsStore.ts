@@ -87,7 +87,7 @@ interface StatsState {
     /** Ricarica gli aggregati se sporchi o di un'altra stagione: ritorna true se ha ricaricato */
     refreshIfDirty: (seasonId?: string) => Promise<boolean>;
     loadSummaryStats: (seasonId?: string) => Promise<void>;
-    loadDetailedStats: (seasonId?: string) => Promise<void>;
+    loadDetailedStats: (seasonId?: string, force?: boolean) => Promise<void>;
     setMatchFilter: (filter: FilterType) => void;
     /** Riapplica la preferenza salvata in Gestione Squadra (azzera la scelta manuale) */
     applyDefaultFilter: () => void;
@@ -114,6 +114,8 @@ function reaggregate(ctx: SeasonDataContext, seasonId: string) {
         advancedLeaderboard,
     };
 }
+
+const inFlightDetailedLoads = new Map<string, Promise<void>>();
 
 export const useStatsStore = create<StatsState>((set, get) => ({
     teamRecord: null,
@@ -186,7 +188,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         }
     },
 
-    loadDetailedStats: async (seasonId?: string) => {
+    loadDetailedStats: async (seasonId?: string, force = false) => {
         const user = useAuthStore.getState().user;
         const activeSeasonId = seasonId ?? useSeasonsStore.getState().activeSeason?.id;
 
@@ -195,30 +197,61 @@ export const useStatsStore = create<StatsState>((set, get) => ({
             return;
         }
 
+        const current = get();
+        if (!force && !current.statsDirty && current.loadedSeasonId === activeSeasonId && current.detailedContext) {
+            set({ loading: false });
+            return;
+        }
+
+        const existingPromise = inFlightDetailedLoads.get(activeSeasonId);
+        if (existingPromise && !force) {
+            await existingPromise;
+            return;
+        }
+
         if (get().playerLeaderboard.length === 0) set({ loading: true, error: null });
 
-        try {
-            const context = await aggregationRepository.getDetailedContext(user.id, activeSeasonId);
-            // Se l'utente non ha ancora scelto una tab, si usa la preferenza salvata in Gestione Squadra.
-            const currentFilter = get().matchFilterFromUser
-                ? get().matchFilter
-                : (useSettingsStore.getState().statsDefaultFilter ?? 'all');
-            const filtered = filterContextByType(context, currentFilter);
-            const agg = reaggregate(filtered, activeSeasonId);
+        const task = (async () => {
+            try {
+                const [{ useMatchesStore }, { usePlayersStore }] = await Promise.all([
+                    import('./useMatchesStore'),
+                    import('./usePlayersStore'),
+                ]);
+                const cachedMatches = useMatchesStore.getState().matches;
+                const cachedPlayers = usePlayersStore.getState().players;
 
-            set({
-                detailedContext: context,
-                matchFilter: currentFilter,
-                statsDirty: false,
-                loadedSeasonId: activeSeasonId,
-                ...agg,
-                loading: false,
-                error: null,
-            });
-        } catch (error) {
-            console.error("Errore nel caricamento detailed stats:", error);
-            set({ loading: false, error: getErrorMessage(error) });
-        }
+                const context = await aggregationRepository.getDetailedContext(user.id, activeSeasonId, {
+                    matches: cachedMatches,
+                    players: cachedPlayers,
+                });
+                // Se l'utente non ha ancora scelto una tab, si usa la preferenza salvata in Gestione Squadra.
+                const currentFilter = get().matchFilterFromUser
+                    ? get().matchFilter
+                    : (useSettingsStore.getState().statsDefaultFilter ?? 'all');
+                const filtered = filterContextByType(context, currentFilter);
+                const agg = reaggregate(filtered, activeSeasonId);
+
+                set({
+                    detailedContext: context,
+                    matchFilter: currentFilter,
+                    statsDirty: false,
+                    loadedSeasonId: activeSeasonId,
+                    ...agg,
+                    loading: false,
+                    error: null,
+                });
+            } catch (error) {
+                console.error("Errore nel caricamento detailed stats:", error);
+                set({ loading: false, error: getErrorMessage(error) });
+            } finally {
+                if (inFlightDetailedLoads.get(activeSeasonId) === task) {
+                    inFlightDetailedLoads.delete(activeSeasonId);
+                }
+            }
+        })();
+
+        inFlightDetailedLoads.set(activeSeasonId, task);
+        await task;
     },
 
     setMatchFilter: (filter: FilterType) => {

@@ -1,4 +1,4 @@
-import { MATCH_FORMATIONS } from './formation-modules';
+import { FORMATION_SLOT_ROLES, MATCH_FORMATIONS, type MatchFormation } from './lineup-mapping';
 import type { TacticalExercise } from './tactical-exercise';
 import type { PlanId } from './plans';
 
@@ -107,11 +107,7 @@ export const FORMATIONS: FormationModule[] = MATCH_FORMATIONS;
 
 // Alias per i componenti di partita, che parlano di "moduli" e non di rosa:
 // importarli da qui rende chiaro che la lista e' condivisa, non una copia.
-export { MATCH_FORMATIONS, type MatchFormation } from './formation-modules';
-
-// Unica copia dei RUOLI: vedi FORMATION_ROLES piu' in basso. Nessun ciclo:
-// lineup-mapping importa solo formation-modules, che non importa nulla.
-import { FORMATION_SLOT_ROLES } from './lineup-mapping';
+export { MATCH_FORMATIONS, type MatchFormation };
 
 export const DEFAULT_FORMATION: FormationModule = '4-3-3';
 
@@ -542,6 +538,8 @@ export interface ScoutPlayer {
   currentTeam: string;
   categoryIds?: string[];
   notes?: string;
+  seasonId?: string;
+  teamOwnerId?: string;
 }
 
 // ── Physical Tests ──────────────────────────────────────
@@ -593,3 +591,87 @@ export interface Exercise {
   createdAt: string;
   updatedAt: string;
 }
+
+// ── Locker Room Polls (Sondaggi Spogliatoio) ───────────
+
+export type PollQuestionType = 'single_choice' | 'multiple_choice' | 'scale' | 'open_text';
+
+export interface PollQuestion {
+  id: string;
+  text: string;
+  type: PollQuestionType;
+  required: boolean;
+  options?: string[];
+  scaleMax?: 5 | 10;
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
+}
+
+export interface PollPlayerEntry {
+  playerId: string;
+  playerName: string;
+  token: string;
+}
+
+export interface PollAnswerValue {
+  questionId: string;
+  textValue?: string;
+  selectedOptions?: string[];
+  scaleValue?: number;
+}
+
+export interface PollResponseRecord {
+  id: string;
+  submittedAt: string;
+  playerId?: string;
+  playerName?: string;
+  answers: PollAnswerValue[];
+}
+
+export interface TeamPoll {
+  id: string;
+  seasonId: string;
+  seasonName: string;
+  createdByUid: string;
+  title: string;
+  description?: string;
+  anonymous: boolean;
+  status: 'open' | 'closed';
+  groupToken: string;
+  players: PollPlayerEntry[];
+  completedPlayerIds: string[];
+  questions: PollQuestion[];
+  responses: PollResponseRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicPollRosterItem {
+  playerId: string;
+  playerName: string;
+  alreadyCompleted: boolean;
+}
+
+export type PublicPollView =
+  | {
+      mode: 'personal';
+      id: string;
+      title: string;
+      description?: string;
+      seasonName: string;
+      anonymous: boolean;
+      status: 'open' | 'closed';
+      questions: PollQuestion[];
+      player: PublicPollRosterItem;
+    }
+  | {
+      mode: 'group';
+      id: string;
+      title: string;
+      description?: string;
+      seasonName: string;
+      anonymous: boolean;
+      status: 'open' | 'closed';
+      questions: PollQuestion[];
+      roster: PublicPollRosterItem[];
+    };

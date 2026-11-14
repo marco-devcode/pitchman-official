@@ -29,6 +29,26 @@ import {
 import type { ScoutPlayer, ScoutCategory } from '@/lib/types';
 import { ScoutPlayerSchema, ScoutCategorySchema } from '@/lib/schemas';
 
+export function parseScoutDoc(id: string, rawData: Record<string, unknown>): ScoutPlayer {
+  const data = { ...rawData, id };
+  const parsed = ScoutPlayerSchema.safeParse(data);
+  if (!parsed.success) {
+    console.error('Schema validation failed for ScoutPlayer:', parsed.error);
+    return data as ScoutPlayer;
+  }
+  return parsed.data;
+}
+
+export function parseScoutCategoryDoc(id: string, rawData: Record<string, unknown>): ScoutCategory {
+  const data = { ...rawData, id };
+  const parsed = ScoutCategorySchema.safeParse(data);
+  if (!parsed.success) {
+    console.error('Schema validation failed for ScoutCategory:', parsed.error);
+    return data as ScoutCategory;
+  }
+  return parsed.data;
+}
+
 export const scoutRepository = {
   /** Osservati della stagione. */
   ref(seasonId: string) {
@@ -54,6 +74,7 @@ export const scoutRepository = {
     await updateDoc(doc(this.ref(seasonId), id), {
       ...player,
       teamOwnerId: userId,
+      seasonId,
       updatedAt: new Date().toISOString(),
     });
   },
@@ -64,17 +85,30 @@ export const scoutRepository = {
 
   async list(seasonId: string): Promise<ScoutPlayer[]> {
     const snapshot = await getDocs(this.ref(seasonId));
-    return snapshot.docs.map(d => {
-      const parsed = ScoutPlayerSchema.safeParse({ ...d.data(), id: d.id });
-      return parsed.success ? parsed.data : ({ ...d.data(), id: d.id } as ScoutPlayer);
-    });
+    return snapshot.docs.map(d => parseScoutDoc(d.id, d.data()));
+  },
+
+  async listAcrossSeasons(
+    seasons: { id: string; name: string }[]
+  ): Promise<Array<ScoutPlayer & { seasonId: string; seasonName: string }>> {
+    if (seasons.length === 0) return [];
+    const perSeason = await Promise.all(
+      seasons.map(async (season) => {
+        const players = await this.list(season.id);
+        return players.map((p) => ({
+          ...p,
+          seasonId: season.id,
+          seasonName: season.name,
+        }));
+      })
+    );
+    return perSeason.flat();
   },
 
   async get(seasonId: string, id: string): Promise<ScoutPlayer | null> {
     const snapshot = await getDoc(doc(this.ref(seasonId), id));
     if (!snapshot.exists()) return null;
-    const parsed = ScoutPlayerSchema.safeParse({ ...snapshot.data(), id });
-    return parsed.success ? parsed.data : (snapshot.data() as ScoutPlayer);
+    return parseScoutDoc(id, snapshot.data());
   },
 
   // ── Categorie ────────────────────────────────────────────
@@ -95,9 +129,6 @@ export const scoutRepository = {
 
   async listCategories(seasonId: string): Promise<ScoutCategory[]> {
     const snapshot = await getDocs(this.categoriesRef(seasonId));
-    return snapshot.docs.map(d => {
-      const parsed = ScoutCategorySchema.safeParse({ ...d.data(), id: d.id });
-      return parsed.success ? parsed.data : ({ ...d.data(), id: d.id } as ScoutCategory);
-    });
+    return snapshot.docs.map(d => parseScoutCategoryDoc(d.id, d.data()));
   },
 };

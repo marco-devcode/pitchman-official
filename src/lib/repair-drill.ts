@@ -55,6 +55,7 @@ function clone<T>(value: T): T {
 function resolveTo(
   action: DrillAction,
   objects: DrillObject[],
+  scena: Map<string, DrillPoint>,
   fixes: string[],
   stepId: string,
 ): DrillPoint | null {
@@ -69,7 +70,10 @@ function resolveTo(
 
   if (typeof raw === 'string') {
     const found = objects.find((o) => o.id === raw);
-    if (found) return { x: found.x, y: found.y };
+    if (found) {
+      const currentPos = scena.get(found.id) ?? { x: found.x, y: found.y };
+      return { x: clampDrillCoord(currentPos.x), y: clampDrillCoord(currentPos.y) };
+    }
     fixes.push(
       `Step ${stepId}: azione "${action.type}" puntava a "${raw}", che non esiste fra gli oggetti.`,
     );
@@ -225,9 +229,11 @@ function repairSequence(
 ): DrillStep[] {
   const byId = new Map(objects.map((o) => [o.id, o]));
 
-  // Scena iniziale: da qui si simula step dopo step.
+  // Scena iniziale: da qui si simula azione per azione in ordine temporale.
   const scena = new Map<string, DrillPoint>();
   for (const o of objects) scena.set(o.id, { x: o.x, y: o.y });
+  let possessoreId: string | null =
+    objects.find((o) => o.kind === 'player' && o.hasBall)?.id ?? null;
 
   let stepNumber = 0;
   const steps: DrillStep[] = [];
@@ -237,7 +243,21 @@ function repairSequence(
     const id = raw.id || `step-${stepNumber}`;
     const azioni: DrillAction[] = [];
 
-    for (const rawAction of raw.actions ?? []) {
+    // Ordina le azioni per startAt crescente mantenendo l'ordine originale a
+    // parita' di startAt, cosi' smarcamenti precoci aggiornano `scena` prima
+    // del passaggio successivo.
+    const sortedRawActions = (raw.actions ?? [])
+      .map((action, index) => ({
+        action,
+        index,
+        start: Number.isFinite(Number(action.startAt))
+          ? Math.max(0, Number(action.startAt))
+          : 0,
+      }))
+      .sort((a, b) => a.start - b.start || a.index - b.index)
+      .map((entry) => entry.action);
+
+    for (const rawAction of sortedRawActions) {
       const actionId = rawAction.id || `${id}-a${azioni.length + 1}`;
       const subject = rawAction.subject;
 
@@ -250,7 +270,7 @@ function repairSequence(
       const type = rawAction.type;
 
       // --- pass/shoot: il soggetto e' la palla, punto ---
-      let act: DrillAction = {
+      const act: DrillAction = {
         id: actionId,
         type,
         subject,
@@ -269,11 +289,8 @@ function repairSequence(
       // Il possessore che si muove dribbla: senza questo la palla resta a
       // terra mentre il suo possessore scappa, che e' il difetto piu' grottesco
       // in assoluto su una lavagna animata.
-      if (act.subject !== 'ball' && (type === 'run' || type === 'move')) {
-        const possessore = Array.from(scena.entries()).find(
-          ([oid]) => byId.get(oid)?.hasBall,
-        )?.[0];
-        if (possessore === act.subject) {
+      if (act.subject !== 'ball' && (act.type === 'run' || act.type === 'move')) {
+        if (possessoreId === act.subject) {
           act.type = 'dribble';
         }
       }
@@ -296,8 +313,8 @@ function repairSequence(
         act.startAt = 5000;
       }
 
-      // --- destinazione ---
-      const to = resolveTo(rawAction, objects, fixes, String(stepNumber));
+      // --- destinazione (risolta contro le posizioni correnti in scena) ---
+      const to = resolveTo(rawAction, objects, scena, fixes, String(stepNumber));
 
       if (!to) {
         continue; // gia' annotata in resolveTo
@@ -306,20 +323,31 @@ function repairSequence(
       // Un giocatore non passa a se stesso: e' sempre un errore del modello,
       // e senza questa correzione la palla parte e resta ferma sullo stesso
       // piede, illeggibile.
-      if (isBallAction(act) && to.x === scena.get(act.subject)?.x && to.y === scena.get(act.subject)?.y) {
-        const partenza = scena.get(act.subject) as DrillPoint;
-        // Si esclude chi e' GIA' a quel punto, non solo chi ha lo stesso id:
-        // il possessore della palla e' per definizione sulla posizione di
-        // partenza, quindi restituendolo l'azione resterebbe identica e
-        // l'allenatore vedrebbe una palla che passa a se stessa.
+      const partenzaSoggetto = scena.get(act.subject);
+      if (
+        isBallAction(act) &&
+        partenzaSoggetto &&
+        to.x === partenzaSoggetto.x &&
+        to.y === partenzaSoggetto.y
+      ) {
+        const partenza = partenzaSoggetto;
         const alternativa = objects
-          .filter((o) => o.kind === 'player' && dist(o, partenza) > OVERLAP_DIST)
-          .sort((a, b) => dist(a, partenza) - dist(b, partenza))[0];
+          .filter((o) => {
+            if (o.kind !== 'player') return false;
+            const pos = scena.get(o.id) ?? { x: o.x, y: o.y };
+            return dist(pos, partenza) > OVERLAP_DIST;
+          })
+          .sort((a, b) => {
+            const posA = scena.get(a.id) ?? { x: a.x, y: a.y };
+            const posB = scena.get(b.id) ?? { x: b.x, y: b.y };
+            return dist(posA, partenza) - dist(posB, partenza);
+          })[0];
         if (alternativa) {
+          const altPos = scena.get(alternativa.id) ?? { x: alternativa.x, y: alternativa.y };
           fixes.push(
             `Step ${stepNumber}: la palla passava a se stessa. Agganciata al giocatore piu' vicino, "${alternativa.id}".`,
           );
-          act.to = { x: alternativa.x, y: alternativa.y };
+          act.to = { x: altPos.x, y: altPos.y };
         } else {
           fixes.push(`Step ${stepNumber}: la palla passava a se stessa e non c'e' nessun altro giocatore. Azione eliminata.`);
           continue;
@@ -329,6 +357,26 @@ function repairSequence(
       }
 
       azioni.push(act);
+
+      // --- simula immediatamente l'effetto dell'azione sulla scena ---
+      const arrivo = act.to;
+      if (arrivo && typeof arrivo !== 'string') {
+        if (act.subject === 'ball') {
+          scena.set('ball', arrivo);
+          const ricevente = objects
+            .filter((o) => o.kind === 'player')
+            .map((o) => ({ o, pos: scena.get(o.id) ?? { x: o.x, y: o.y } }))
+            .filter(({ pos }) => dist(pos, arrivo) <= 4)
+            .sort((a, b) => dist(a.pos, arrivo) - dist(b.pos, arrivo))[0];
+          possessoreId = ricevente ? ricevente.o.id : null;
+        } else {
+          scena.set(act.subject, arrivo);
+          if (act.type === 'dribble' || possessoreId === act.subject) {
+            scena.set('ball', arrivo);
+            possessoreId = act.subject;
+          }
+        }
+      }
     }
 
     const durataStep = Number(raw.duration);
@@ -341,39 +389,6 @@ function repairSequence(
           : azioni.reduce((max, a) => Math.max(max, (a.startAt ?? 0) + a.duration), 0),
       actions: azioni,
     });
-
-    // --- simula lo step ---
-    for (const action of azioni) {
-      const to = action.to;
-      if (!to || typeof to === 'string') continue;
-      const from = scena.get(action.subject) ?? { x: to.x, y: to.y };
-
-      if (action.subject === 'ball') {
-        // Il passaggio/tiro sposta la palla e TRASFERISCE il possesso al
-        // ricevente: senza il trasferimento il resto dell'esercizio si
-        // anima con il possessore sbagliato.
-        const ricevente = objects.find(
-          (o) => o.kind === 'player' && o.x === to.x && o.y === to.y,
-        );
-        for (const obj of objects) {
-          if (obj.kind === 'player') {
-            scena.set(obj.id, { x: obj.hasBall ? from.x : obj.x, y: obj.hasBall ? from.y : obj.y });
-          }
-        }
-        scena.set('ball', to);
-        if (ricevente) {
-          objects = objects.map((o) =>
-            o.kind === 'player' ? { ...o, hasBall: o.id === ricevente.id } : o,
-          );
-          scena.set(ricevente.id, to);
-        }
-      } else {
-        scena.set(action.subject, to);
-        if (objects.find((o) => o.id === action.subject)?.hasBall) {
-          scena.set('ball', to);
-        }
-      }
-    }
   }
 
   if (steps.length > MAX_STEPS) {

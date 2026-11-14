@@ -49,7 +49,11 @@ export function TrainingStatsDialog({ open, onOpenChange, currentWeekStart }: Tr
     if (open && user && seasonId && sessions.length > 0) {
       const load = async () => {
         setLoading(true);
-        const data = await trainingRepository.getAllAttendanceForSeason(seasonId, sessions.map(s => s.id));
+        const data = await trainingRepository.getAllAttendanceForSeason(
+          seasonId,
+          sessions.map(s => s.id),
+          sessions
+        );
         setAllAttendance(data);
         setLoading(false);
       };

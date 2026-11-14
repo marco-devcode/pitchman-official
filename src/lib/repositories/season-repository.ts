@@ -206,47 +206,41 @@ export const seasonRepository = {
     },
 
     async ensureDefaultSeason(userId: string) {
-        if (!userId) return undefined;
+        const { active } = await this.ensureDefaultAndGetAll(userId);
+        return active;
+    },
 
-        // Nulla di tutto questo puo' far fallire il caricamento delle stagioni.
-        //
-        // ensureDefaultSeason sta PRIMA di getAll in fetchAll: se solleva,
-        // l'errore risale fino a fetchAll, che lo intercetta e lascia la lista
-        // VUOTA. E' successo: un percorso del documento sbagliato faceva
-        // fallire la scrittura della preferenza, e il sintomo era "nessuno
-        // vede piu' le stagioni" per tutti gli utenti. La scelta della
-        // stagione attiva e' una preferenza: se non si puo' salvare o leggere,
-        // l'app deve comunque funzionare.
+    /**
+     * Carica in un solo round-trip tutte le stagioni dell'utente e determina
+     * quella attiva in parallelo con la preferenza personale dell'utente.
+     */
+    async ensureDefaultAndGetAll(userId: string): Promise<{ active: Season | undefined; all: Season[] }> {
+        if (!userId) return { active: undefined, all: [] };
+
+        let all: Season[] = [];
         try {
-            const all = await this.getAll(userId);
+            const [fetchedSeasons, savedId] = await Promise.all([
+                this.getAll(userId),
+                activeSeasonRepository.get(userId),
+            ]);
+            all = fetchedSeasons;
 
-            // La stagione attiva e' una scelta PERSONALE: si legge dal documento
-            // dell'utente, non dal documento della stagione (che e' condiviso e
-            // porterebbe a due allenatori con la stessa stagione attiva).
-            const savedId = await activeSeasonRepository.get(userId);
             const saved = savedId ? all.find(s => s.id === savedId) : undefined;
+            if (saved) return { active: saved, all };
 
-            if (saved) return saved;
-
-            // Nessuna scelta salvata, o scelta che non e' piu' raggiungibile
-            // (stagione cancellata, o revocata la condivisione): si sceglie la
-            // piu' recente e la si salva per questo utente.
-            //
-            // getAll NON e' ordinato: restituisce i documenti nell'ordine in
-            // cui il server li restituisce, quindi all[0] era arbitrario. Su
-            // due stagioni poteva scegliere quella sbagliata, ed e' cosi' che
-            // un utente entrava con il codice e si ritrovava su una stagione
-            // vuota, con quella giusta in lista ma mai attiva.
             if (all.length > 0) {
                 const target = [...all].sort(
                     (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
                 )[0];
-                await activeSeasonRepository.set(userId, target.id);
-                return target;
+                // Salva la preferenza senza bloccare l'ingresso in app
+                activeSeasonRepository.set(userId, target.id).catch((err) => {
+                    console.error('[seasonRepository.ensureDefaultAndGetAll] activeSeason.set:', err);
+                });
+                return { active: target, all };
             }
         } catch (e) {
             console.error("[seasonRepository.ensureDefaultSeason] continuo senza stagione attiva:", e);
-            return undefined;
+            return { active: undefined, all };
         }
 
         // La stagione di primo accesso si crea dal server, per lo stesso
@@ -254,10 +248,11 @@ export const seasonRepository = {
         // dall'uid — quello era prevedibile, e l'id e' la chiave che autorizza
         // l'accesso ai dati.
         try {
-            return (await this.add('2025/26', userId)) as Season;
+            const created = (await this.add('2025/26', userId)) as Season;
+            return { active: created, all: created ? [created] : [] };
         } catch (e) {
             console.error('[ensureDefaultSeason] creazione fallita:', e);
-            return undefined;
+            return { active: undefined, all: [] };
         }
     }
 };

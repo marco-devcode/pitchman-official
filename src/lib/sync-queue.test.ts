@@ -5,6 +5,7 @@ import { eventRepository } from './repositories/event-repository';
 import { playerRepository } from './repositories/player-repository';
 import { matchRepository } from './repositories/match-repository';
 import { statsRepository } from './repositories/stats-repository';
+import { scoutRepository } from './repositories/scout-repository';
 
 // In-memory fake for the Dexie syncQueue table
 const fakeQueue: any[] = [];
@@ -37,6 +38,9 @@ jest.mock('./repositories/match-repository', () => ({
 jest.mock('./repositories/stats-repository', () => ({
   statsRepository: { upsert: jest.fn(async () => ({})) },
 }));
+jest.mock('./repositories/scout-repository', () => ({
+  scoutRepository: { update: jest.fn(async () => ({})) },
+}));
 
 beforeEach(() => {
   fakeQueue.length = 0;
@@ -47,6 +51,7 @@ beforeEach(() => {
   (playerRepository.update as jest.Mock).mockClear();
   (matchRepository.update as jest.Mock).mockClear();
   (statsRepository.upsert as jest.Mock).mockClear();
+  (scoutRepository.update as jest.Mock).mockClear();
 });
 
 describe('sync-queue flushQueue', () => {
@@ -154,6 +159,22 @@ describe('sync-queue flushQueue', () => {
     // signature: upsert(matchId, seasonId, playerId, stats, userId)
     expect(statsRepository.upsert).toHaveBeenCalledWith(
       'M1', 'S1', 'P1', { playerId: 'P1', goals: 2, minutesPlayed: 90 }, 'U1',
+    );
+  });
+
+  it('applies scouts update with (userId, seasonId, id, payload)', async () => {
+    await SyncQueue.enqueueMutation({
+      collection: 'scouts', docId: 'SC1', action: 'update',
+      payload: { name: 'Mario Rossi', role: 'ATT', currentTeam: 'Real Isola' },
+      userId: 'U1', seasonId: 'S1',
+    });
+
+    const applied = await SyncQueue.flushQueue('U1');
+
+    expect(applied).toBe(1);
+    expect(scoutRepository.update).toHaveBeenCalledTimes(1);
+    expect(scoutRepository.update).toHaveBeenCalledWith(
+      'U1', 'S1', 'SC1', { name: 'Mario Rossi', role: 'ATT', currentTeam: 'Real Isola' },
     );
   });
 

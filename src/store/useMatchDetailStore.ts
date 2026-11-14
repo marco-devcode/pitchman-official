@@ -16,7 +16,7 @@ import { useAuthStore } from './useAuthStore';
 import { useMatchesStore } from './useMatchesStore';
 import { usePlayersStore } from './usePlayersStore';
 import type { Match, Player, MatchLineup, MatchEvent, PlayerMatchStats } from '@/lib/types';
-import { countGoals } from '@/lib/goal-utils';
+import { countGoals } from '@/lib/on-pitch';
 import { computeMinutesPlayed, stoppagePeriodsActive } from '@/lib/player-minutes';
 import { getStoppageFromEvent } from '@/lib/match-events';
 import { parseISO, startOfDay } from 'date-fns';
@@ -96,13 +96,50 @@ export const useMatchDetailStore = create<MatchDetailState>()(
     error: null,
 
     load: async (matchId, seasonId) => {
-        // MISURA TEMPORANEA
-        set(state => ({ 
-            loading: !state.match || state.matchId !== matchId, 
-            error: null, 
-            matchId, 
-            match: state.matchId === matchId ? state.match : null 
-        }));
+        const quickSeasonId = seasonId || useSeasonsStore.getState().activeSeason?.id;
+        const quickMatch = useMatchesStore.getState().matches.find((m) => m.id === matchId);
+        const quickPlayers = usePlayersStore.getState().players;
+        const statsState = useStatsStore.getState();
+        const quickDetails =
+            quickSeasonId &&
+            statsState.loadedSeasonId === quickSeasonId &&
+            !statsState.statsDirty
+                ? statsState.detailedContext?.matchesDetails?.[matchId]
+                : undefined;
+
+        if (quickMatch) {
+            set({
+                matchId,
+                match: quickMatch,
+                allPlayers: quickPlayers,
+                events: quickDetails?.events ?? [],
+                lineup: quickDetails?.lineup ?? null,
+                stats: quickDetails?.stats ?? [],
+                loading: false,
+                error: null,
+            });
+            // Se tutti i dettagli sono già in memoria e puliti, nessuna attesa aggiuntiva.
+            // Aggiorna solo la rosa in background se mancava.
+            if (quickDetails) {
+                if (!quickPlayers.length && quickSeasonId) {
+                    const currentUser = useAuthStore.getState().user;
+                    if (currentUser) {
+                        playerRepository.getAll(currentUser.id, quickSeasonId).then((fresh) => {
+                            if (get().matchId !== matchId) return;
+                            set({ allPlayers: fresh });
+                        }).catch(() => {});
+                    }
+                }
+                return;
+            }
+        } else {
+            set(state => ({
+                loading: !state.match || state.matchId !== matchId,
+                error: null,
+                matchId,
+                match: state.matchId === matchId ? state.match : null
+            }));
+        }
         
         try {
             const authState = useAuthStore.getState();
@@ -112,7 +149,7 @@ export const useMatchDetailStore = create<MatchDetailState>()(
             }
             
             const currentUser = authState.user;
-            let targetSeasonId = seasonId || useSeasonsStore.getState().activeSeason?.id;
+            let targetSeasonId = quickSeasonId;
             if (!targetSeasonId) {
                 await useSeasonsStore.getState().fetchAll();
                 targetSeasonId = useSeasonsStore.getState().activeSeason?.id;
@@ -125,10 +162,8 @@ export const useMatchDetailStore = create<MatchDetailState>()(
 
             // La partita e' gia' in memoria: il calendario l'ha appena letta e
             // mostrata a schermo, quindi rileggerla da Firestore costa un giro
-            // di rete (misurati 270-570ms su questo progetto) per restituire lo
-            // stesso oggetto. Si rilegge solo se non c'e' — link diretto,
-            // ricaricamento della pagina, deep link da una notifica.
-            const inMemoria = useMatchesStore.getState().matches.find((m) => m.id === matchId);
+            // di rete per restituire lo stesso oggetto. Si rilegge solo se non c'e'.
+            const inMemoria = quickMatch ?? useMatchesStore.getState().matches.find((m) => m.id === matchId);
             const match = inMemoria ?? (await matchRepository.getById(matchId, targetSeasonId));
 
             if (!match) {
@@ -136,19 +171,6 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                 return;
             }
 
-            // La ROSA non blocca l'apertura.
-            //
-            // Serve alla scheda Formazione e ai dialog che scelgono un
-            // giocatore, non al risultato e non alla cronaca, che sono le prime
-            // cose che l'allenatore guarda. Tenerla in attesa significa tenere
-            // uno scheletro davanti a dati che sono gia' arrivati: e' la
-            // differenza fra aprire una partita in mezzo secondo e aprirla in
-            // tre.
-            //
-            // Se la rosa e' gia' in memoria (l'allenatore e' passato da Rosa, o
-            // ha gia' aperto una partita) si usa subito e non si legge niente.
-            // Altrimenti si parte con quel che c'e' e si aggiorna quando
-            // arriva, senza bloccare.
             const rosaInMemoria = usePlayersStore.getState().players;
             const allPlayers = rosaInMemoria.length ? rosaInMemoria : [];
 
@@ -157,6 +179,8 @@ export const useMatchDetailStore = create<MatchDetailState>()(
                 lineupRepository.getForMatch(matchId, targetSeasonId, currentUser.id),
                 statsRepository.getForMatch(matchId, targetSeasonId, currentUser.id)
             ]);
+
+            if (get().matchId !== matchId) return;
 
             if (!rosaInMemoria.length) {
                 // Fuori dal percorso di caricamento e senza blocco: una rosa non
