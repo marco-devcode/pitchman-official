@@ -38,18 +38,24 @@ import { FloatingAssistant } from '@/components/ai/floating-assistant';
 type MatchFormInput = Omit<MatchCreateData, 'seasonId' | 'userId' | 'teamOwnerId' | 'teamId'>;
 
 export default function HomePage() {
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
-  const { hasInitialized } = useAppStore();
+  const hasInitialized = useAppStore((s) => s.hasInitialized);
   const [isMatchFormOpen, setIsMatchFormOpen] = useState(false);
 
-  const { activeSeason, error: seasonsError } = useSeasonsStore();
-  const { players } = usePlayersStore();
-  const { matches, add: addMatch } = useMatchesStore();
-  const { sessions } = useTrainingStore();
-  const { playerLeaderboard, matchFilter, setMatchFilter, detailedContext, refreshIfDirty } = useStatsStore();
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+  const seasonsError = useSeasonsStore((s) => s.error);
+  const players = usePlayersStore((s) => s.players);
+  const matches = useMatchesStore((s) => s.matches);
+  const addMatch = useMatchesStore((s) => s.add);
+  const sessions = useTrainingStore((s) => s.sessions);
+  const playerLeaderboard = useStatsStore((s) => s.playerLeaderboard);
+  const matchFilter = useStatsStore((s) => s.matchFilter);
+  const setMatchFilter = useStatsStore((s) => s.setMatchFilter);
+  const detailedContext = useStatsStore((s) => s.detailedContext);
+  const refreshIfDirty = useStatsStore((s) => s.refreshIfDirty);
 
   useEffect(() => {
     setMounted(true);

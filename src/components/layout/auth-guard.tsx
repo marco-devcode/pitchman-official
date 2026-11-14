@@ -17,7 +17,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const { hasInitialized, setHasInitialized } = useAppStore();
+  const hasInitialized = useAppStore((s) => s.hasInitialized);
+  const setHasInitialized = useAppStore((s) => s.setHasInitialized);
 
   // Pagine pubbliche (legali, landing e sondaggi giocatore via token): non richiedono autenticazione
   const isPublicLegal =
@@ -26,9 +27,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname === '/landing' ||
     pathname.startsWith('/sondaggio');
 
-  const { fetchSettings } = useSettingsStore();
-  const { fetchAll: fetchSeasons, resetSeasons } = useSeasonsStore();
-  const { loadDetailedStats } = useStatsStore();
+  const fetchSettings = useSettingsStore((s) => s.fetchSettings);
+  const fetchSeasons = useSeasonsStore((s) => s.fetchAll);
+  const resetSeasons = useSeasonsStore((s) => s.resetSeasons);
+  const loadDetailedStats = useStatsStore((s) => s.loadDetailedStats);
 
   useEffect(() => {
     setMounted(true);

@@ -9,8 +9,17 @@ import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export function FloatingMatchTimer() {
-  const { isRunning, startTimer, pauseTimer, getElapsedTime, matchId, period, isTrackerOpen, setIsTrackerOpen, clearSession } = useLiveTimerStore();
-  const { match, load } = useMatchDetailStore();
+  const isRunning = useLiveTimerStore((s) => s.isRunning);
+  const startTimer = useLiveTimerStore((s) => s.startTimer);
+  const pauseTimer = useLiveTimerStore((s) => s.pauseTimer);
+  const getElapsedTime = useLiveTimerStore((s) => s.getElapsedTime);
+  const matchId = useLiveTimerStore((s) => s.matchId);
+  const period = useLiveTimerStore((s) => s.period);
+  const isTrackerOpen = useLiveTimerStore((s) => s.isTrackerOpen);
+  const setIsTrackerOpen = useLiveTimerStore((s) => s.setIsTrackerOpen);
+  const clearSession = useLiveTimerStore((s) => s.clearSession);
+  const match = useMatchDetailStore((s) => s.match);
+  const load = useMatchDetailStore((s) => s.load);
   const [displaySeconds, setDisplaySeconds] = React.useState(0);
   const router = useRouter();
   const pathname = usePathname();

@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { matchRepository } from '@/lib/repositories/match-repository';
 import type { Match } from '@/lib/types';
 import type { MatchCreateData } from '@/lib/repositories/match-repository';
@@ -9,12 +10,12 @@ import { useAuthStore } from './useAuthStore';
 import { useStatsStore } from './useStatsStore';
 import { getErrorMessage } from '@/lib/error-utils';
 import { enqueueMutation, isOffline } from '@/lib/sync-queue';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
+import { collection, query, onSnapshot, getFirestore } from 'firebase/firestore';
 import { MatchSchema } from '@/lib/schemas';
 
 interface MatchState {
     matches: Match[];
+    seasonId: string | null;
     loading: boolean;
     error: string | null;
     fetchAll: (seasonId?: string) => Promise<void>;
@@ -26,25 +27,36 @@ interface MatchState {
     subscribe: (userId: string, seasonId: string) => () => void;
 }
 
-export const useMatchesStore = create<MatchState>((set, get) => ({
+const sortMatchesByDate = (list: Match[]) =>
+  [...list].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+export const useMatchesStore = create<MatchState>()(
+  persist(
+    (set, get) => ({
     matches: [],
+    seasonId: null,
     loading: true,
     error: null,
     fetchAll: async (seasonId) => {
         const user = useAuthStore.getState().user;
         if (!user) return;
 
-        if (get().matches.length === 0) set({ loading: true, error: null });
         const targetSeasonId = seasonId || useSeasonsStore.getState().activeSeason?.id;
 
         if (!targetSeasonId) {
-            set({ matches: [], loading: false, error: null });
+            set({ matches: [], seasonId: null, loading: false, error: null });
             return;
+        }
+
+        if (get().seasonId !== targetSeasonId) {
+            set({ matches: [], seasonId: targetSeasonId, loading: true, error: null });
+        } else if (get().matches.length === 0) {
+            set({ loading: true, error: null });
         }
 
         try {
             const matches = await matchRepository.getAll(user.id, targetSeasonId);
-            set({ matches, loading: false, error: null });
+            set({ matches, seasonId: targetSeasonId, loading: false, error: null });
         } catch (err) {
             console.error("Error fetching matches:", err);
             set({ loading: false, error: getErrorMessage(err) });
@@ -67,7 +79,12 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
             seasonId: activeSeason.id
         } as MatchCreateData);
 
-        await get().fetchAll(activeSeason.id);
+        set((s) => ({
+          matches: sortMatchesByDate([...s.matches.filter((m) => m.id !== newMatch.id), newMatch]),
+          seasonId: activeSeason.id,
+          loading: false,
+          error: null,
+        }));
         return newMatch;
     },
     bulkAdd: async (
@@ -85,8 +102,16 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         // leaderboard: la dashboard li deve rivedere al ritorno.
         useStatsStore.getState().markStatsDirty();
 
-        await matchRepository.bulkAdd(matchesData, user.id, targetSeasonId);
-        await get().fetchAll(targetSeasonId);
+        const added = await matchRepository.bulkAdd(matchesData, user.id, targetSeasonId);
+        set((s) => {
+          const addedIds = new Set(added.map((m) => m.id));
+          return {
+            matches: sortMatchesByDate([...s.matches.filter((m) => !addedIds.has(m.id)), ...added]),
+            seasonId: targetSeasonId,
+            loading: false,
+            error: null,
+          };
+        });
     },
     update: async (id, updates) => {
         const activeSeason = useSeasonsStore.getState().activeSeason;
@@ -104,7 +129,9 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
 
         const updatedMatch = await matchRepository.update(id, activeSeason.id, updates);
         if (updatedMatch) {
-            await get().fetchAll(activeSeason.id);
+            set((s) => ({
+              matches: sortMatchesByDate(s.matches.map((m) => (m.id === id ? updatedMatch : m))),
+            }));
         }
     },
     remove: async (id) => {
@@ -116,7 +143,7 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         useStatsStore.getState().markStatsDirty();
 
         await matchRepository.delete(id, activeSeason.id);
-        await get().fetchAll(activeSeason.id);
+        set((s) => ({ matches: s.matches.filter((m) => m.id !== id) }));
     },
     removeAll: async () => {
         const user = useAuthStore.getState().user;
@@ -128,9 +155,12 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
         useStatsStore.getState().markStatsDirty();
 
         await matchRepository.deleteAll(user.id, activeSeason.id);
-        await get().fetchAll(activeSeason.id);
+        set({ matches: [] });
     },
     subscribe: (userId: string, seasonId: string) => {
+        if (get().seasonId !== seasonId) {
+          set({ matches: [], seasonId, loading: true, error: null });
+        }
         const db = getFirestore();
         const matchesRef = collection(db, 'teams', seasonId, 'matches');
         const q = query(matchesRef);
@@ -144,11 +174,16 @@ export const useMatchesStore = create<MatchState>((set, get) => ({
                 }
                 return parsed.data;
             });
-            set({ matches, loading: false, error: null });
+            set({ matches: sortMatchesByDate(matches), seasonId, loading: false, error: null });
         }, (err) => {
             console.error("Matches onSnapshot error:", err);
             set({ loading: false, error: getErrorMessage(err) });
         });
         return unsubscribe;
     },
-}));
+}),
+    {
+      name: 'pitchman-matches',
+    }
+  )
+);

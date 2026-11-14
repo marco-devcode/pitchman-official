@@ -35,9 +35,9 @@ const STORAGE_KEY = 'rosa-overview-state';
 const FORMATION_KEY = 'rosa-overview-formation';
 
 export default function RosaOverviewPage() {
-  const { players } = usePlayersStore();
-  const { activeSeason } = useSeasonsStore();
-  const { scouts: scoutPlayers } = useScoutStore();
+  const players = usePlayersStore((s) => s.players);
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+  const scoutPlayers = useScoutStore((s) => s.scouts);
 
   const [formation, setFormation] = useState<FormationModule>(() => {
     try {

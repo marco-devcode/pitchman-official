@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMatchDetailStore } from "@/store/useMatchDetailStore";
@@ -8,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Info, Plus, Trash2, ArrowRightLeft, XCircle, Target, Zap, Flag, Handshake, Edit2, User, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 import { GiSoccerBall } from "react-icons/gi";
 import { IoSquare } from "react-icons/io5";
-import { MatchEventDialog } from "./match-event-dialog";
 import { LiveMatchTracker } from "./live-match-tracker";
 import { Button } from "@/components/ui/button";
 import { MatchEventType, MatchEvent } from "@/lib/types";
@@ -18,9 +18,15 @@ import { useRouter } from "next/navigation";
 import { getEventIcon, getEventLabel, formatDisplayMinute, PERIOD_ORDER } from "@/lib/match-events";
 import { cn, formatPlayerInitial, displayPlayerName, isTeamName } from "@/lib/utils";
 
+const MatchEventDialog = dynamic(() => import("./match-event-dialog").then((mod) => mod.MatchEventDialog), { ssr: false });
+
 export function MatchEventsTab() {
-  const { events, deleteEvent, match, allPlayers } = useMatchDetailStore();
-  const { isTrackerOpen, setIsTrackerOpen } = useLiveTimerStore();
+  const events = useMatchDetailStore((s) => s.events);
+  const deleteEvent = useMatchDetailStore((s) => s.deleteEvent);
+  const match = useMatchDetailStore((s) => s.match);
+  const allPlayers = useMatchDetailStore((s) => s.allPlayers);
+  const isTrackerOpen = useLiveTimerStore((s) => s.isTrackerOpen);
+  const setIsTrackerOpen = useLiveTimerStore((s) => s.setIsTrackerOpen);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<MatchEvent | undefined>(undefined);
 

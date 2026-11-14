@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { RoundBadge } from '@/components/calendario/round-badge';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -35,9 +36,9 @@ import { it } from "date-fns/locale";
 import { cn } from '@/lib/utils';
 import { scoreBoxStyle } from '@/lib/score-box';
 import { MATCH_TYPES, type MatchType } from '@/lib/types';
-import { MatchFormDialog } from '@/components/partite/match-form-dialog';
-import { ImportTuttocampoDialog } from "@/components/partite/import-tuttocampo-dialog";
-import { ImportCalendarioScraperDialog } from "@/components/partite/import-calendario-scraper-dialog";
+const MatchFormDialog = dynamic(() => import("@/components/partite/match-form-dialog").then((mod) => mod.MatchFormDialog), { ssr: false });
+const ImportTuttocampoDialog = dynamic(() => import("@/components/partite/import-tuttocampo-dialog").then((mod) => mod.ImportTuttocampoDialog), { ssr: false });
+const ImportCalendarioScraperDialog = dynamic(() => import("@/components/partite/import-calendario-scraper-dialog").then((mod) => mod.ImportCalendarioScraperDialog), { ssr: false });
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useStatsStore } from "@/store/useStatsStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
@@ -53,7 +54,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function CalendarioPage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isMatchFormOpen, setIsMatchFormOpen] = useState(false);
@@ -64,10 +66,17 @@ export default function CalendarioPage() {
   const [pendingDeletions, setPendingDeletions] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<MatchType | 'all'>('all');
 
-  const { activeSeason, fetchAll: fetchSeasons } = useSeasonsStore();
-  const { matches, fetchAll: fetchMatches, add: addMatch, remove: removeMatch, removeAll: removeAllMatches, loading } = useMatchesStore();
-  const { loadSummaryStats } = useStatsStore();
-  const { statsDefaultFilter, fetchSettings } = useSettingsStore();
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+  const fetchSeasons = useSeasonsStore((s) => s.fetchAll);
+  const matches = useMatchesStore((s) => s.matches);
+  const fetchMatches = useMatchesStore((s) => s.fetchAll);
+  const addMatch = useMatchesStore((s) => s.add);
+  const removeMatch = useMatchesStore((s) => s.remove);
+  const removeAllMatches = useMatchesStore((s) => s.removeAll);
+  const loading = useMatchesStore((s) => s.loading);
+  const loadSummaryStats = useStatsStore((s) => s.loadSummaryStats);
+  const statsDefaultFilter = useSettingsStore((s) => s.statsDefaultFilter);
+  const fetchSettings = useSettingsStore((s) => s.fetchSettings);
 
   useEffect(() => {
     setMounted(true);

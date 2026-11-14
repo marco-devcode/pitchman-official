@@ -31,7 +31,15 @@ const nextConfig: NextConfig = {
   // silence "Can't resolve '@opentelemetry/exporter-jaeger'" warnings.
   serverExternalPackages: ['@opentelemetry/sdk-node', 'genkit', '@genkit-ai/core'],
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts', 'embla-carousel-react'],
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'react-icons/gi',
+      'react-icons/pi',
+      'react-icons/fa',
+      'react-icons/io5',
+      'date-fns',
+    ],
   },
   webpack: (config, { isServer }) => {
     // These OpenTelemetry exporters are optional peer deps of @opentelemetry/sdk-node

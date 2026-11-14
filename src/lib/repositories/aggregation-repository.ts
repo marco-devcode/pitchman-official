@@ -381,9 +381,11 @@ export const aggregationRepository = {
         if (!userId || !seasonId) return;
         const context = await this.getDetailedContext(userId, seasonId);
         const allStats = this.getPlayersAggregatedStatsFromContext(context);
-        for (const { playerId, stats } of allStats) {
-            await playerRepository.update(playerId, seasonId, { stats });
-        }
+        await Promise.all(
+            allStats.map(({ playerId, stats }) =>
+                playerRepository.update(playerId, seasonId, { stats })
+            )
+        );
     },
 
     /**

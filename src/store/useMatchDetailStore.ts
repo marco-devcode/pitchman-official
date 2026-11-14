@@ -5,7 +5,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { matchRepository } from '@/lib/repositories/match-repository';
 import { playerRepository } from '@/lib/repositories/player-repository';
-import { aggregationRepository } from '@/lib/repositories/aggregation-repository';
 import { lineupRepository } from '@/lib/repositories/lineup-repository';
 import { eventRepository } from '@/lib/repositories/event-repository';
 import { statsRepository } from '@/lib/repositories/stats-repository';
@@ -358,14 +357,12 @@ export const useMatchDetailStore = create<MatchDetailState>()(
         // al prossimo arrivo sulla dashboard (refreshIfDirty), non qui.
         useStatsStore.getState().markStatsDirty();
 
-        // Scritture asincrone
-        newStats.forEach(stat => {
-            statsRepository.upsert(matchId, match.seasonId, stat.playerId, stat, user.id);
-        });
-
-        aggregationRepository.syncAllPlayersStats(user.id, match.seasonId).then(() => {
-            useStatsStore.getState().loadSummaryStats();
-        });
+        // Scritture asincrone in parallelo delle sole statistiche della partita
+        await Promise.all(
+            newStats.map(stat =>
+                statsRepository.upsert(matchId, match.seasonId, stat.playerId, stat, user.id)
+            )
+        );
     },
 
     saveAllStats: async (newStats) => {
@@ -394,13 +391,11 @@ export const useMatchDetailStore = create<MatchDetailState>()(
           return;
         }
 
-        newStats.forEach(stat => {
-            statsRepository.upsert(matchId, match.seasonId, stat.playerId, stat, user.id);
-        });
-
-        aggregationRepository.syncAllPlayersStats(user.id, match.seasonId).then(() => {
-            useStatsStore.getState().loadSummaryStats();
-        });
+        await Promise.all(
+            newStats.map(stat =>
+                statsRepository.upsert(matchId, match.seasonId, stat.playerId, stat, user.id)
+            )
+        );
     },
 
     addEvent: async (eventData) => {

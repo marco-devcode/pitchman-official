@@ -72,8 +72,19 @@ const STILE_BOX: Record<string, { box: string; testo: string; badge: string }> =
 export default function RosaPage() {
   const router = useRouter();
   const { isCoachOrAbove } = useUserRole();
-  const { players, loading: playersLoading, error: playersError, fetchAll, add, update, remove, bulkAdd, removeAll } = usePlayersStore();
-  const { activeSeason, loading: seasonsLoading, error: seasonsError, fetchAll: fetchSeasons } = useSeasonsStore();
+  const players = usePlayersStore((s) => s.players);
+  const playersLoading = usePlayersStore((s) => s.loading);
+  const playersError = usePlayersStore((s) => s.error);
+  const fetchAll = usePlayersStore((s) => s.fetchAll);
+  const add = usePlayersStore((s) => s.add);
+  const update = usePlayersStore((s) => s.update);
+  const remove = usePlayersStore((s) => s.remove);
+  const bulkAdd = usePlayersStore((s) => s.bulkAdd);
+  const removeAll = usePlayersStore((s) => s.removeAll);
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+  const seasonsLoading = useSeasonsStore((s) => s.loading);
+  const seasonsError = useSeasonsStore((s) => s.error);
+  const fetchSeasons = useSeasonsStore((s) => s.fetchAll);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSmartFormOpen, setIsSmartFormOpen] = useState(false);

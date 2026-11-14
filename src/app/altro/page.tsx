@@ -87,19 +87,35 @@ export default function AltroPage() {
 
   const { toast } = useToast();
   const router = useRouter();
-  const { theme, toggleTheme } = useThemeStore();
-  const { seasons, activeSeason, fetchAll: fetchSeasons, addSeason, setActiveSeason, removeSeason, renameSeason, joinSeason } = useSeasonsStore();
-  const { 
-    defaultDuration, setDefaultDuration, 
-    sessionsPerWeek, setSessionsPerWeek, 
-    trainingDays, setTrainingDays, 
-    autoSetPresenceOnGenerate, setAutoSetPresenceOnGenerate,
-    teamName, setTeamName, saveSettings, fetchSettings,
-    matchNotificationEnabled, matchNotificationTime,
-    trainingNotificationEnabled, trainingNotificationTime,
-    statsDefaultFilter, setStatsDefaultFilter
-  } = useSettingsStore();
-  const { applyDefaultFilter } = useStatsStore();
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const seasons = useSeasonsStore((s) => s.seasons);
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+  const fetchSeasons = useSeasonsStore((s) => s.fetchAll);
+  const addSeason = useSeasonsStore((s) => s.addSeason);
+  const setActiveSeason = useSeasonsStore((s) => s.setActiveSeason);
+  const removeSeason = useSeasonsStore((s) => s.removeSeason);
+  const renameSeason = useSeasonsStore((s) => s.renameSeason);
+  const joinSeason = useSeasonsStore((s) => s.joinSeason);
+  const defaultDuration = useSettingsStore((s) => s.defaultDuration);
+  const setDefaultDuration = useSettingsStore((s) => s.setDefaultDuration);
+  const sessionsPerWeek = useSettingsStore((s) => s.sessionsPerWeek);
+  const setSessionsPerWeek = useSettingsStore((s) => s.setSessionsPerWeek);
+  const trainingDays = useSettingsStore((s) => s.trainingDays);
+  const setTrainingDays = useSettingsStore((s) => s.setTrainingDays);
+  const autoSetPresenceOnGenerate = useSettingsStore((s) => s.autoSetPresenceOnGenerate);
+  const setAutoSetPresenceOnGenerate = useSettingsStore((s) => s.setAutoSetPresenceOnGenerate);
+  const teamName = useSettingsStore((s) => s.teamName);
+  const setTeamName = useSettingsStore((s) => s.setTeamName);
+  const saveSettings = useSettingsStore((s) => s.saveSettings);
+  const fetchSettings = useSettingsStore((s) => s.fetchSettings);
+  const matchNotificationEnabled = useSettingsStore((s) => s.matchNotificationEnabled);
+  const matchNotificationTime = useSettingsStore((s) => s.matchNotificationTime);
+  const trainingNotificationEnabled = useSettingsStore((s) => s.trainingNotificationEnabled);
+  const trainingNotificationTime = useSettingsStore((s) => s.trainingNotificationTime);
+  const statsDefaultFilter = useSettingsStore((s) => s.statsDefaultFilter);
+  const setStatsDefaultFilter = useSettingsStore((s) => s.setStatsDefaultFilter);
+  const applyDefaultFilter = useStatsStore((s) => s.applyDefaultFilter);
 
   const [localTeamName, setLocalTeamName] = useState('');
   const [localDefaultDuration, setLocalDefaultDuration] = useState(90);
@@ -130,7 +146,8 @@ export default function AltroPage() {
     }
   }, [isNotificheOpen, matchNotificationEnabled, matchNotificationTime, trainingNotificationEnabled, trainingNotificationTime]);
 
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
 
   const handleSaveSettings = async () => {
     if (!user) return;

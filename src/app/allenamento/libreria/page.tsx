@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,16 +11,21 @@ import { PiTrafficCone } from "react-icons/pi";
 import { useExerciseStore } from "@/store/useExerciseStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ExerciseCard } from "@/components/allenamento/exercise-card";
-import { ExerciseDialog } from "../../../components/allenamento/exercise-dialog";
-import { AiExerciseGenerator, VisionExerciseScanner } from "@/components/allenamento/ai-exercise-generator";
-import { ExerciseViewDialog } from "../../../components/allenamento/exercise-view-dialog";
-import { ExerciseFilterDialog } from "../../../components/allenamento/exercise-filter-dialog";
 import { cn } from "@/lib/utils";
+
+const ExerciseDialog = dynamic(() => import("@/components/allenamento/exercise-dialog").then((mod) => mod.ExerciseDialog), { ssr: false });
+const AiExerciseGenerator = dynamic(() => import("@/components/allenamento/ai-exercise-generator").then((mod) => mod.AiExerciseGenerator), { ssr: false });
+const VisionExerciseScanner = dynamic(() => import("@/components/allenamento/ai-exercise-generator").then((mod) => mod.VisionExerciseScanner), { ssr: false });
+const ExerciseViewDialog = dynamic(() => import("@/components/allenamento/exercise-view-dialog").then((mod) => mod.ExerciseViewDialog), { ssr: false });
+const ExerciseFilterDialog = dynamic(() => import("@/components/allenamento/exercise-filter-dialog").then((mod) => mod.ExerciseFilterDialog), { ssr: false });
 
 export default function ExerciseLibraryPage() {
   const router = useRouter();
   const user = useAuthStore(state => state.user);
-  const { exercises, loading, fetchAll, deleteExercise } = useExerciseStore();
+  const exercises = useExerciseStore((s) => s.exercises);
+  const loading = useExerciseStore((s) => s.loading);
+  const fetchAll = useExerciseStore((s) => s.fetchAll);
+  const deleteExercise = useExerciseStore((s) => s.deleteExercise);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [focusFilter, setFocusFilter] = useState<string | null>(null);

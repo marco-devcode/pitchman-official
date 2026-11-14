@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,7 +32,7 @@ import {
   PopoverTrigger 
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ExerciseViewDialog } from "@/components/allenamento/exercise-view-dialog";
+const ExerciseViewDialog = dynamic(() => import("@/components/allenamento/exercise-view-dialog").then((mod) => mod.ExerciseViewDialog), { ssr: false });
 import { Exercise } from "@/lib/types";
 import { Search, Plus as PlusIcon } from "lucide-react";
 
@@ -40,7 +41,8 @@ export default function TrainingDetailPage() {
   const router = useRouter();
   const sessionId = params.id as string;
   const user = useAuthStore(state => state.user);
-  const { players, fetchAll: fetchPlayers } = usePlayersStore();
+  const players = usePlayersStore((s) => s.players);
+  const fetchPlayers = usePlayersStore((s) => s.fetchAll);
   // Le sessioni stanno sotto la stagione, non sotto l'utente.
   const seasonId = useSeasonsStore((s) => s.activeSeason?.id);
   
@@ -62,7 +64,8 @@ export default function TrainingDetailPage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("programma");
 
-  const { exercises, fetchAll: fetchExercises } = useExerciseStore();
+  const exercises = useExerciseStore((s) => s.exercises);
+  const fetchExercises = useExerciseStore((s) => s.fetchAll);
   
   const selectedExerciseIds = sessionExercises.map(e => e.id);
   const selectedExercises = exercises.filter(ex => selectedExerciseIds.includes(ex.id));
@@ -111,7 +114,7 @@ export default function TrainingDetailPage() {
       setLoading(false);
     };
     load();
-  }, [user, sessionId, fetchPlayers]);
+  }, [user, sessionId, seasonId, fetchPlayers, fetchExercises]);
 
   const handleSaveNotes = async () => {
     if (!user || !session || !seasonId) return;

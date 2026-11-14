@@ -6,7 +6,6 @@ import { AppHeaderWrapper } from '@/components/layout/app-header-wrapper';
 import { BottomNavWrapper } from '@/components/layout/bottom-nav-wrapper';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { AuthGuard } from '@/components/layout/auth-guard';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { PrefetchProvider } from '@/hooks/PrefetchProvider';
 import { OfflineSyncProvider } from '@/components/layout/offline-sync-provider';
 import { PT_Sans } from 'next/font/google';
@@ -92,24 +91,22 @@ export default function RootLayout({
         />
       </head>
       <body className={`font-body antialiased ${ptSans.variable}`}>
-        <FirebaseClientProvider>
-          <ThemeProvider>
-            <AuthGuard>
-              <PrefetchProvider>
-                <div className="relative flex min-h-screen w-full flex-col">
-                  <AppHeaderWrapper />
-                  <main className="flex-1 p-3 pb-24 md:p-10 lg:p-16">
-                    {children}
-                  </main>
-                  <BottomNavWrapper />
-                  <FloatingMatchTimer />
-                </div>
-              </PrefetchProvider>
-            </AuthGuard>
-            <Toaster />
-            <OfflineSyncProvider />
-          </ThemeProvider>
-        </FirebaseClientProvider>
+        <ThemeProvider>
+          <AuthGuard>
+            <PrefetchProvider>
+              <div className="relative flex min-h-screen w-full flex-col">
+                <AppHeaderWrapper />
+                <main className="flex-1 p-3 pb-24 md:p-10 lg:p-16">
+                  {children}
+                </main>
+                <BottomNavWrapper />
+                <FloatingMatchTimer />
+              </div>
+            </PrefetchProvider>
+          </AuthGuard>
+          <Toaster />
+          <OfflineSyncProvider />
+        </ThemeProvider>
         <SpeedInsights />
         <Analytics />
       </body>

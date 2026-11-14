@@ -20,6 +20,7 @@ interface ScoutState {
   scouts: ScoutPlayer[];
   allTeamsScouts: CrossTeamScoutPlayer[];
   categories: ScoutCategory[];
+  seasonId: string | null;
   loading: boolean;
   error: string | null;
   fetchAll: (seasonId?: string) => Promise<void>;
@@ -39,6 +40,7 @@ export const useScoutStore = create<ScoutState>()(
       scouts: [],
       allTeamsScouts: [],
       categories: [],
+      seasonId: null,
       loading: true,
       error: null,
 
@@ -46,12 +48,17 @@ export const useScoutStore = create<ScoutState>()(
         const user = useAuthStore.getState().user;
         if (!user) return;
 
-        if (get().scouts.length === 0) set({ loading: true, error: null });
         const targetSeasonId = seasonId || useSeasonsStore.getState().activeSeason?.id;
 
         if (!targetSeasonId) {
-          set({ scouts: [], categories: [], loading: false, error: null });
+          set({ scouts: [], categories: [], seasonId: null, loading: false, error: null });
           return;
+        }
+
+        if (get().seasonId !== targetSeasonId) {
+          set({ scouts: [], categories: [], seasonId: targetSeasonId, loading: true, error: null });
+        } else if (get().scouts.length === 0) {
+          set({ loading: true, error: null });
         }
 
         try {
@@ -62,6 +69,7 @@ export const useScoutStore = create<ScoutState>()(
           set({
             scouts: scouts.sort((a, b) => a.name.localeCompare(b.name)),
             categories: categories.sort((a, b) => a.name.localeCompare(b.name)),
+            seasonId: targetSeasonId,
             loading: false,
             error: null,
           });
@@ -97,7 +105,16 @@ export const useScoutStore = create<ScoutState>()(
         if (!activeSeason || !user) return undefined;
 
         const id = await scoutRepository.create(user.id, activeSeason.id, data);
-        await get().fetchAll(activeSeason.id);
+        if (id) {
+          set((s) => ({
+            scouts: [...s.scouts.filter((p) => p.id !== id), { ...data, id } as ScoutPlayer].sort((a, b) =>
+              a.name.localeCompare(b.name)
+            ),
+            seasonId: activeSeason.id,
+            loading: false,
+            error: null,
+          }));
+        }
         return id;
       },
 
@@ -121,7 +138,11 @@ export const useScoutStore = create<ScoutState>()(
         }
 
         await scoutRepository.update(user.id, activeSeason.id, id, updates);
-        await get().fetchAll(activeSeason.id);
+        set((s) => ({
+          scouts: s.scouts
+            .map((p) => (p.id === id ? { ...p, ...updates, id } : p))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        }));
       },
 
       remove: async (id) => {
@@ -130,7 +151,7 @@ export const useScoutStore = create<ScoutState>()(
         if (!activeSeason || !user) return;
 
         await scoutRepository.remove(activeSeason.id, id);
-        await get().fetchAll(activeSeason.id);
+        set((s) => ({ scouts: s.scouts.filter((p) => p.id !== id) }));
       },
 
       addCategory: async (data) => {
@@ -139,7 +160,15 @@ export const useScoutStore = create<ScoutState>()(
         if (!activeSeason || !user) return undefined;
 
         const id = await scoutRepository.createCategory(activeSeason.id, data);
-        await get().fetchAll(activeSeason.id);
+        if (id) {
+          set((s) => ({
+            categories: [
+              ...s.categories.filter((c) => c.id !== id),
+              { ...data, id } as ScoutCategory,
+            ].sort((a, b) => a.name.localeCompare(b.name)),
+            seasonId: activeSeason.id,
+          }));
+        }
         return id;
       },
 
@@ -149,7 +178,11 @@ export const useScoutStore = create<ScoutState>()(
         if (!activeSeason || !user) return;
 
         await scoutRepository.updateCategory(activeSeason.id, id, data);
-        await get().fetchAll(activeSeason.id);
+        set((s) => ({
+          categories: s.categories
+            .map((c) => (c.id === id ? { ...c, ...data, id } : c))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        }));
       },
 
       removeCategory: async (id) => {
@@ -158,17 +191,20 @@ export const useScoutStore = create<ScoutState>()(
         if (!activeSeason || !user) return;
 
         await scoutRepository.removeCategory(activeSeason.id, id);
-        await get().fetchAll(activeSeason.id);
+        set((s) => ({ categories: s.categories.filter((c) => c.id !== id) }));
       },
 
       subscribe: (userId: string, seasonId: string) => {
+        if (get().seasonId !== seasonId) {
+          set({ scouts: [], categories: [], seasonId, loading: true, error: null });
+        }
         const unsubScouts = onSnapshot(
           query(scoutRepository.ref(seasonId)),
           (snapshot) => {
             const scouts = snapshot.docs
               .map((doc) => parseScoutDoc(doc.id, doc.data()))
               .sort((a, b) => a.name.localeCompare(b.name));
-            set({ scouts, loading: false, error: null });
+            set({ scouts, seasonId, loading: false, error: null });
           },
           (err) => {
             console.error('Scouts onSnapshot error:', err);
@@ -182,7 +218,7 @@ export const useScoutStore = create<ScoutState>()(
             const categories = snapshot.docs
               .map((doc) => parseScoutCategoryDoc(doc.id, doc.data()))
               .sort((a, b) => a.name.localeCompare(b.name));
-            set({ categories });
+            set({ categories, seasonId });
           },
           (err) => {
             console.error('ScoutCategories onSnapshot error:', err);

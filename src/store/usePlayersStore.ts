@@ -9,14 +9,13 @@ import type { PlayerCreateData } from '@/lib/repositories/player-repository';
 import { useStatsStore } from './useStatsStore';
 import { useSeasonsStore } from './useSeasonsStore';
 import { useAuthStore } from './useAuthStore';
-import { mutate } from 'swr';
 import { getErrorMessage } from '@/lib/error-utils';
 import { enqueueMutation, isOffline } from '@/lib/sync-queue';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
+import { collection, query, onSnapshot, getFirestore } from 'firebase/firestore';
 
 interface PlayerState {
     players: Player[];
+    seasonId: string | null;
     loading: boolean;
     error: string | null;
     fetchAll: (seasonId?: string) => Promise<void>;
@@ -28,31 +27,33 @@ interface PlayerState {
     subscribe: (userId: string, seasonId: string) => () => void;
 }
 
-export const getPlayersSWRKey = (userId?: string, seasonId?: string) => 
-    userId && seasonId ? ['players', userId, seasonId] : null;
-
 export const usePlayersStore = create<PlayerState>()(
   persist(
     (set, get) => ({
       players: [],
+      seasonId: null,
       loading: true,
       error: null,
       fetchAll: async (seasonId) => {
           const user = useAuthStore.getState().user;
           if (!user) return;
 
-          if (get().players.length === 0) set({ loading: true, error: null });
           const targetSeasonId = seasonId || useSeasonsStore.getState().activeSeason?.id;
           
           if (!targetSeasonId) {
-              set({ players: [], loading: false, error: null });
+              set({ players: [], seasonId: null, loading: false, error: null });
               return;
+          }
+
+          if (get().seasonId !== targetSeasonId) {
+              set({ players: [], seasonId: targetSeasonId, loading: true, error: null });
+          } else if (get().players.length === 0) {
+              set({ loading: true, error: null });
           }
 
           try {
             const players = await playerRepository.getAll(user.id, targetSeasonId);
-            set({ players, loading: false, error: null });
-            mutate(getPlayersSWRKey(user.id, targetSeasonId), players, false);
+            set({ players, seasonId: targetSeasonId, loading: false, error: null });
           } catch (e) {
             console.error("Fetch players error:", e);
             set({ loading: false, error: getErrorMessage(e) });
@@ -71,10 +72,15 @@ export const usePlayersStore = create<PlayerState>()(
               seasonId: activeSeason.id 
           });
           
-          await mutate(getPlayersSWRKey(user.id, activeSeason.id));
-          await get().fetchAll(activeSeason.id);
+          set((s) => ({
+            players: [...s.players.filter((p) => p.id !== newPlayer.id), newPlayer].sort((a, b) =>
+              a.lastName.localeCompare(b.lastName)
+            ),
+            seasonId: activeSeason.id,
+            loading: false,
+            error: null,
+          }));
           useStatsStore.getState().markStatsDirty();
-          useStatsStore.getState().loadSummaryStats();
           return newPlayer;
       },
       bulkAdd: async (playersData) => {
@@ -90,12 +96,20 @@ export const usePlayersStore = create<PlayerState>()(
             seasonId: activeSeason.id,
             userId: user.id,
           }));
-          await playerRepository.bulkAdd(repoData, user.id, activeSeason.id);
+          const added = await playerRepository.bulkAdd(repoData, user.id, activeSeason.id);
           
-          await mutate(getPlayersSWRKey(user.id, activeSeason.id));
-          await get().fetchAll(activeSeason.id);
+          set((s) => {
+            const addedIds = new Set(added.map((p) => p.id));
+            return {
+              players: [...s.players.filter((p) => !addedIds.has(p.id)), ...added].sort((a, b) =>
+                a.lastName.localeCompare(b.lastName)
+              ),
+              seasonId: activeSeason.id,
+              loading: false,
+              error: null,
+            };
+          });
           useStatsStore.getState().markStatsDirty();
-          useStatsStore.getState().loadSummaryStats();
       },
       update: async (id, updates) => {
           const user = useAuthStore.getState().user;
@@ -105,15 +119,18 @@ export const usePlayersStore = create<PlayerState>()(
           if (isOffline()) {
             await enqueueMutation({ collection: 'players', docId: id, action: 'update', seasonId: activeSeason.id, payload: updates });
             set(s => ({ players: s.players.map(p => p.id === id ? { ...p, ...updates } : p) }));
+            useStatsStore.getState().markStatsDirty();
             return;
           }
 
           const updatedPlayer = await playerRepository.update(id, activeSeason.id, updates);
           if (updatedPlayer) {
-              await mutate(getPlayersSWRKey(user.id, activeSeason.id));
-              await get().fetchAll(activeSeason.id);
+              set((s) => ({
+                players: s.players
+                  .map((p) => (p.id === id ? { ...p, ...updatedPlayer } : p))
+                  .sort((a, b) => a.lastName.localeCompare(b.lastName)),
+              }));
               useStatsStore.getState().markStatsDirty();
-              useStatsStore.getState().loadSummaryStats();
           }
       },
       remove: async (id) => {
@@ -122,10 +139,8 @@ export const usePlayersStore = create<PlayerState>()(
           if (!activeSeason || !user) return;
           
           await playerRepository.delete(id, activeSeason.id);
-          await mutate(getPlayersSWRKey(user.id, activeSeason.id));
-          await get().fetchAll(activeSeason.id);
+          set((s) => ({ players: s.players.filter((p) => p.id !== id) }));
           useStatsStore.getState().markStatsDirty();
-          useStatsStore.getState().loadSummaryStats();
       },
       removeAll: async () => {
           const user = useAuthStore.getState().user;
@@ -133,18 +148,24 @@ export const usePlayersStore = create<PlayerState>()(
           if (!activeSeason || !user) return;
           
           await playerRepository.deleteAll(user.id, activeSeason.id);
-          await mutate(getPlayersSWRKey(user.id, activeSeason.id));
-          await get().fetchAll(activeSeason.id);
+          set({ players: [] });
           useStatsStore.getState().markStatsDirty();
-          useStatsStore.getState().loadSummaryStats();
       },
       subscribe: (userId: string, seasonId: string) => {
+        if (get().seasonId !== seasonId) {
+          set({ players: [], seasonId, loading: true, error: null });
+        }
         const db = getFirestore();
         const playersRef = collection(db, 'teams', seasonId, 'players');
         const q = query(playersRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const players = snapshot.docs.map(doc => parsePlayerDoc(doc.id, doc.data()));
-          set({ players: players.sort((a, b) => a.lastName.localeCompare(b.lastName)), loading: false, error: null });
+          set({
+            players: players.sort((a, b) => a.lastName.localeCompare(b.lastName)),
+            seasonId,
+            loading: false,
+            error: null,
+          });
         }, (err) => {
           console.error("Players onSnapshot error:", err);
           set({ loading: false, error: getErrorMessage(err) });

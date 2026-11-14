@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,17 +40,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { TrainingStatsDialog } from "@/components/allenamento/training-stats-dialog";
-import { TrainingListDialog } from "@/components/allenamento/training-list-dialog";
+const TrainingStatsDialog = dynamic(() => import("@/components/allenamento/training-stats-dialog").then((mod) => mod.TrainingStatsDialog), { ssr: false });
+const TrainingListDialog = dynamic(() => import("@/components/allenamento/training-list-dialog").then((mod) => mod.TrainingListDialog), { ssr: false });
 import { ErrorState } from "@/components/ui/error-state";
 import { parseError, missingSeasonError } from "@/lib/error-utils";
 
 export default function AllenamentoPage() {
   const router = useRouter();
-  const { sessions, loading, error: trainingError, fetchAll, generateSessions, deleteSession, deleteSessions, clearAllSessions } = useTrainingStore();
-  const { sessionsPerWeek } = useSettingsStore();
-  const { activeSeason, error: seasonsError } = useSeasonsStore();
-  const { players, fetchAll: fetchPlayers } = usePlayersStore();
+  const sessions = useTrainingStore((s) => s.sessions);
+  const loading = useTrainingStore((s) => s.loading);
+  const trainingError = useTrainingStore((s) => s.error);
+  const fetchAll = useTrainingStore((s) => s.fetchAll);
+  const generateSessions = useTrainingStore((s) => s.generateSessions);
+  const deleteSession = useTrainingStore((s) => s.deleteSession);
+  const deleteSessions = useTrainingStore((s) => s.deleteSessions);
+  const clearAllSessions = useTrainingStore((s) => s.clearAllSessions);
+  const sessionsPerWeek = useSettingsStore((s) => s.sessionsPerWeek);
+  const activeSeason = useSeasonsStore((s) => s.activeSeason);
+  const seasonsError = useSeasonsStore((s) => s.error);
+  const players = usePlayersStore((s) => s.players);
+  const fetchPlayers = usePlayersStore((s) => s.fetchAll);
 
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);

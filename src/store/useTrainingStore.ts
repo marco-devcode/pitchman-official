@@ -15,6 +15,7 @@ import { getFirestore } from 'firebase/firestore';
 
 interface TrainingState {
   sessions: TrainingSession[];
+  seasonId: string | null;
   loading: boolean;
   error: string | null;
   fetchAll: () => Promise<void>;
@@ -30,6 +31,7 @@ export const useTrainingStore = create<TrainingState>()(
   persist(
     (set, get) => ({
       sessions: [],
+      seasonId: null,
       loading: false,
       error: null,
 
@@ -38,11 +40,16 @@ export const useTrainingStore = create<TrainingState>()(
         const activeSeason = useSeasonsStore.getState().activeSeason;
         if (!user || !activeSeason) return;
 
-        if (get().sessions.length === 0) set({ loading: true, error: null });
+        if (get().seasonId !== activeSeason.id) {
+          set({ sessions: [], seasonId: activeSeason.id, loading: true, error: null });
+        } else if (get().sessions.length === 0) {
+          set({ loading: true, error: null });
+        }
         try {
           const sessions = await trainingRepository.getAll(activeSeason.id);
           set({ 
             sessions: sessions.sort((a, b) => a.date.localeCompare(b.date)), 
+            seasonId: activeSeason.id,
             loading: false,
             error: null,
           });
@@ -195,6 +202,9 @@ export const useTrainingStore = create<TrainingState>()(
         }));
       },
       subscribe: (userId: string, seasonId: string) => {
+        if (get().seasonId !== seasonId) {
+          set({ sessions: [], seasonId, loading: true, error: null });
+        }
         const db = getFirestore();
         const sessionsRef = collection(db, 'teams', seasonId, 'sessions');
         // Nessun where: il percorso seleziona gia' la stagione, e il filtro per
@@ -207,6 +217,7 @@ export const useTrainingStore = create<TrainingState>()(
           });
           set({
             sessions: sessions.sort((a, b) => a.date.localeCompare(b.date)),
+            seasonId,
             loading: false,
             error: null,
           });
