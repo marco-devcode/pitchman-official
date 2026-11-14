@@ -15,7 +15,7 @@ import { useTrainingStore } from "@/store/useTrainingStore";
 import { PhysicalTab } from "@/components/allenamento/physical-tab";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useThemeStore } from "@/store/useThemeStore";
-import { type SeasonDataContext } from "@/lib/repositories/aggregation-repository";
+import { aggregationRepository, type SeasonDataContext } from "@/lib/repositories/aggregation-repository";
 import { trainingRepository } from "@/lib/repositories/training-repository";
 import { filterContextByType, type FilterType } from "@/lib/aggregators/filter";
 import { getMatchUsage } from "@/lib/player-usage";

@@ -7,7 +7,7 @@ calendario, cronaca live, allenamenti, scouting e statistiche — con un assiste
 AI (Gemini 2.5 Flash via Genkit) per importazione da testo/immagini, suggerimento
 formazioni e chatbot tattico. Funziona anche offline (Dexie/IndexedDB).
 
-> Documentazione tecnica di riferimento: **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+> Documentazione tecnica di riferimento: **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)**.
 > I documenti in `docs/` (es. `implementation.md`, `type_strategy.md`, `PROJECTS.md`)
 > sono **roadmap / piani di business**, non lo stato attuale del codice.
 

@@ -35,8 +35,8 @@ const PROJECT = 'demo-pitchman-rules';
 // quando esiste, cosi' le regole nuove si possono provare SENZO pubblicarle: il
 // punto dell'ordine di rilascio e' esattamente questo.
 const RULES_PATH = existsSync(join(process.cwd(), 'firestore.rules.v2'))
-  ? 'firestore.rules.v2'
-  : 'firestore.rules';
+  ? join(process.cwd(), 'firestore.rules.v2')
+  : join(process.cwd(), 'firestore.rules');
 
 let env: RulesTestEnvironment | undefined;
 

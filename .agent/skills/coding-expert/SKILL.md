@@ -17,7 +17,7 @@ Questo standard operativo definisce la disciplina, i pattern architetturali e i 
 
 2. **Single Responsibility & Coerenza Architetturale**:
    - Rispetta la separazione dei livelli: UI (`src/components`), logica di servizio/dominio (`src/services`), accesso dati/repository (`src/lib/repositories`), stato globale (`src/store` o feature stores).
-   - Non duplicare logica di query o stato di dominio: ogni collezione o feature ha un unico store proprietario (rif. [ARCHITECTURE.md](file:///d:/pitchman-official/ARCHITECTURE.md)).
+   - Non duplicare logica di query o stato di dominio: ogni collezione o feature ha un unico store proprietario (rif. [ARCHITECTURE.md](file:///d:/pitchman-official/docs/ARCHITECTURE.md)).
 
 3. **Type-Safety Assoluta (Zero `any`)**:
    - È vietato l'uso di `any` arbitrari o cast ciechi (`as any`).
