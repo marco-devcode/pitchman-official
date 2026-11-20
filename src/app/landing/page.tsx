@@ -1,1280 +1,1626 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Zap,
-  ArrowRight,
-  CheckCircle2,
-  Sparkles,
-  Timer,
-  Shield,
-  WifiOff,
-  Share2,
   Activity,
-  ClipboardList,
-  Layers,
-  Play,
-  ChevronRight,
-  Check,
-  X,
-  Flame,
-  Crown,
-  Building2,
   Bot,
   Camera,
+  Check,
   Clock,
-  TrendingUp,
-  Eye,
+  Layers,
   Menu,
+  Pause,
+  Play,
+  Share2,
+  Shield,
+  TrendingUp,
+  WifiOff,
+  X,
 } from 'lucide-react';
-import { GiWhistle, GiSoccerBall } from 'react-icons/gi';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { useAuthStore } from '@/store/useAuthStore';
 
-// ── Tipi rigorosi per i dati della landing ────────────────────────────────────
+// ── Tipi rigorosi per i moduli della cabina settimanale e i ruoli ────────────
 
-type TargetId = 'coach' | 'director' | 'trainer';
-type HeroPreviewId = 'match' | 'ai' | 'depth';
+type CabinRowId =
+  | 'ocr'
+  | 'rondo'
+  | 'setpieces'
+  | 'tests'
+  | 'depth'
+  | 'best11'
+  | 'live'
+  | 'png'
+  | 'csv';
 
-interface TargetProfile {
-  id: TargetId;
-  badge: string;
+type RoleTabId = 'coach' | 'director' | 'trainer';
+
+interface CabinRow {
+  id: CabinRowId;
+  area: string;
+  title: string;
+  detail: string;
+  status: string;
+  tag: string;
+}
+
+interface RoleTour {
+  id: RoleTabId;
   label: string;
   headline: string;
-  description: string;
-  metrics: { value: string; label: string }[];
-  highlights: string[];
-  icon: React.ElementType;
+  summary: string;
+  hrefLabel: string;
+  metrics: { label: string; value: string }[];
+  rows: { title: string; meta: string; status: string }[];
 }
 
-interface BentoFeature {
-  id: string;
-  badge: string;
-  title: string;
-  description: string;
-  bullets: string[];
-  icon: React.ElementType;
-  accent: 'green' | 'cyan' | 'yellow' | 'pink';
-  span?: string;
-}
-
-interface PricingTier {
+interface PlanSpec {
   id: string;
   name: string;
   price: string;
   period: string;
-  subtitle: string;
-  mvpBadge?: string;
+  audience: string;
+  badge?: string;
+  featured?: boolean;
+  cta: string;
   features: string[];
-  ctaLabel: string;
-  highlighted?: boolean;
 }
 
-interface FaqEntry {
+interface FaqItem {
   id: string;
-  question: string;
-  answer: string;
+  q: string;
+  a: string;
 }
 
-// ── Dati strutturati ──────────────────────────────────────────────────────────
+// ── Dati reali della piattaforma PitchMan ────────────────────────────────────
 
-const TARGET_PROFILES: TargetProfile[] = [
+const PITCH_433_SLOTS = [
+  { role: 'POR', name: '1. Rossi', x: '50%', y: '86%', tone: '#fde047' },
+  { role: 'TD', name: '2. Conti', x: '82%', y: '68%', tone: '#38bdf8' },
+  { role: 'DC', name: '5. Neri', x: '62%', y: '72%', tone: '#38bdf8' },
+  { role: 'DC', name: '6. Villa', x: '38%', y: '72%', tone: '#38bdf8' },
+  { role: 'TS', name: '3. Mori', x: '18%', y: '68%', tone: '#38bdf8' },
+  { role: 'CDC', name: '4. Gallo', x: '50%', y: '52%', tone: '#b1e605' },
+  { role: 'CD', name: '8. Ricci', x: '72%', y: '42%', tone: '#b1e605' },
+  { role: 'CS', name: '10. Bruno', x: '28%', y: '42%', tone: '#b1e605' },
+  { role: 'AD', name: '7. Leone', x: '78%', y: '21%', tone: '#fb7185' },
+  { role: 'ATT', name: '9. Greco', x: '50%', y: '14%', tone: '#fb7185' },
+  { role: 'AS', name: '11. Sala', x: '22%', y: '21%', tone: '#fb7185' },
+];
+
+const CABIN_ROWS: CabinRow[] = [
+  {
+    id: 'ocr',
+    area: 'Rosa',
+    title: 'Distinta FIGC Giornata 14',
+    detail: '22 atleti estratti da foto',
+    status: 'Pronta',
+    tag: 'OCR Gemini',
+  },
+  {
+    id: 'rondo',
+    area: 'Martedì',
+    title: 'Possesso 4v2 in zona',
+    detail: '3 varianti AI · 2D continuo',
+    status: 'Attivo',
+    tag: 'Lavagna 2D',
+  },
+  {
+    id: 'setpieces',
+    area: 'Giovedì',
+    title: 'Palle inattive e tiro',
+    detail: 'Appello 19 presenti / 22',
+    status: 'In archivio',
+    tag: 'Seduta',
+  },
+  {
+    id: 'tests',
+    area: 'Test',
+    title: 'Sprint 30m e Yo-Yo IR1',
+    detail: 'Delta medio -0.14 s su aprile',
+    status: 'Aggiornato',
+    tag: 'Performance',
+  },
+  {
+    id: 'depth',
+    area: 'Moduli',
+    title: 'Copertura 13 ruoli · 4-3-3',
+    detail: 'TS: 1 ruolo + 2 osservati',
+    status: 'Verifica',
+    tag: 'Depth Chart',
+  },
+  {
+    id: 'best11',
+    area: 'AI',
+    title: 'Convocazioni e Best 11',
+    detail: 'Incrocio presenze e forma',
+    status: 'Suggerita',
+    tag: 'Gemini AI',
+  },
+  {
+    id: 'live',
+    area: 'Domenica',
+    title: "Cronaca live · recuperi +3' / +5'",
+    detail: 'Minuti reali per titolari e cambi',
+    status: 'In diretta',
+    tag: 'Timer',
+  },
+  {
+    id: 'png',
+    area: 'Export',
+    title: 'Distinta PNG per WhatsApp',
+    detail: 'Campo grafico ad alta densità',
+    status: 'Condivisa',
+    tag: '1 Tap',
+  },
+  {
+    id: 'csv',
+    area: 'Report',
+    title: 'Report minutaggi CSV',
+    detail: 'Esportazione stagione 2026/27',
+    status: 'Sincronizzato',
+    tag: 'IndexedDB',
+  },
+];
+
+const ROLE_TOURS: RoleTour[] = [
   {
     id: 'coach',
-    badge: 'Settore Giovanile & Dilettanti',
-    label: 'Mister & Allenatore',
-    icon: GiWhistle,
-    headline: 'Formazione in 30 secondi, zero burocrazia nello spogliatoio.',
-    description:
-      'Smetti di rincorrere presenze su WhatsApp e calcolare i minuti giocati a mano la domenica sera. Gestisci rosa, convocazioni, cronaca live a bordo campo e analisi post-partita direttamente dal telefono — anche quando al campo non c’è segnale.',
+    label: 'Guida la prima squadra',
+    headline: 'Dalle convocazioni del venerdì al tabellino della domenica sera.',
+    summary:
+      'Incrocia le presenze settimanali in allenamento con la copertura dei 13 ruoli tattici su 7 moduli. Durante la partita il cronometro flottante calcola i minuti effettivi inclusi i recuperi e genera la distinta grafica per WhatsApp.',
+    hrefLabel: 'Apri il profilo allenatore',
     metrics: [
-      { value: '2h+', label: 'Risparmiate ogni settimana' },
-      { value: '13', label: 'Ruoli tattici mappati' },
-      { value: '1 Tap', label: 'Distinta PNG per WhatsApp' },
+      { label: 'Ruoli mappati per atleta', value: '13 ruoli' },
+      { label: 'Moduli pronti su lavagna', value: '7 moduli' },
+      { label: 'Generazione distinta grafica', value: 'PNG 1 tap' },
     ],
-    highlights: [
-      'Controllo immediato della copertura dei 13 ruoli su 7 moduli tattici (4-3-3, 3-5-2, 4-2-3-1 e altri)',
-      'Cronometro match flottante con registrazione istantanea di gol, assist, cartellini e cambi (incluso recupero)',
-      'AI Best 11 che suggerisce i titolari incrociando presenze in allenamento, stato di forma e ruolo',
-      'Importazione automatica di calendario federale e rosa da foto o testo incollato',
+    rows: [
+      { title: 'AI Best 11 · Modulo 4-3-3', meta: 'Basata su ultime 4 sedute e minutaggio', status: '98% idoneità' },
+      { title: 'Cronometro Match · 2° Tempo', meta: 'Gol Greco 64’ · Cambio Mori → Rossi 71’', status: '+5’ recupero' },
+      { title: 'Smart Import Calendario & Rosa', meta: 'Foto distinta o testo federale andata/ritorno', status: '26 gare' },
     ],
   },
   {
     id: 'director',
-    badge: 'Società Sportive FIGC / LND',
-    label: 'Direttore Sportivo',
-    icon: Building2,
-    headline: 'Tutte le squadre del club e lo scouting in un’unica cabina di regia.',
-    description:
-      'Supervisiona Prima Squadra, Juniores e Settore Giovanile senza chiedere screenshot o file Excel ai singoli mister. Analizza i risultati aggregati del club, gestisci gli osservati e coordina lo staff tecnico con accessi per ruolo.',
+    label: 'Coordina il settore',
+    headline: 'Tutte le squadre del club e gli osservati in un registro condiviso.',
+    summary:
+      'Controlla Prima Squadra, Juniores e categorie giovanili senza chiedere file Excel o screenshot settimanali. Condividi ogni stagione con il codice invito S-XXXXX e promuovi in rosa i giocatori seguiti in scouting.',
+    hrefLabel: 'Esplora la vista società',
     metrics: [
-      { value: 'Multi', label: 'Squadre e stagioni in cloud' },
-      { value: 'S-CODE', label: 'Invito staff istantaneo' },
-      { value: '100%', label: 'Archivio Scouting centralizzato' },
+      { label: 'Dashboard aggregata club', value: 'Fino a 5 team' },
+      { label: 'Codice invito staff tecnico', value: 'S-XXXXX' },
+      { label: 'Promozione diretta da Scout', value: '1 click' },
     ],
-    highlights: [
-      'Dashboard Director dedicata per monitorare andamento, gol e minutaggi di ogni categoria',
-      'Modulo Scouting & Osservati (/scout) con schede talento, categorie personalizzate e promozione diretta in rosa',
-      'Condivisione della stagione con assistenti e preparatori tramite codice invito sicuro S-XXXXX',
-      'Esportazione immediata dei dati aggregati in CSV per report societari e riunioni tecniche',
+    rows: [
+      { title: 'Prima Squadra · Eccellenza', meta: '22 atleti · 14 gare giocate · 28 gol fatti', status: 'Sincronizzata' },
+      { title: 'Juniores U19 · Regionale', meta: '20 atleti · 12 gare · 91% presenze medie', status: 'Sincronizzata' },
+      { title: 'Hub Scouting (/scout)', meta: 'Terzino Sinistro U21 · Valutazione A · Promuovi', status: '7 osservati' },
     ],
   },
   {
     id: 'trainer',
-    badge: 'Staff Tecnico & Performance',
-    label: 'Preparatore Atletico',
-    icon: Activity,
-    headline: 'Lavagna 2D animata, AI Drill Generator e progressione dei test atletici.',
-    description:
-      'Progetta esercitazioni chiare per tutto lo staff, genera varianti tattiche con l’Intelligenza Artificiale e misura l’evoluzione fisica della squadra nel corso della stagione con grafici automatici dei delta.',
+    label: 'Pianifica i carichi',
+    headline: 'Lavagna 2D animata per ogni seduta e delta dei test fisici nel tempo.',
+    summary:
+      'Prepara gli esercizi con la lavagna Konva a movimento continuo tra gli step, ottieni 3 varianti progressive tramite Gemini AI oppure digitalizza una lavagna fotografata e misura Sprint, Yo-Yo, Cooper e salto CMJ.',
+    hrefLabel: 'Vedi la sezione allenamento',
     metrics: [
-      { value: '3x', label: 'Varianti AI per esercizio' },
-      { value: '2D Live', label: 'Player tattico multi-step' },
-      { value: 'Delta', label: 'Calcolo automatico progressi' },
+      { label: 'Progressioni AI per esercizio', value: '3 varianti' },
+      { label: 'Input immagine lavagna fisica', value: 'Vision 2D' },
+      { label: 'Storico miglioramenti atletici', value: 'Delta auto' },
     ],
-    highlights: [
-      'Lavagna 2D interattiva (Konva) per visualizzare movimenti di giocatori, palla, porte e coni step-by-step',
-      'AI Drill Generator che crea 3 varianti complete (Facile, Media, Avanzata) con traiettorie validate',
-      'Test fisici (Sprint, Yo-Yo, Cooper, CMJ) con rilevamento automatico dei miglioramenti in secondi o metri',
-      'Distribuzione percentuale dei focus di allenamento e registro presenze integrato',
+    rows: [
+      { title: 'Rondo 4v2 con zona centrale', meta: 'Base, Progressione 1, Progressione 2 · step continui', status: 'Animata 2D' },
+      { title: 'Test Sprint 30 metri · Gruppo', meta: 'Media rosa 4.18 s (−0.11 s rispetto a ottobre)', status: 'Delta −2.6%' },
+      { title: 'Focus settimanali & appello', meta: '40% tattica, 35% possesso, 25% metabolico', status: '19/22 presenti' },
     ],
   },
 ];
 
-const BENTO_FEATURES: BentoFeature[] = [
-  {
-    id: 'match-center',
-    badge: 'Live Pitch Control',
-    title: 'Match Center & Cronometro Live',
-    description:
-      'Timer flottante sempre visibile per registrare gol (azione, rigore, punizione, autogol + assist), cartellini e sostituzioni in tempo reale.',
-    bullets: [
-      'Calcolo esatto dei minuti giocati recuperi inclusi',
-      'Condivisione formazione e distinta in PNG ad alta definizione su WhatsApp',
-    ],
-    icon: Timer,
-    accent: 'green',
-    span: 'lg:col-span-2',
-  },
-  {
-    id: 'gemini-ai',
-    badge: 'Powered by Gemini 2.5',
-    title: 'Intelligenza Artificiale Tattica',
-    description:
-      'Tre motori AI integrati per eliminare il data-entry manuale e supportare le tue scelte tecniche.',
-    bullets: [
-      'Smart Import OCR: carica la foto di una distinta o incolla il calendario',
-      'AI Best 11: undici titolare basato su allenamenti e forma',
-      'Coach AI Assistant: chatbot tattico sui dati della tua stagione',
-    ],
-    icon: Bot,
-    accent: 'cyan',
-    span: 'lg:col-span-1',
-  },
-  {
-    id: 'lavagna-2d',
-    badge: 'Konva 2D Engine',
-    title: 'Lavagna Esercizi Animata & AI Drill Generator',
-    description:
-      'Mostra le esercitazioni alla squadra con un player interattivo multi-step e genera automaticamente varianti di difficoltà.',
-    bullets: [
-      '3 varianti AI (Facile, Media, Avanzata) con riparazione deterministica delle traiettorie',
-      'Libreria personale e condivisibile con tutto lo staff',
-    ],
-    icon: Play,
-    accent: 'yellow',
-    span: 'lg:col-span-1',
-  },
-  {
-    id: 'depth-chart',
-    badge: '13 Ruoli Calcistici',
-    title: 'Rosa, Copertura Ruoli (Depth Chart) & Confronto',
-    description:
-      'Mappa ogni atleta su ruolo primario e secondario (POR, DC, TD, TS, ADA, ASA, CDC, CD, CS, TRQ, AD, AS, ATT) e scopri subito i buchi di organico.',
-    bullets: [
-      'Verifica istantanea su 7 moduli tattici (4-3-3, 4-4-2, 3-5-2, 4-2-3-1, ecc.)',
-      'Confronto testa-a-testa tra due giocatori su presenze, gol, assist e rendimento',
-    ],
-    icon: Layers,
-    accent: 'green',
-    span: 'lg:col-span-2',
-  },
-  {
-    id: 'training',
-    badge: 'Gestione Sedute',
-    title: 'Allenamenti & Presenze Smart',
-    description:
-      'Pianifica le sedute settimanali con focus percentuali, prendi l’appello con un tocco e collega gli esercizi dalla libreria.',
-    bullets: [
-      'Storico presenze collegato alle scelte di formazione',
-      'Monitoraggio immediato di infortunati e assenti',
-    ],
-    icon: ClipboardList,
-    accent: 'cyan',
-  },
-  {
-    id: 'physical-tests',
-    badge: 'Performance Lab',
-    title: 'Test Atletici & Progressione',
-    description:
-      'Archivia misurazioni di Sprint, Yo-Yo, Cooper o salto CMJ e visualizza l’andamento di ogni atleta nel tempo.',
-    bullets: [
-      'Calcolo automatico dei delta in secondi o metri',
-      'Grafici comparativi individuali e di squadra',
-    ],
-    icon: TrendingUp,
-    accent: 'pink',
-  },
-  {
-    id: 'scouting',
-    badge: 'Talent Hub',
-    title: 'Scouting & Osservati',
-    description:
-      'Costruisci il tuo database di giocatori seguiti esternamente con categorie personalizzate e promuovili in rosa con un click.',
-    bullets: [
-      'Filtri per ruolo, categoria e valutazione tecnica',
-      'Riepilogo osservati integrato nella vista copertura squadra',
-    ],
-    icon: Eye,
-    accent: 'yellow',
-  },
-  {
-    id: 'offline-stats',
-    badge: 'PWA Offline-First',
-    title: 'Statistiche Avanzate & Sync Senza Rete',
-    description:
-      'Analisi Casa vs Trasferta, distribuzione gol ogni 15 minuti e funzionamento garantito anche negli spogliatoi senza segnale.',
-    bullets: [
-      'Database locale IndexedDB (Dexie) con Sync Queue automatica al ritorno online',
-      'Installabile su iOS, Android e Desktop come app nativa',
-    ],
-    icon: WifiOff,
-    accent: 'green',
-    span: 'lg:col-span-3',
-  },
-];
-
-const PRICING_TIERS: PricingTier[] = [
+const PLANS: PlanSpec[] = [
   {
     id: 'free',
     name: 'Free',
     price: '€0',
-    period: '/sempre',
-    subtitle: 'Perfetto per iniziare subito a sostituire carta, penna e fogli Excel.',
+    period: 'per sempre',
+    audience: 'Per iniziare a sostituire fogli Excel, note sparse e messaggi sul campo.',
+    cta: 'Inizia gratis',
     features: [
-      'Gestione completa Rosa (fino a 20 giocatori)',
-      'Calendario partite e presenze allenamento',
-      'Cronometro match live e tabellino eventi',
-      'Copertura tattica su 7 moduli e condivisione PNG',
-      'PWA installabile e supporto tema Dark / Light',
+      'Rosa completa fino a 20 atleti per stagione',
+      'Calendario gare, convocazioni e appello sedute',
+      'Cronometro match live con recuperi automatici',
+      'Copertura 7 moduli e distinta PNG per WhatsApp',
+      'Modalità offline-first su smartphone e desktop',
     ],
-    ctaLabel: 'Inizia Gratis',
   },
   {
     id: 'pro',
     name: 'Pro Coach',
-    price: '€4.99',
-    period: '/mese',
-    subtitle: 'Per allenatori esigenti che vogliono tutto il potenziale dell’AI tattica.',
-    mvpBadge: 'GRATIS IN FASE MVP',
-    highlighted: true,
+    price: '€4,99',
+    period: 'al mese',
+    audience: 'Per allenatori che usano AI tattica, OCR distinte e statistiche avanzate.',
+    badge: 'Gratis in fase MVP',
+    featured: true,
+    cta: 'Inizia gratis',
     features: [
-      'Giocatori e stagioni illimitati',
-      'Smart Import AI da foto e testo (Rosa & Calendario)',
-      'AI Best 11 & Coach AI Assistant illimitato',
-      'AI Drill Generator (3 varianti per esercizio)',
-      'Statistiche avanzate (Casa/Trasferta, fasce 15’) & Export CSV',
+      'Atleti e stagioni illimitati nel cloud',
+      'Smart Import AI da foto distinta o testo gare',
+      'Lavagna 2D + 3 varianti AI e conversione da foto',
+      'AI Best 11 e Coach AI sui dati della stagione',
+      'Analisi Casa/Trasferta, fasce 15’ e export CSV',
     ],
-    ctaLabel: 'Attiva Accesso MVP',
   },
   {
     id: 'society',
     name: 'Society & Staff',
-    price: '€19.99',
-    period: '/mese',
-    subtitle: 'Pensato per Direttori Sportivi e società con più categorie e staff condiviso.',
-    mvpBadge: 'GRATIS IN FASE MVP',
+    price: '€19,99',
+    period: 'al mese',
+    audience: 'Per Direttori Sportivi e club con più categorie tecniche e staff esteso.',
+    badge: 'Gratis in fase MVP',
+    cta: 'Inizia gratis',
     features: [
-      'Tutto ciò che è incluso in Pro Coach',
-      'Dashboard Director multi-squadra (fino a 5 team)',
-      'Database Scouting centralizzato per la società',
-      'Condivisione stagioni e inviti staff con codice S-XXXXX',
-      'Controllo granulare dei ruoli (Coach, Director, Player)',
+      'Tutte le funzioni di Pro Coach incluse',
+      'Dashboard Director multi-squadra fino a 5 team',
+      'Archivio Scouting centralizzato con promozione diretta',
+      'Accessi staff condivisi tramite codice invito S-XXXXX',
+      'Separazione ruoli Coach, Director e Player',
     ],
-    ctaLabel: 'Richiedi Accesso Club',
   },
 ];
 
-const FAQ_ITEMS: FaqEntry[] = [
+const FAQ_LIST: FaqItem[] = [
   {
-    id: 'faq-1',
-    question: 'PitchMan è davvero gratuito in questa fase?',
-    answer:
-      'Sì. PitchMan è attualmente in fase di MVP pubblico: tutte le funzionalità principali — inclusi i flussi AI, la lavagna 2D e la gestione partite — sono accessibili gratuitamente registrando un account.',
+    id: 'f1',
+    q: 'PitchMan è davvero gratuito in questa fase?',
+    a: 'Sì. Durante il rilascio pubblico MVP tutte le funzioni — inclusi i motori Gemini AI, la lavagna 2D e il cronometro match live — sono attive gratuitamente senza carta di credito.',
   },
   {
-    id: 'faq-2',
-    question: 'Funziona nello spogliatoio o in campi senza connessione internet?',
-    answer:
-      'Sì. PitchMan è costruito come Progressive Web App (PWA) con architettura Offline-First basata su IndexedDB: puoi consultare i dati e registrare eventi in coda locale; al ritorno del segnale la sincronizzazione cloud avviene automaticamente.',
+    id: 'f2',
+    q: 'Funziona nello spogliatoio o in campi senza segnale?',
+    a: 'Sì. L’app salva l’archivio in locale con IndexedDB e coda di sincronizzazione automatica. Puoi consultare la rosa e registrare gol, cambi o presenze offline e sincronizzare appena torna la rete.',
   },
   {
-    id: 'faq-3',
-    question: 'Come funziona l’importazione AI di rosa e calendario?',
-    answer:
-      'Puoi caricare una foto della distinta, uno screenshot o incollare il testo del calendario federale (anche con date andata/ritorno). Il motore AI basato su Gemini estrae nomi, ruoli, giornate e orari strutturandoli automaticamente nella tua stagione.',
+    id: 'f3',
+    q: 'Come funziona l’importazione da foto o testo?',
+    a: 'Carichi una foto della distinta o incolli il testo del calendario federale anche con date di andata e ritorno. Il parser estrae nomi, ruoli e giornate strutturandoli subito nella stagione.',
   },
   {
-    id: 'faq-4',
-    question: 'Posso condividere la gestione della squadra con il mio vice o preparatore?',
-    answer:
-      'Certamente. Dalla sezione Gestione Squadra puoi generare un codice invito univoco (es. S-XXXXX) da passare ai membri del tuo staff per collaborare sulla stessa stagione in tempo reale.',
+    id: 'f4',
+    q: 'Posso condividere la stagione con il mio vice o preparatore?',
+    a: 'Sì. Generi un codice invito univoco nel formato S-XXXXX dalle impostazioni della stagione e ogni membro dello staff accede agli stessi dati secondo il proprio ruolo.',
   },
   {
-    id: 'faq-5',
-    question: 'Serve scaricare un’app dagli store Apple o Google?',
-    answer:
-      'No, non servono download pesanti. Puoi usare PitchMan direttamente dal browser oppure installarlo sulla schermata Home del tuo smartphone iOS, Android o PC con un click direttamente dall’header dell’app.',
+    id: 'f5',
+    q: 'Per quale tipo di squadra è progettato PitchMan?',
+    a: 'PitchMan è costruito specificamente per squadre di calcio a 11 e settori giovanili (dilettanti, regionali e club FIGC/LND). Non è pensato per basket, volley o gestione tornei multi-sport.',
   },
   {
-    id: 'faq-6',
-    question: 'I dati della mia squadra e dei miei giocatori sono al sicuro?',
-    answer:
-      'Tutti i dati sono protetti da crittografia HTTPS/TLS, autenticazione Firebase e rigide regole di sicurezza lato database che separano ogni squadra ed impediscono l’accesso a utenti non autorizzati.',
+    id: 'f6',
+    q: 'I dati della società e dei giocatori restano privati?',
+    a: 'Sì. Ogni stagione è isolata da regole di sicurezza lato database, connessioni cifrate e controllo degli accessi per squadra. Puoi esportare i dati in CSV o eliminare l’account in qualunque momento.',
   },
 ];
 
-const TACTICAL_SLOTS_433 = [
-  { role: 'POR', name: '1. Rossi', x: '50%', y: '86%', color: 'border-[#ffff66] text-[#ffff66]' },
-  { role: 'TD', name: '2. Conti', x: '82%', y: '68%', color: 'border-[#00d9ff] text-[#00d9ff]' },
-  { role: 'DC', name: '5. Neri', x: '62%', y: '72%', color: 'border-[#00d9ff] text-[#00d9ff]' },
-  { role: 'DC', name: '6. Villa', x: '38%', y: '72%', color: 'border-[#00d9ff] text-[#00d9ff]' },
-  { role: 'TS', name: '3. Mori', x: '18%', y: '68%', color: 'border-[#00d9ff] text-[#00d9ff]' },
-  { role: 'CDC', name: '4. Gallo', x: '50%', y: '52%', color: 'border-[#b1e605] text-[#b1e605]' },
-  { role: 'CD', name: '8. Ricci', x: '72%', y: '42%', color: 'border-[#b1e605] text-[#b1e605]' },
-  { role: 'CS', name: '10. Bruno', x: '28%', y: '42%', color: 'border-[#b1e605] text-[#b1e605]' },
-  { role: 'AD', name: '7. Leone', x: '78%', y: '20%', color: 'border-[#df3b77] text-[#df3b77]' },
-  { role: 'ATT', name: '9. Greco', x: '50%', y: '14%', color: 'border-[#df3b77] text-[#df3b77]' },
-  { role: 'AS', name: '11. Sala', x: '22%', y: '20%', color: 'border-[#df3b77] text-[#df3b77]' },
-];
+const WORKFLOW_STATEMENT =
+  'Quando il mister registra un cambio nel recupero, il minutaggio aggiorna la scheda dell’atleta, il suggerimento AI della settimana dopo e il report del direttore sportivo. Un solo dato, scritto una volta sola.';
 
-// ── Helper per stili accento ──────────────────────────────────────────────────
-
-function getAccentClasses(accent: BentoFeature['accent']): {
-  badge: string;
-  iconBox: string;
-  borderHover: string;
-} {
-  switch (accent) {
-    case 'cyan':
-      return {
-        badge: 'bg-[#00d9ff]/10 text-[#00d9ff] border-[#00d9ff]/30',
-        iconBox: 'bg-[#00d9ff]/10 text-[#00d9ff] border-[#00d9ff]/30',
-        borderHover: 'hover:border-[#00d9ff]/50',
-      };
-    case 'yellow':
-      return {
-        badge: 'bg-[#ffff66]/10 text-[#ffff66] border-[#ffff66]/30',
-        iconBox: 'bg-[#ffff66]/10 text-[#ffff66] border-[#ffff66]/30',
-        borderHover: 'hover:border-[#ffff66]/50',
-      };
-    case 'pink':
-      return {
-        badge: 'bg-[#df3b77]/10 text-[#df3b77] border-[#df3b77]/30',
-        iconBox: 'bg-[#df3b77]/10 text-[#df3b77] border-[#df3b77]/30',
-        borderHover: 'hover:border-[#df3b77]/50',
-      };
-    case 'green':
-    default:
-      return {
-        badge: 'bg-[#b1e605]/10 text-[#b1e605] border-[#b1e605]/30',
-        iconBox: 'bg-[#b1e605]/10 text-[#b1e605] border-[#b1e605]/30',
-        borderHover: 'hover:border-[#b1e605]/50',
-      };
-  }
+// Componente freccia animata da motion.css
+function AnimatedArrow() {
+  return (
+    <svg className="m-arrow" viewBox="0 0 12 12" aria-hidden="true">
+      <path className="m-arrow__stem" d="M1 6h8" />
+      <path className="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5" />
+    </svg>
+  );
 }
 
-// ── Componente Principale Landing Page ────────────────────────────────────────
+// Marchio geometrico campo + modulo PitchMan (nitido a ogni risoluzione)
+function PitchManMark({ size = 24 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <rect width="24" height="24" rx="6" fill="currentColor" />
+      <rect
+        x="4.5"
+        y="4.5"
+        width="15"
+        height="15"
+        rx="2"
+        stroke="var(--accent)"
+        strokeWidth="1.5"
+      />
+      <line x1="12" y1="4.5" x2="12" y2="19.5" stroke="var(--accent)" strokeWidth="1.2" opacity="0.65" />
+      <circle cx="9" cy="12" r="2" fill="var(--accent)" />
+      <circle cx="15.5" cy="8.5" r="1.75" fill="var(--bg)" />
+      <circle cx="15.5" cy="15.5" r="1.75" fill="var(--bg)" />
+    </svg>
+  );
+}
 
 export default function LandingPage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const [activeTarget, setActiveTarget] = useState<TargetId>('coach');
-  const [heroPreview, setHeroPreview] = useState<HeroPreviewId>('match');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const selectedTarget =
-    TARGET_PROFILES.find((t) => t.id === activeTarget) ?? TARGET_PROFILES[0];
+  // Stato interattivo UI
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeCabinId, setActiveCabinId] = useState<CabinRowId>('live');
+  const [cabinPaused, setCabinPaused] = useState(false);
+  const [ocrLoopIndex, setOcrLoopIndex] = useState(0);
+  const [ocrPaused, setOcrPaused] = useState(false);
+  const [drillPaused, setDrillPaused] = useState(false);
+  const [laneIndex, setLaneIndex] = useState(0);
+  const [lanesPaused, setLanesPaused] = useState(false);
+  const [activeRole, setActiveRole] = useState<RoleTabId>('coach');
+  const [highlightCount, setHighlightCount] = useState(14);
+  const [showActionBar, setShowActionBar] = useState(false);
+
+  const heroCtaRef = useRef<HTMLAnchorElement | null>(null);
+  const closeCtaRef = useRef<HTMLAnchorElement | null>(null);
+  const momentRef = useRef<HTMLParagraphElement | null>(null);
 
   const primaryHref = isAuthenticated ? '/' : '/login';
-  const primaryLabel = isAuthenticated ? 'Vai alla Dashboard' : 'Inizia Gratis Ora';
+  const primaryLabel = isAuthenticated ? 'Apri la dashboard' : 'Inizia gratis';
+
+  const statementWords = WORKFLOW_STATEMENT.split(' ');
+  const activeCabin = CABIN_ROWS.find((r) => r.id === activeCabinId) ?? CABIN_ROWS[0];
+  const currentRoleTour = ROLE_TOURS.find((r) => r.id === activeRole) ?? ROLE_TOURS[0];
+
+  // Ciclo automatico discreto per il workspace app-frame (3.2s, con tasto pausa)
+  useEffect(() => {
+    if (cabinPaused) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const order: CabinRowId[] = ['live', 'ocr', 'rondo', 'best11', 'depth'];
+    const id = window.setInterval(() => {
+      setActiveCabinId((prev) => {
+        const idx = order.indexOf(prev);
+        return order[(idx + 1) % order.length];
+      });
+    }, 3200);
+    return () => window.clearInterval(id);
+  }, [cabinPaused]);
+
+  // Ciclo automatico per il pannello OCR (3.2s, con tasto pausa)
+  useEffect(() => {
+    if (ocrPaused) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      setOcrLoopIndex((i) => (i + 1) % 3);
+    }, 3200);
+    return () => window.clearInterval(id);
+  }, [ocrPaused]);
+
+  // Ciclo automatico per il diagramma a 3 corsie (3.2s, con tasto pausa)
+  useEffect(() => {
+    if (lanesPaused) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      setLaneIndex((i) => (i + 1) % 3);
+    }, 3200);
+    return () => window.clearInterval(id);
+  }, [lanesPaused]);
+
+  // Dealt moment: word-highlight legato allo scroll passivo nella propria sezione
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      setHighlightCount(statementWords.length);
+      return;
+    }
+
+    const updateHighlight = () => {
+      const el = momentRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const start = vh * 0.85;
+      const end = vh * 0.42;
+      const progress = Math.max(0, Math.min(1, (start - rect.top) / Math.max(1, start - end + rect.height)));
+      const nextCount = Math.max(4, Math.round(progress * statementWords.length));
+      setHighlightCount(nextCount);
+    };
+
+    updateHighlight();
+    window.addEventListener('scroll', updateHighlight, { passive: true });
+    window.addEventListener('resize', updateHighlight, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', updateHighlight);
+      window.removeEventListener('resize', updateHighlight);
+    };
+  }, [statementWords.length]);
+
+  // Nasconde la barra azione mobile finché uno dei due CTA principali è visibile
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+    let heroVisible = true;
+    let closeVisible = false;
+
+    const sync = () => setShowActionBar(!heroVisible && !closeVisible);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.target === heroCtaRef.current) heroVisible = entry.isIntersecting;
+          if (entry.target === closeCtaRef.current) closeVisible = entry.isIntersecting;
+        }
+        sync();
+      },
+      { threshold: 0.1 },
+    );
+
+    if (heroCtaRef.current) observer.observe(heroCtaRef.current);
+    if (closeCtaRef.current) observer.observe(closeCtaRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Blocca scroll pagina sotto al menu mobile aperto
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  const h1Lines = ['Software tattico per', 'squadre di calcio'];
 
   return (
-    <div className="dark -m-3 -mb-24 md:-m-10 lg:-m-16 min-h-screen bg-[#080808] text-white font-body selection:bg-[#b1e605] selection:text-black overflow-x-hidden">
-      {/* Sfondo radiale neon atmosferico */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[780px] h-[420px] rounded-full bg-[#b1e605]/10 blur-[140px]" />
-        <div className="absolute top-[35%] -right-40 w-[460px] h-[460px] rounded-full bg-[#00d9ff]/10 blur-[150px]" />
-        <div className="absolute bottom-0 -left-40 w-[460px] h-[460px] rounded-full bg-[#4eeb00]/5 blur-[150px]" />
-      </div>
+    <>
+      {/* ── 1. HEADER FISSO OPACO ───────────────────────────────────────────── */}
+      <header className={`nav ground-base${mobileMenuOpen ? ' is-open' : ''}`}>
+        <div className="wrap nav__bar">
+          <a className="skip-link" href="#top">
+            Salta al contenuto
+          </a>
 
-      {/* ── 1. NAVBAR STICKY ──────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080808]/85 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <Link href="/landing" className="flex items-center gap-3 group">
-            <div className="p-1.5 rounded-xl bg-[#101010] border border-[#b1e605]/40 shadow-theme transition-transform group-hover:scale-105">
-              <img
-                src="/favicon-16x16.png"
-                alt="PitchMan Logo"
-                className="h-6 w-6 object-contain"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tighter leading-none text-white">
-                PitchMan
-              </span>
-              <span className="text-[8px] uppercase font-bold tracking-[0.28em] text-[#b1e605] mt-0.5">
-                Tactical Manager
-              </span>
-            </div>
-          </Link>
+          <a className="nav__logo" href="#top">
+            <PitchManMark size={24} />
+            <span>PitchMan</span>
+          </a>
 
-          <nav className="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-white/60">
-            <a href="#problema" className="hover:text-[#b1e605] transition-colors">
-              Perché PitchMan
-            </a>
-            <a href="#target" className="hover:text-[#b1e605] transition-colors">
-              Per Chi È
-            </a>
-            <a href="#funzionalita" className="hover:text-[#b1e605] transition-colors">
-              Funzionalità
-            </a>
-            <a href="#piani" className="hover:text-[#b1e605] transition-colors">
-              Piani
-            </a>
-            <a href="#faq" className="hover:text-[#b1e605] transition-colors">
-              FAQ
-            </a>
+          <nav className="nav__links" aria-label="Navigazione principale">
+            <div className="nav__item">
+              <a className="nav__link" href="#cabina" onClick={() => setMobileMenuOpen(false)}>
+                Cabina
+              </a>
+            </div>
+            <div className="nav__item">
+              <a className="nav__link" href="#moduli" onClick={() => setMobileMenuOpen(false)}>
+                Moduli
+                <svg className="chev" viewBox="0 0 12 12" aria-hidden="true">
+                  <path
+                    d="M3 4.5l3 3 3-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </a>
+              <div className="nav__menu">
+                <div className="wrap grid">
+                  <a href="#moduli" className="menu-card span-4">
+                    <span className="t-label muted">Gemini OCR & AI</span>
+                    <span className="t-card">Importa rosa e gare da foto</span>
+                    <span className="t-small">Estrazione automatica da distinta o testo</span>
+                  </a>
+                  <a href="#moduli" className="menu-card span-4">
+                    <span className="t-label muted">Motore Konva 2D</span>
+                    <span className="t-card">Lavagna esercizi multi-step</span>
+                    <span className="t-small">Animazione continua e 3 varianti AI</span>
+                  </a>
+                  <a href="#moduli" className="menu-card span-4">
+                    <span className="t-label muted">Match & Ruoli</span>
+                    <span className="t-card">Cronometro live e 13 ruoli</span>
+                    <span className="t-small">Recuperi esatti, scouting e test fisici</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div className="nav__item">
+              <a className="nav__link" href="#metodo" onClick={() => setMobileMenuOpen(false)}>
+                Metodo
+              </a>
+            </div>
+            <div className="nav__item">
+              <a className="nav__link" href="#ruoli" onClick={() => setMobileMenuOpen(false)}>
+                Ruoli
+              </a>
+            </div>
+            <div className="nav__item">
+              <a className="nav__link" href="#piani" onClick={() => setMobileMenuOpen(false)}>
+                Piani
+              </a>
+            </div>
+            <div className="nav__item">
+              <a className="nav__link" href="#domande" onClick={() => setMobileMenuOpen(false)}>
+                Domande
+              </a>
+            </div>
           </nav>
 
-          <div className="hidden sm:flex items-center gap-3">
+          <div className="nav__actions">
             {!isAuthenticated && (
-              <Link
-                href="/login"
-                className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white transition-colors"
-              >
+              <Link href="/login" className="nav__link" onClick={() => setMobileMenuOpen(false)}>
                 Accedi
               </Link>
             )}
             <Link
               href={primaryHref}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#b1e605] text-black font-black text-xs uppercase tracking-wider shadow-theme hover:brightness-110 transition-all active:scale-95"
+              className="btn btn--primary"
+              onClick={() => setMobileMenuOpen(false)}
             >
               <span>{primaryLabel}</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+              <AnimatedArrow />
             </Link>
           </div>
 
-          {/* Mobile Menu Toggle */}
           <button
             type="button"
-            aria-label="Apri menu di navigazione"
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="sm:hidden p-2 rounded-xl border border-white/15 bg-[#101010] text-white/80 hover:text-[#b1e605]"
+            className="nav__toggle"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Chiudi menu' : 'Apri menu'}
+            onClick={() => setMobileMenuOpen((v) => !v)}
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
-
-        {/* Mobile Drawer */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="sm:hidden border-t border-white/10 bg-[#0b0b0b] px-4 py-4 space-y-3"
-            >
-              <div className="flex flex-col space-y-2 text-xs font-bold uppercase tracking-wider text-white/80">
-                <a
-                  href="#problema"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="py-2 border-b border-white/5"
-                >
-                  Perché PitchMan
-                </a>
-                <a
-                  href="#target"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="py-2 border-b border-white/5"
-                >
-                  Per Chi È
-                </a>
-                <a
-                  href="#funzionalita"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="py-2 border-b border-white/5"
-                >
-                  Funzionalità
-                </a>
-                <a
-                  href="#piani"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="py-2 border-b border-white/5"
-                >
-                  Piani
-                </a>
-                <a
-                  href="#faq"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="py-2"
-                >
-                  FAQ
-                </a>
-              </div>
-              <Link
-                href={primaryHref}
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#b1e605] text-black font-black text-xs uppercase tracking-wider shadow-theme"
-              >
-                <span>{primaryLabel}</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </header>
 
-      <div className="relative z-10">
-        {/* ── 2. HERO SECTION + MOCKUP TATTICO INTERATTIVO ────────────────── */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16 sm:pt-20 sm:pb-24">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            {/* Testo Hero */}
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45 }}
-              className="lg:col-span-6 space-y-6"
-            >
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#b1e605]/10 border border-[#b1e605]/30 text-[#b1e605] text-[11px] font-black uppercase tracking-widest">
-                <Zap className="h-3.5 w-3.5" />
-                <span>Il Primo Assistente Tattico & AI per il Calcio</span>
-              </div>
+      <main id="top" className="pm-main">
+        {/* ── 2. SCHERMO 1 · HERO SPLIT ─────────────────────────────────────── */}
+        <section className="hero hero--split ground-base" data-enter aria-labelledby="hero-h">
+          <div className="wrap">
+            <div className="hero-text grid hero-split">
+              <div className="hero-copy span-5">
+                <p className="hero-notice pm-enter-1">
+                  <span className="hero-notice__dot" aria-hidden="true" />
+                  <span>Stagione 2026/27 · Accesso completo gratuito in fase MVP</span>
+                </p>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.06] text-white">
-                Gestisci la tua squadra come un{' '}
-                <span className="text-neon-gradient">professionista</span>.
-              </h1>
-
-              <p className="text-base sm:text-lg text-white/70 leading-relaxed max-w-xl">
-                Dimentica fogli Excel, gruppi WhatsApp dispersivi e appunti su carta.{' '}
-                <strong className="text-white">PitchMan</strong> unisce formazioni,
-                cronometro partita live, lavagna esercizi 2D, test atletici, scouting e
-                Intelligenza Artificiale in un’unica Web App veloce, disponibile anche
-                offline.
-              </p>
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 pt-2">
-                <Link
-                  href={primaryHref}
-                  className="inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl bg-[#b1e605] text-black font-black text-sm uppercase tracking-wider shadow-theme-strong hover:brightness-110 transition-all active:scale-95"
-                >
-                  <span>{primaryLabel}</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <a
-                  href="#funzionalita"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-[#101010] border border-white/15 hover:border-[#00d9ff]/60 text-white font-bold text-sm transition-all"
-                >
-                  <Sparkles className="h-4 w-4 text-[#00d9ff]" />
-                  <span>Esplora tutte le funzioni</span>
-                </a>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/10 max-w-lg">
-                <div>
-                  <div className="text-xl sm:text-2xl font-black text-[#b1e605]">
-                    Gratis
-                  </div>
-                  <div className="text-[11px] text-white/50 font-medium">
-                    Accesso completo MVP
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl sm:text-2xl font-black text-[#00d9ff]">
-                    Offline PWA
-                  </div>
-                  <div className="text-[11px] text-white/50 font-medium">
-                    Funziona negli spogliatoi
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl sm:text-2xl font-black text-[#ffff66]">
-                    Gemini AI
-                  </div>
-                  <div className="text-[11px] text-white/50 font-medium">
-                    OCR & Best 11 smart
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Mockup Live Interattivo della WebApp */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="lg:col-span-6"
-            >
-              <div className="rounded-3xl border-theme bg-[#101010] p-4 sm:p-6 shadow-theme-strong">
-                {/* Barra superiore mockup */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/10">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#b1e605] animate-pulse" />
-                    <span className="text-[11px] font-black uppercase tracking-widest text-white/80">
-                      Anteprima Live App
+                <h1 id="hero-h">
+                  {h1Lines.map((line, lineIdx) => (
+                    <span key={line} className="block">
+                      {line.split(' ').map((word, wIdx) => (
+                        <React.Fragment key={`${lineIdx}-${wIdx}`}>
+                          <span className="pm-w">
+                            <span
+                              className="pm-w__in"
+                              style={{ animationDelay: `${lineIdx * 80 + wIdx * 24}ms` }}
+                            >
+                              {word}
+                            </span>
+                          </span>{' '}
+                        </React.Fragment>
+                      ))}
                     </span>
-                  </div>
+                  ))}
+                </h1>
 
-                  {/* Switch tab interattivo nel mockup */}
-                  <div className="flex items-center gap-1 bg-black/70 p-1 rounded-xl border border-white/10 text-[10px] font-black uppercase">
-                    <button
-                      type="button"
-                      onClick={() => setHeroPreview('match')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${
-                        heroPreview === 'match'
-                          ? 'bg-[#b1e605] text-black'
-                          : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      Match Live
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHeroPreview('ai')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${
-                        heroPreview === 'ai'
-                          ? 'bg-[#00d9ff] text-black'
-                          : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      AI Best 11
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHeroPreview('depth')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${
-                        heroPreview === 'depth'
-                          ? 'bg-[#ffff66] text-black'
-                          : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      13 Ruoli
-                    </button>
-                  </div>
+                <p className="hero__lead pm-enter-2">
+                  Un unico archivio per rosa su 13 ruoli, lavagna 2D animata con Gemini AI,
+                  cronometro partita con recupero e test atletici. Funziona anche offline negli
+                  spogliatoi.
+                </p>
+
+                <div className="btn-row pm-enter-3">
+                  <Link ref={heroCtaRef} href={primaryHref} className="btn btn--primary">
+                    <span>{primaryLabel}</span>
+                    <AnimatedArrow />
+                  </Link>
+                  <a href="#cabina" className="btn btn--secondary">
+                    Vedi la cabina
+                  </a>
                 </div>
 
-                {/* Contenuto dinamico del mockup */}
-                <div className="pt-5">
-                  {heroPreview === 'match' && (
-                    <div className="space-y-4">
-                      {/* Scoreboard Live */}
-                      <div className="rounded-2xl bg-black/80 border border-[#b1e605]/30 p-4 flex items-center justify-between">
+                <dl className="hero-facts pm-enter-3">
+                  <div>
+                    <dt>Copertura rosa</dt>
+                    <dd>13 ruoli · 7 moduli</dd>
+                  </div>
+                  <div>
+                    <dt>Lavagna 2D AI</dt>
+                    <dd>3 varianti per esercizio</dd>
+                  </div>
+                  <div>
+                    <dt>Archivio locale</dt>
+                    <dd>Offline PWA IndexedDB</dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Destra Hero: Campo live dentro pannello luminoso sage + unica float card piatta */}
+              <div
+                className="hero-visual panel--sage span-6 start-7 pm-enter-media"
+                role="img"
+                aria-label="Campo tattico PitchMan 4-3-3 con cronometro partita in diretta"
+              >
+                <div className="stage stage--fade-b" style={{ padding: '24px 24px 0' }}>
+                  <div className="ui-frag h-full flex flex-col">
+                    <div className="ui-head justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="ui-dots" aria-hidden="true">
+                          <i />
+                          <i />
+                          <i />
+                        </div>
+                        <span className="text-[13px] font-medium text-[#f3f5f1]">
+                          Distinta e campo · 4-3-3
+                        </span>
+                      </div>
+                      <span className="ui-chip ui-chip--accent">Match Center</span>
+                    </div>
+
+                    <div className="p-4 flex-1 flex flex-col gap-3 min-h-0">
+                      {/* Barra gara live */}
+                      <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-[#1b201c] border border-white/10">
                         <div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-[#b1e605]">
-                            Campionato • 2° Tempo
-                          </span>
-                          <div className="text-sm sm:text-base font-black text-white mt-0.5">
+                          <div className="text-[12px] text-[#98a29a]">
+                            Campionato · Giornata 14
+                          </div>
+                          <div className="text-[14px] font-medium text-[#f3f5f1]">
                             PitchMan FC vs Atletico Nord
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="px-3 py-1.5 rounded-xl bg-[#b1e605]/15 border border-[#b1e605]/40 text-[#b1e605] font-black text-lg tabular-nums">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded bg-[#b1e605]/15 border border-[#b1e605]/35 text-[#b1e605] font-mono text-[14px] font-medium">
                             2 - 1
-                          </div>
-                          <div className="px-2.5 py-1 rounded-lg bg-[#df3b77]/20 border border-[#df3b77]/40 text-[#df3b77] font-black text-xs tabular-nums">
-                            68&apos;
-                          </div>
+                          </span>
+                          <span className="px-2 py-1 rounded bg-white/10 text-[#f3f5f1] font-mono text-[13px]">
+                            68:14
+                          </span>
                         </div>
                       </div>
 
-                      {/* Mini Campo Tattico 4-3-3 */}
-                      <div className="relative h-64 rounded-2xl bg-gradient-to-b from-[#0b1908] via-[#0d1f0a] to-[#081306] border border-[#b1e605]/25 overflow-hidden">
-                        {/* Linee campo */}
-                        <div className="absolute inset-3 border border-white/15 rounded-xl pointer-events-none" />
+                      {/* Campo tattico reale 11 giocatori */}
+                      <div className="relative flex-1 min-h-[260px] rounded-xl bg-[#0e1911] border border-white/10 overflow-hidden">
+                        <div className="absolute inset-3 border border-white/15 rounded-lg pointer-events-none" />
                         <div className="absolute top-1/2 left-3 right-3 h-px bg-white/15 pointer-events-none" />
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border border-white/15 pointer-events-none" />
                         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-10 border-b border-x border-white/15 pointer-events-none" />
                         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-10 border-t border-x border-white/15 pointer-events-none" />
 
-                        {TACTICAL_SLOTS_433.map((slot) => (
+                        {PITCH_433_SLOTS.map((slot) => (
                           <div
                             key={slot.name}
                             style={{ left: slot.x, top: slot.y }}
                             className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
                           >
                             <span
-                              className={`px-2 py-0.5 rounded-md bg-black/90 border text-[9px] font-black tracking-tight shadow-md ${slot.color}`}
+                              style={{ borderColor: slot.tone, color: slot.tone }}
+                              className="px-1.5 py-0.5 rounded bg-[#0a0d0b]/95 border font-mono text-[11px] font-medium leading-none"
                             >
                               {slot.role}
                             </span>
-                            <span className="text-[9px] font-bold text-white/85 mt-0.5 whitespace-nowrap drop-shadow">
+                            <span className="text-[11px] font-medium text-[#f3f5f1] mt-0.5 whitespace-nowrap">
                               {slot.name}
                             </span>
                           </div>
                         ))}
                       </div>
-
-                      {/* Eventi rapidi */}
-                      <div className="grid grid-cols-3 gap-2 text-[11px]">
-                        <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 flex items-center gap-2">
-                          <GiSoccerBall className="h-4 w-4 text-[#b1e605] shrink-0" />
-                          <span className="truncate font-bold">64&apos; Greco (Ass. Bruno)</span>
-                        </div>
-                        <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-[#00d9ff] shrink-0" />
-                          <span className="truncate font-bold">Minutaggio Reale</span>
-                        </div>
-                        <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 flex items-center gap-2">
-                          <Share2 className="h-4 w-4 text-[#ffff66] shrink-0" />
-                          <span className="truncate font-bold">Export PNG Ready</span>
-                        </div>
-                      </div>
                     </div>
-                  )}
+                  </div>
+                </div>
 
-                  {heroPreview === 'ai' && (
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-2xl bg-[#00d9ff]/10 border border-[#00d9ff]/30 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-[#00d9ff]">
-                            <Bot className="h-4 w-4" /> Suggerimento Formazione Gemini 2.5
-                          </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/60 text-[#b1e605]">
-                            Modulo 4-3-3
-                          </span>
-                        </div>
-                        <p className="text-xs text-white/80 leading-relaxed">
-                          &ldquo;Analisi completata su 18 convocati, ultime 4 sedute di
-                          allenamento e minutaggio cumulato: <strong>Greco (ATT)</strong>{' '}
-                          e <strong>Bruno (CS)</strong> hanno il 100% di presenze
-                          settimanali. <strong>Gallo (CDC)</strong> garantisce copertura
-                          ottimale davanti alla difesa.&rdquo;
-                        </p>
-                      </div>
-
-                      <div className="p-4 rounded-2xl bg-black/70 border border-white/10 space-y-3">
-                        <div className="flex items-center justify-between text-xs font-black uppercase text-white/70">
-                          <span className="flex items-center gap-2">
-                            <Camera className="h-4 w-4 text-[#b1e605]" /> Smart Import
-                            OCR
-                          </span>
-                          <span className="text-[#b1e605]">100% Estratto</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2.5 text-xs">
-                          <div className="p-3 rounded-xl bg-[#101010] border border-white/10">
-                            <div className="text-[10px] text-white/50 uppercase font-bold">
-                              Da Foto Distinta
-                            </div>
-                            <div className="font-black text-white mt-0.5">
-                              22 Giocatori + Ruoli
-                            </div>
-                          </div>
-                          <div className="p-3 rounded-xl bg-[#101010] border border-white/10">
-                            <div className="text-[10px] text-white/50 uppercase font-bold">
-                              Da Testo Calendario
-                            </div>
-                            <div className="font-black text-white mt-0.5">
-                              26 Gare (A/R)
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {heroPreview === 'depth' && (
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-2xl bg-black/70 border border-[#ffff66]/30 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-black uppercase text-[#ffff66]">
-                            Copertura Organico • 13 Ruoli
-                          </span>
-                          <span className="text-[10px] font-bold text-white/60">
-                            Stagione 2026/27
-                          </span>
-                        </div>
-
-                        <div className="space-y-2.5 text-xs">
-                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#101010] border border-[#b1e605]/30">
-                            <span className="font-bold">
-                              <span className="text-[#b1e605] font-black mr-2">DC</span>
-                              Difensore Centrale
-                            </span>
-                            <span className="px-2 py-0.5 rounded-md bg-[#b1e605]/15 text-[#b1e605] font-black text-[10px]">
-                              4 Giocatori • Coperto
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#101010] border border-[#00d9ff]/30">
-                            <span className="font-bold">
-                              <span className="text-[#00d9ff] font-black mr-2">CDC</span>
-                              Mediano
-                            </span>
-                            <span className="px-2 py-0.5 rounded-md bg-[#00d9ff]/15 text-[#00d9ff] font-black text-[10px]">
-                              2 Giocatori • Ok
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#101010] border border-[#df3b77]/40">
-                            <span className="font-bold">
-                              <span className="text-[#df3b77] font-black mr-2">TS</span>
-                              Terzino Sinistro
-                            </span>
-                            <span className="px-2 py-0.5 rounded-md bg-[#df3b77]/15 text-[#df3b77] font-black text-[10px]">
-                              1 Solo • +2 Osservati Scout
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                {/* Unica float card piatta in basso a sinistra */}
+                <div className="ly-float">
+                  <div className="ly-float__row">
+                    <span className="ly-live">In diretta · 68&apos;</span>
+                    <span>+5&apos; recupero stimato</span>
+                  </div>
+                  <div className="ly-float__title">
+                    64&apos; Gol Greco (Ass. Bruno) · Minutaggio aggiornato
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ── 3. IL PROBLEMA VS LA SOLUZIONE ───────────────────────────────── */}
-        <section
-          id="problema"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-white/10"
-        >
-          <div className="text-center max-w-2xl mx-auto mb-12 space-y-3">
-            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#00d9ff]">
-              Basta caos pre-partita
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Prima di PitchMan vs Con PitchMan
-            </h2>
-            <p className="text-sm sm:text-base text-white/65">
-              Ogni settimana gli staff dilettantistici perdono oltre 2 ore in operazioni
-              ripetitive. Ecco come cambia il tuo workflow.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Prima */}
-            <div className="rounded-3xl bg-[#101010] border border-[#df3b77]/30 p-6 sm:p-8 space-y-5">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#df3b77]/15 text-[#df3b77] text-xs font-black uppercase">
-                <X className="h-4 w-4" />
-                <span>Gestione Tradizionale</span>
-              </div>
-              <ul className="space-y-4 text-sm text-white/75">
-                <li className="flex items-start gap-3">
-                  <X className="h-5 w-5 text-[#df3b77] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-white">Fogli Excel e note sparse:</strong>{' '}
-                    tabellini scritti su foglietti bagnati a bordo campo e persi a fine
-                    gara.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <X className="h-5 w-5 text-[#df3b77] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-white">Gruppi WhatsApp infiniti:</strong>{' '}
-                    allenamenti, assenze e formazioni sepolti tra centinaia di messaggi.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <X className="h-5 w-5 text-[#df3b77] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-white">Calcoli manuali infiniti:</strong>{' '}
-                    minutaggi sbagliati per via dei cambi nel recupero e zero visione su
-                    chi gioca meno.
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Dopo */}
-            <div className="rounded-3xl bg-[#101010] border border-[#b1e605]/40 p-6 sm:p-8 space-y-5 shadow-theme">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#b1e605]/15 text-[#b1e605] text-xs font-black uppercase">
-                <Check className="h-4 w-4" />
-                <span>Con PitchMan</span>
-              </div>
-              <ul className="space-y-4 text-sm text-white/85">
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-[#b1e605] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-white">Import AI in 10 secondi:</strong>{' '}
-                    fotografa la distinta o incolla il calendario e hai tutta la stagione
-                    pronta.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-[#b1e605] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-white">Cronaca live & minutaggi esatti:</strong>{' '}
-                    un tap per gol, cartellini e cambi con tempi di recupero calcolati in
-                    automatico.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-[#b1e605] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-white">Staff sincronizzato & offline:</strong>{' '}
-                    tutti condividono rosa, esercizi 2D, scouting e test atletici su
-                    qualsiasi dispositivo.
-                  </span>
-                </li>
-              </ul>
             </div>
           </div>
         </section>
 
-        {/* ── 4. SEZIONE TARGET (TABS PER PROFILO) ─────────────────────────── */}
-        <section
-          id="target"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-white/10"
-        >
-          <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#b1e605]">
-              Costruita per chi vive il campo
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Uno strumento su misura per ogni ruolo tecnico
-            </h2>
-          </div>
+        {/* ── 3. SCHERMO 2 · APP-FRAME (CABINA UNICA SETTIMANALE) ──────────── */}
+        <section id="cabina" className="ground-surface" aria-labelledby="cabina-h">
+          <div className="wrap">
+            <div className="grid grid--top mb-8">
+              <div className="span-5">
+                <h2 id="cabina-h">Tutta la settimana tecnica in una finestra.</h2>
+              </div>
+              <div className="span-6 start-7 space-y-4">
+                <p className="t-lead">
+                  Dalla distinta fotografata il lunedì ai minutaggi reali della domenica: ogni
+                  membro dello staff lavora sullo stesso archivio, senza file doppi.
+                </p>
+                <Link href={primaryHref} className="link">
+                  Prova con la tua rosa
+                </Link>
+              </div>
+            </div>
 
-          {/* Selettore Profili */}
-          <div className="flex flex-wrap justify-center gap-3 mb-10">
-            {TARGET_PROFILES.map((profile) => {
-              const Icon = profile.icon;
-              const isSelected = profile.id === activeTarget;
-              return (
-                <button
-                  key={profile.id}
-                  type="button"
-                  onClick={() => setActiveTarget(profile.id)}
-                  className={`flex items-center gap-2.5 px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all border ${
-                    isSelected
-                      ? 'bg-[#b1e605] text-black border-[#b1e605] shadow-theme'
-                      : 'bg-[#101010] text-white/70 border-white/15 hover:border-[#b1e605]/40 hover:text-white'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{profile.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Card Dettaglio Profilo */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={selectedTarget.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.22 }}
-              className="rounded-3xl bg-[#101010] border border-[#b1e605]/30 p-6 sm:p-10 shadow-theme"
+            {/* App Frame 5fr list + 7fr open inspector (cards.md / app-frame) */}
+            <div
+              className="ui-app fill"
+              role="region"
+              aria-label="Anteprima cabina gestionale settimanale PitchMan"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div className="lg:col-span-7 space-y-5">
-                  <span className="inline-block px-3 py-1 rounded-full bg-[#b1e605]/10 border border-[#b1e605]/30 text-[#b1e605] text-[11px] font-black uppercase tracking-widest">
-                    {selectedTarget.badge}
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-                    {selectedTarget.headline}
-                  </h3>
-                  <p className="text-sm sm:text-base text-white/70 leading-relaxed">
-                    {selectedTarget.description}
-                  </p>
-                  <ul className="space-y-3 pt-2">
-                    {selectedTarget.highlights.map((item) => (
-                      <li
-                        key={item}
-                        className="flex items-start gap-2.5 text-sm text-white/85"
-                      >
-                        <CheckCircle2 className="h-4 w-4 text-[#b1e605] shrink-0 mt-1" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+              {/* Pane sinistro: lista moduli settimana */}
+              <div className="ui-app__pane">
+                <div className="ui-head justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="ui-dots" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                    <span className="text-[13px] font-medium">Settimana 14 · Stagione 2026/27</span>
+                  </div>
+                  <span className="text-[12px] text-[#98a29a] font-mono">22 atleti</span>
                 </div>
 
-                <div className="lg:col-span-5 grid grid-cols-1 gap-4">
-                  {selectedTarget.metrics.map((metric) => (
-                    <div
-                      key={metric.label}
-                      className="p-5 rounded-2xl bg-black/70 border border-white/10 flex items-center justify-between"
+                <div className="flex-1 overflow-hidden">
+                  {CABIN_ROWS.map((row) => {
+                    const isSelected = row.id === activeCabin.id;
+                    return (
+                      <button
+                        key={row.id}
+                        type="button"
+                        onClick={() => {
+                          setCabinPaused(true);
+                          setActiveCabinId(row.id);
+                        }}
+                        className={`ui-row-btn${isSelected ? ' is-active' : ''}`}
+                      >
+                        <span className="text-[11px] font-mono text-[#98a29a] truncate">
+                          {row.area}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-medium text-[#f3f5f1] truncate">
+                            {row.title}
+                          </div>
+                          <div className="text-[12px] text-[#98a29a] truncate">{row.detail}</div>
+                        </div>
+                        <span
+                          className={`ui-chip ${isSelected ? 'ui-chip--accent' : ''}`}
+                        >
+                          {row.status}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pane destro: dettaglio operativo vivo della voce attiva */}
+              <div className="ui-app__pane p-5 justify-between">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+                    <div>
+                      <span className="text-[12px] font-mono text-[#b1e605]">{activeCabin.tag}</span>
+                      <h3 className="text-[20px] font-medium text-[#f3f5f1] mt-0.5">
+                        {activeCabin.title}
+                      </h3>
+                    </div>
+                    <span className="ui-chip ui-chip--accent">{activeCabin.status}</span>
+                  </div>
+
+                  <p className="text-[14px] text-[#98a29a] leading-relaxed">
+                    {activeCabin.detail} · Collegamento automatico tra calendario, registro
+                    presenze allenamento, copertura ruoli e statistiche stagionali.
+                  </p>
+
+                  {/* Scheda dinamica specifica del modulo selezionato */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="p-3.5 rounded-lg bg-[#1b201c] border border-white/10 space-y-2">
+                      <div className="text-[12px] text-[#98a29a]">Stato sincronizzazione</div>
+                      <div className="text-[15px] font-medium text-[#f3f5f1]">
+                        IndexedDB locale + Cloud Firestore
+                      </div>
+                      <div className="text-[12px] text-[#b1e605] font-mono">
+                        0 conflitti · codice S-48219
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-lg bg-[#1b201c] border border-white/10 space-y-2">
+                      <div className="text-[12px] text-[#98a29a]">Impatto su distinta e Best 11</div>
+                      <div className="text-[15px] font-medium text-[#f3f5f1]">
+                        Copertura 13 ruoli verificata
+                      </div>
+                      <div className="text-[12px] text-[#98a29a]">
+                        11 titolari + 7 in panchina pronti
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tabella sintetica collegata */}
+                  <div className="rounded-lg bg-[#1b201c] border border-white/10 overflow-hidden">
+                    <div className="grid grid-cols-4 px-3.5 py-2 border-b border-white/10 text-[12px] text-[#98a29a]">
+                      <span>Atleta</span>
+                      <span>Ruolo</span>
+                      <span>Presenze</span>
+                      <span className="text-right">Minuti</span>
+                    </div>
+                    {[
+                      { name: '1. Rossi M.', role: 'POR', att: '14/14', min: "1.260'" },
+                      { name: '4. Gallo L.', role: 'CDC · DC', att: '13/14', min: "1.148'" },
+                      { name: '8. Ricci F.', role: 'CD · TRQ', att: '14/14', min: "1.192'" },
+                      { name: '9. Greco A.', role: 'ATT · AD', att: '12/14', min: "1.034'" },
+                    ].map((pl) => (
+                      <div
+                        key={pl.name}
+                        className="grid grid-cols-4 px-3.5 py-2.5 border-b last:border-b-0 border-white/5 text-[13px] items-center"
+                      >
+                        <span className="font-medium text-[#f3f5f1] truncate">{pl.name}</span>
+                        <span className="font-mono text-[12px] text-[#b1e605]">{pl.role}</span>
+                        <span className="text-[#98a29a]">{pl.att}</span>
+                        <span className="text-right font-mono text-[#f3f5f1]">{pl.min}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pulsante pausa 32px obbligatorio per il ciclo automatico */}
+                <button
+                  type="button"
+                  className="loop-pause"
+                  aria-label={cabinPaused ? 'Riprendi ciclo anteprima' : 'Metti in pausa ciclo anteprima'}
+                  onClick={() => setCabinPaused((p) => !p)}
+                >
+                  {cabinPaused ? <Play size={13} /> : <Pause size={13} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 4. SCHERMI 3 E 4 · FEATURES 2X2 (.g2, 2 SCHERMI, 2 BOX DI PROFONDITÀ) ─── */}
+        <section id="moduli" className="g2 ground-base" aria-labelledby="moduli-h">
+          <div className="wrap">
+            {/* Schermo 3: Titolo sezione + Prime 2 card */}
+            <div className="group">
+              <div className="section-head">
+                <h2 id="moduli-h">
+                  Quattro strumenti per il campo.{' '}
+                  <span className="muted">Zero fogli sparsi tra spogliatoio e tribuna.</span>
+                </h2>
+              </div>
+
+              <div className="grid">
+                {/* Card 1: Smart Import OCR (unico loop nella griglia 2x2) */}
+                <article
+                  className="card card--row card--open m-nolift span-6"
+                  onMouseEnter={() => {
+                    if (!ocrPaused) setOcrLoopIndex((i) => (i + 1) % 3);
+                  }}
+                >
+                  <h3>Importa rosa e calendario da una foto</h3>
+                  <p>
+                    Carica una distinta federale o incolla il testo del girone: Gemini estrae nomi,
+                    ruoli primari e orari andata/ritorno in dieci secondi.
+                  </p>
+                  <div className="panel panel--sage">
+                    <div className="stage stage--fade-br">
+                      <div className="at-corner">
+                        <div className="ui-frag">
+                          <div className="ui-head justify-between">
+                            <span className="inline-flex items-center gap-2 font-medium">
+                              <Camera size={14} className="text-[#b1e605]" />
+                              Smart Import OCR
+                            </span>
+                            <span className="ui-chip ui-chip--accent">
+                              {ocrLoopIndex === 0
+                                ? 'Scansione foto'
+                                : ocrLoopIndex === 1
+                                ? '22 atleti mappati'
+                                : '26 gare salvate'}
+                            </span>
+                          </div>
+                          <div className="p-3.5 space-y-2">
+                            {[
+                              { k: '5. Neri Marco', r: 'DC / CDC', ok: true },
+                              { k: '8. Ricci Federico', r: 'CD / TRQ', ok: ocrLoopIndex >= 1 },
+                              { k: 'Giornata 14 · Dom 15:00', r: 'Casa vs Atletico Nord', ok: ocrLoopIndex >= 2 },
+                              { k: 'Giornata 15 · Dom 15:00', r: 'Trasf. @ Real Borgo', ok: ocrLoopIndex >= 2 },
+                            ].map((item) => (
+                              <div
+                                key={item.k}
+                                className="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-[#1b201c] border border-white/10 text-[13px]"
+                              >
+                                <span className="font-medium truncate">{item.k}</span>
+                                <span
+                                  className={`font-mono text-[12px] whitespace-nowrap ${
+                                    item.ok ? 'text-[#b1e605]' : 'text-[#98a29a]'
+                                  }`}
+                                >
+                                  {item.r}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="loop-pause"
+                      aria-label={ocrPaused ? 'Riprendi scansione demo' : 'Pausa scansione demo'}
+                      onClick={() => setOcrPaused((p) => !p)}
                     >
-                      <span className="text-xs font-bold uppercase tracking-wider text-white/60">
-                        {metric.label}
-                      </span>
-                      <span className="text-2xl sm:text-3xl font-black text-[#b1e605]">
-                        {metric.value}
+                      {ocrPaused ? <Play size={13} /> : <Pause size={13} />}
+                    </button>
+                  </div>
+                </article>
+
+                {/* Card 2: Lavagna 2D Konva + 3 Varianti AI (stato fermo + pausa animazione locale) */}
+                <article className="card card--row card--open m-nolift span-6">
+                  <h3>Disegna e anima esercizi su lavagna 2D</h3>
+                  <p>
+                    Ogni step prosegue dalle posizioni finali senza scatti. Genera tre progressioni
+                    AI da testo oppure digitalizza una lavagna fotografata.
+                  </p>
+                  <div className={`panel panel--sky${drillPaused ? ' pm-is-paused' : ''}`}>
+                    <div className="stage stage--fade-b">
+                      <div className="at-rise">
+                        <div className="ui-frag">
+                          <div className="ui-head justify-between">
+                            <span className="font-medium">Lavagna 2D · Rondo 4v2 + Scarico</span>
+                            <span className="ui-chip">Base · Prog. 1 · Prog. 2</span>
+                          </div>
+                          <div className="p-3.5">
+                            <div className="relative h-44 rounded-lg bg-[#0d1a11] border border-white/10 overflow-hidden">
+                              <svg
+                                className="w-full h-full"
+                                viewBox="0 0 300 176"
+                                preserveAspectRatio="xMidYMid meet"
+                                aria-hidden="true"
+                              >
+                                {/* Zona tattica centrata (contratto Drill centro -> Konva) */}
+                                <rect
+                                  x="66"
+                                  y="32"
+                                  width="168"
+                                  height="112"
+                                  rx="6"
+                                  fill="rgba(177, 230, 5, 0.1)"
+                                  stroke="rgba(177, 230, 5, 0.65)"
+                                  strokeWidth="1.2"
+                                  strokeDasharray="4 4"
+                                />
+                                {/* Traiettorie passaggio + smarcamento */}
+                                <line
+                                  x1="62"
+                                  y1="112"
+                                  x2="150"
+                                  y2="74"
+                                  stroke="rgba(255,255,255,0.45)"
+                                  strokeWidth="1.5"
+                                />
+                                <line
+                                  x1="150"
+                                  y1="74"
+                                  x2="226"
+                                  y2="112"
+                                  stroke="#b1e605"
+                                  strokeWidth="1.5"
+                                  strokeDasharray="4 4"
+                                />
+                                {/* Pedina 4 */}
+                                <g>
+                                  <circle cx="62" cy="112" r="12" fill="#38bdf8" />
+                                  <text
+                                    x="62"
+                                    y="116"
+                                    textAnchor="middle"
+                                    fill="#0a0d0b"
+                                    fontSize="11"
+                                    fontFamily="var(--font-mono)"
+                                    fontWeight="600"
+                                  >
+                                    4
+                                  </text>
+                                </g>
+                                {/* Pedina 8 in smarcamento */}
+                                <g className="pm-drill-runner">
+                                  <circle cx="150" cy="74" r="12" fill="#b1e605" />
+                                  <text
+                                    x="150"
+                                    y="78"
+                                    textAnchor="middle"
+                                    fill="#0a0d0b"
+                                    fontSize="11"
+                                    fontFamily="var(--font-mono)"
+                                    fontWeight="600"
+                                  >
+                                    8
+                                  </text>
+                                </g>
+                                {/* Pedina 9 */}
+                                <g>
+                                  <circle cx="226" cy="112" r="12" fill="#fb7185" />
+                                  <text
+                                    x="226"
+                                    y="116"
+                                    textAnchor="middle"
+                                    fill="#ffffff"
+                                    fontSize="11"
+                                    fontFamily="var(--font-mono)"
+                                    fontWeight="600"
+                                  >
+                                    9
+                                  </text>
+                                </g>
+                                {/* Pallone animato in continuita' */}
+                                <circle
+                                  cx="72"
+                                  cy="112"
+                                  r="5"
+                                  fill="#ffffff"
+                                  stroke="#0a0d0b"
+                                  strokeWidth="1.5"
+                                  className="pm-drill-ball"
+                                />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="loop-pause"
+                      aria-label={drillPaused ? 'Riprendi lavagna 2D' : 'Pausa lavagna 2D'}
+                      onClick={() => setDrillPaused((p) => !p)}
+                    >
+                      {drillPaused ? <Play size={13} /> : <Pause size={13} />}
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            {/* Schermo 4: Seconda coppia di card (Match Live + Depth Chart & Test) */}
+            <div className="group">
+              <div className="grid">
+                {/* Card 3: Match Timer & Eventi Live */}
+                <article className="card card--row card--open m-nolift span-6">
+                  <h3>Registra gol, cambi e recupero dal vivo</h3>
+                  <p>
+                    Il cronometro flottante calcola i minuti giocati reali inclusi i minuti di
+                    recupero ed esporta la distinta in PNG ad alta risoluzione.
+                  </p>
+                  <div className="panel panel--sand">
+                    <div className="stage stage--fade-br">
+                      <div className="at-corner">
+                        <div className="ui-frag">
+                          <div className="ui-head justify-between">
+                            <span className="inline-flex items-center gap-2 font-medium">
+                              <Clock size={14} className="text-[#b1e605]" />
+                              Cronometro & Eventi
+                            </span>
+                            <span className="font-mono text-[13px] text-[#b1e605]">68:14</span>
+                          </div>
+                          <div className="p-3.5 space-y-2">
+                            <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1b201c] border border-white/10">
+                              <span className="font-medium">64&apos; Gol · Greco A.</span>
+                              <span className="text-[12px] text-[#98a29a]">Assist Bruno L.</span>
+                            </div>
+                            <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1b201c] border border-white/10">
+                              <span className="font-medium">71&apos; Sostituzione</span>
+                              <span className="text-[12px] text-[#b1e605]">Out Mori · In Sala</span>
+                            </div>
+                            <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1b201c] border border-white/10">
+                              <span className="inline-flex items-center gap-1.5 text-[#98a29a]">
+                                <Share2 size={13} /> Distinta finale pronta
+                              </span>
+                              <span className="text-[12px] font-mono text-[#f3f5f1]">
+                                Recupero +3&apos; / +5&apos;
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                {/* Card 4: Copertura 13 ruoli + Confronto & Test Atletici */}
+                <article className="card card--row card--open m-nolift span-6">
+                  <h3>Controlla i 13 ruoli e i delta atletici</h3>
+                  <p>
+                    Individua i reparti scoperti con l’archivio Scouting integrato e misura i delta
+                    di Sprint, Yo-Yo, Cooper e CMJ per singolo atleta.
+                  </p>
+                  <div className="panel panel--sage">
+                    <div className="stage stage--fade-b">
+                      <div className="at-rise">
+                        <div className="ui-frag">
+                          <div className="ui-head justify-between">
+                            <span className="inline-flex items-center gap-2 font-medium">
+                              <Layers size={14} className="text-[#b1e605]" />
+                              Depth Chart · Test Fisici
+                            </span>
+                            <span className="text-[12px] font-mono text-[#98a29a]">13 ruoli</span>
+                          </div>
+                          <div className="p-3.5 space-y-2">
+                            <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1b201c] border border-white/10">
+                              <span>
+                                <strong className="font-mono text-[#b1e605] mr-2">DC</strong>
+                                Difensore Centrale
+                              </span>
+                              <span className="text-[12px] font-mono">4 in rosa</span>
+                            </div>
+                            <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1b201c] border border-white/10">
+                              <span>
+                                <strong className="font-mono text-[#fb7185] mr-2">TS</strong>
+                                Terzino Sinistro
+                              </span>
+                              <span className="text-[12px] font-mono text-[#b1e605]">
+                                1 + 2 scout
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1b201c] border border-white/10">
+                              <span className="inline-flex items-center gap-1.5">
+                                <TrendingUp size={13} className="text-[#b1e605]" />
+                                Sprint 30m · Greco
+                              </span>
+                              <span className="text-[12px] font-mono text-[#b1e605]">
+                                4.04 s (−0.12 s)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 5. SCHERMO 5 · DEALT MOMENT (WORD-HIGHLIGHT) + ARCHITETTURA 3 CORSIE ─── */}
+        <section
+          id="metodo"
+          className="ground-surface"
+          data-moment="word-highlight"
+          aria-labelledby="metodo-h"
+        >
+          <div className="wrap justify-between gap-8">
+            <div className="space-y-4">
+              <h2 id="metodo-h" className="t-label muted">
+                Architettura a dato unico
+              </h2>
+              <p ref={momentRef} className="mo-wh__text">
+                {statementWords.map((word, idx) => {
+                  const clean = word.replace(/[.,]/g, '').toLowerCase();
+                  const isAccentWord =
+                    clean === 'minutaggio' || clean === 'ai' || clean === 'direttore';
+                  const isOn = idx < highlightCount;
+                  return (
+                    <React.Fragment key={`${idx}-${word}`}>
+                      <span
+                        className={`mo-wh__w${isAccentWord ? ' is-accent' : ''}${
+                          isOn ? ' is-on' : ''
+                        }`}
+                      >
+                        {word}
+                      </span>{' '}
+                    </React.Fragment>
+                  );
+                })}
+              </p>
+            </div>
+
+            {/* Diagramma a 3 corsie parallele: 1 input -> Core Offline+Cloud -> 3 ruoli */}
+            <div className="dg-card" aria-label="Flusso dati tra campo, archivio locale e staff">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                <span className="t-card">Un inserimento aggiorna tutto lo staff</span>
+                <span className="inline-flex items-center gap-2 t-small muted">
+                  <WifiOff size={15} />
+                  Coda offline IndexedDB con sync automatico
+                </span>
+              </div>
+
+              <div className="dg-grid">
+                <div className={`dg-node${laneIndex === 0 ? ' is-lit' : ''}`}>
+                  <div className="t-label muted mb-1">1. Acquisizione</div>
+                  <div className="font-medium text-[16px]">Campo & Foto OCR</div>
+                  <div className="t-small muted mt-1">Timer live · Lavagna 2D · Distinte</div>
+                </div>
+
+                <svg
+                  className="dg-connector w-8 h-6 text-[var(--accent)] mx-auto"
+                  viewBox="0 0 32 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2 12h24m-5-5 5 5-5 5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+
+                <div className="dg-node is-core">
+                  <div className="text-[13px] opacity-75 mb-1">2. Motore centrale</div>
+                  <div className="font-medium text-[17px]">PitchMan Sync Core</div>
+                  <div className="text-[13px] opacity-80 mt-1">
+                    Minutaggi, 13 ruoli e stagioni in coda sicura
+                  </div>
+                </div>
+
+                <svg
+                  className="dg-connector w-8 h-6 text-[var(--accent)] mx-auto"
+                  viewBox="0 0 32 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2 12h24m-5-5 5 5-5 5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+
+                <div className="grid gap-2.5">
+                  {[
+                    { title: 'Mister · Best 11 & Formazioni', sub: 'Copertura 7 moduli aggiornata' },
+                    { title: 'Direttore · Vista Club & Scout', sub: 'Report aggregati fino a 5 team' },
+                    { title: 'Preparatore · Test & Sedute 2D', sub: 'Delta Sprint, Yo-Yo e appello' },
+                  ].map((lane, idx) => (
+                    <div
+                      key={lane.title}
+                      className={`dg-node py-2.5 px-3.5${laneIndex === idx ? ' is-lit' : ''}`}
+                    >
+                      <div className="font-medium text-[15px]">{lane.title}</div>
+                      <div className="text-[13px] muted">{lane.sub}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="loop-pause"
+                aria-label={lanesPaused ? 'Riprendi diagramma flusso' : 'Pausa diagramma flusso'}
+                onClick={() => setLanesPaused((p) => !p)}
+              >
+                {lanesPaused ? <Play size={13} /> : <Pause size={13} />}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 6. SCHERMO 6 · DARK BAND: TABS-TOUR PER RUOLO STAFF ──────────── */}
+        <section id="ruoli" className="ground-inverse" aria-labelledby="ruoli-h">
+          <div className="wrap">
+            <div className="grid grid--top fill items-stretch gap-y-8">
+              <div className="span-5 flex flex-col justify-between gap-6">
+                <div className="space-y-5">
+                  <h2 id="ruoli-h">
+                    Un accesso per ogni ruolo.{' '}
+                    <span className="muted">Condividi la stagione con codice S-XXXXX.</span>
+                  </h2>
+
+                  <div className="tabs" role="tablist" aria-label="Viste per ruolo tecnico">
+                    {ROLE_TOURS.map((role) => {
+                      const selected = role.id === currentRoleTour.id;
+                      return (
+                        <button
+                          key={role.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={selected}
+                          aria-controls={`panel-${role.id}`}
+                          onClick={() => setActiveRole(role.id)}
+                          className="tab"
+                        >
+                          {role.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div
+                  id={`panel-${currentRoleTour.id}`}
+                  role="tabpanel"
+                  className="space-y-4 pt-2"
+                >
+                  <h3 className="text-[22px] font-medium text-[#f3f5f1]">
+                    {currentRoleTour.headline}
+                  </h3>
+                  <p className="text-[16px] text-[#98a29a] leading-relaxed">
+                    {currentRoleTour.summary}
+                  </p>
+                  <div className="pt-2">
+                    <Link href={primaryHref} className="link">
+                      {currentRoleTour.hrefLabel}
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* Schermata fissa a destra che cambia solo su click */}
+              <div className="span-6 start-7 frame--split flex flex-col justify-between gap-5">
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
+                  <span className="inline-flex items-center gap-2 text-[14px] font-medium text-[#f3f5f1]">
+                    {currentRoleTour.id === 'coach' && <Bot size={16} className="text-[#b1e605]" />}
+                    {currentRoleTour.id === 'director' && (
+                      <Shield size={16} className="text-[#b1e605]" />
+                    )}
+                    {currentRoleTour.id === 'trainer' && (
+                      <Activity size={16} className="text-[#b1e605]" />
+                    )}
+                    {currentRoleTour.label}
+                  </span>
+                  <span className="text-[12px] font-mono text-[#b1e605]">Stagione attiva</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {currentRoleTour.metrics.map((m) => (
+                    <div
+                      key={m.label}
+                      className="p-3.5 rounded-xl bg-[#0a0d0b] border border-white/10 space-y-1"
+                    >
+                      <div className="text-[20px] font-medium font-mono text-[#b1e605]">
+                        {m.value}
+                      </div>
+                      <div className="text-[13px] text-[#98a29a]">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2.5 flex-1">
+                  {currentRoleTour.rows.map((item) => (
+                    <div
+                      key={item.title}
+                      className="flex flex-wrap items-center justify-between gap-2 p-3.5 rounded-xl bg-[#0a0d0b] border border-white/10"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-medium text-[#f3f5f1]">{item.title}</div>
+                        <div className="text-[13px] text-[#98a29a]">{item.meta}</div>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#b1e605]/15 text-[#b1e605] text-[12px] font-mono">
+                        <Check size={12} />
+                        {item.status}
                       </span>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 7. SCHERMO 7 · PIANI TRASPARENTI (PRICING-THREE) ──────────────── */}
+        <section id="piani" className="ground-base" aria-labelledby="piani-h">
+          <div className="wrap">
+            <div className="section-head">
+              <h2 id="piani-h">
+                Piani per allenatori e società.{' '}
+                <span className="muted">Accesso completo gratuito durante la fase MVP.</span>
+              </h2>
+            </div>
+
+            <div className="grid grid--top fill items-stretch">
+              {PLANS.map((plan) => (
+                <article
+                  key={plan.id}
+                  className={`card--plan span-4${plan.featured ? ' is-featured' : ''}`}
+                >
+                  <div className="plan__head">
+                    <h3 className="text-[18px] font-medium">{plan.name}</h3>
+                    {plan.badge && <span className="badge">{plan.badge}</span>}
+                  </div>
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="t-stat">{plan.price}</span>
+                    <span className="t-small muted">{plan.period}</span>
+                  </div>
+
+                  <p className="t-body min-h-[3lh]">{plan.audience}</p>
+
                   <Link
                     href={primaryHref}
-                    className="mt-2 w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-[#b1e605] text-black font-black text-xs uppercase tracking-wider hover:brightness-110 transition-all"
+                    className={`btn w-full ${
+                      plan.featured
+                        ? 'btn--primary'
+                        : 'border border-[var(--line-strong)] bg-[var(--bg)] text-[var(--ink)] hover:border-[var(--ink)]'
+                    }`}
                   >
-                    <span>Provalo per il tuo team</span>
-                    <ChevronRight className="h-4 w-4" />
+                    <span>{isAuthenticated ? 'Apri la dashboard' : plan.cta}</span>
+                    {plan.featured && <AnimatedArrow />}
                   </Link>
+
+                  <ul className="checks">
+                    {plan.features.map((feat) => (
+                      <li key={feat}>{feat}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── 8. SCHERMO 8 · DOMANDE FREQUENTI (TUTTE APERTE, ZERO ACCORDION) ── */}
+        <section id="domande" className="ground-surface" aria-labelledby="domande-h">
+          <div className="wrap">
+            <div className="grid grid--top gap-y-8">
+              <div className="span-5 space-y-5">
+                <h2 id="domande-h">Domande frequenti</h2>
+                <p className="t-lead muted">
+                  Dettagli tecnici su accesso MVP, funzionamento offline, importazione AI e limiti
+                  attuali della piattaforma.
+                </p>
+                <div className="pt-2">
+                  <a href="mailto:losviluppatore@hotmail.com" className="link">
+                    Scrivi al supporto tecnico
+                  </a>
                 </div>
               </div>
-            </motion.div>
-          </AnimatePresence>
-        </section>
 
-        {/* ── 5. BENTO GRID APPROFONDITA DELLE 8 FUNZIONALITÀ ────────────── */}
-        <section
-          id="funzionalita"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-white/10"
-        >
-          <div className="text-center max-w-2xl mx-auto mb-12 space-y-3">
-            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffff66]">
-              Suite Completa
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Tutte le funzionalità di PitchMan nei dettagli
-            </h2>
-            <p className="text-sm sm:text-base text-white/65">
-              Ogni modulo è stato progettato direttamente sulle esigenze reali del campo,
-              dalla pianificazione settimanale all’analisi statistica di fine stagione.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {BENTO_FEATURES.map((feat) => {
-              const Icon = feat.icon;
-              const styles = getAccentClasses(feat.accent);
-              return (
-                <div
-                  key={feat.id}
-                  className={`rounded-3xl bg-[#101010] border border-white/10 ${styles.borderHover} p-6 sm:p-7 flex flex-col justify-between transition-all ${feat.span ?? ''}`}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div
-                        className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${styles.iconBox}`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <span
-                        className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${styles.badge}`}
-                      >
-                        {feat.badge}
-                      </span>
-                    </div>
-
-                    <h3 className="text-xl font-black text-white tracking-tight">
-                      {feat.title}
-                    </h3>
-                    <p className="text-sm text-white/65 leading-relaxed">
-                      {feat.description}
-                    </p>
+              <div className="span-6 start-7 faq">
+                {FAQ_LIST.map((item) => (
+                  <div key={item.id} className="faq__item">
+                    <h3>{item.q}</h3>
+                    <p>{item.a}</p>
                   </div>
-
-                  <ul className="space-y-2 pt-5 mt-5 border-t border-white/10 text-xs text-white/80">
-                    {feat.bullets.map((bullet) => (
-                      <li key={bullet} className="flex items-start gap-2">
-                        <Check className="h-3.5 w-3.5 text-[#b1e605] shrink-0 mt-0.5" />
-                        <span>{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            </div>
           </div>
         </section>
+      </main>
 
-        {/* ── 6. PIANI & ACCESSO (FREEMIUM / MVP GRATUITO) ─────────────────── */}
-        <section
-          id="piani"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-white/10"
-        >
-          <div className="text-center max-w-2xl mx-auto mb-12 space-y-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#b1e605]/15 border border-[#b1e605]/30 text-[#b1e605] text-[11px] font-black uppercase tracking-widest">
-              <Crown className="h-3.5 w-3.5" />
-              <span>Accesso Completo Gratuito in Fase MVP</span>
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Piani trasparenti per ogni livello di squadra
-            </h2>
-            <p className="text-sm sm:text-base text-white/65">
-              Registrati oggi senza carta di credito e sfrutta da subito le funzioni
-              avanzate durante il rilascio MVP pubblico.
-            </p>
+      {/* ── 9. SCHERMO 9 · CHIUSURA UNIFICATA E FOOTER SCURO ────────────────── */}
+      <footer id="contact" className="footer closing footer--dark ground-inverse">
+        <div className="wrap">
+          <div className="closing__cta close--type">
+            <div className="section-head" style={{ marginBottom: 0 }}>
+              <h2>Prepara la prossima giornata in dieci minuti</h2>
+              <p className="t-lead muted">
+                Attiva il tuo account gratuito in fase MVP. Nessuna carta richiesta.
+              </p>
+            </div>
+
+            <Link
+              ref={closeCtaRef}
+              href={primaryHref}
+              className="btn btn--primary btn--xl btn--wide"
+            >
+              <span>{primaryLabel}</span>
+              <AnimatedArrow />
+            </Link>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-            {PRICING_TIERS.map((tier) => (
-              <div
-                key={tier.id}
-                className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between ${
-                  tier.highlighted
-                    ? 'bg-[#101010] border-neon-gradient shadow-theme-strong'
-                    : 'bg-[#101010] border border-white/15'
-                }`}
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-xl font-black uppercase tracking-tight text-white">
-                      {tier.name}
-                    </h3>
-                    {tier.mvpBadge && (
-                      <span className="px-2.5 py-1 rounded-full bg-[#b1e605]/15 border border-[#b1e605]/40 text-[#b1e605] text-[10px] font-black uppercase">
-                        {tier.mvpBadge}
-                      </span>
-                    )}
-                  </div>
+          <div className="closing__links">
+            <div className="grid">
+              <div className="span-4 space-y-3">
+                <a className="nav__logo" href="#top">
+                  <PitchManMark size={24} />
+                  <span>PitchMan</span>
+                </a>
+                <p className="t-lead muted max-w-[28ch]">
+                  Software tattico e gestionale per allenatori, preparatori e direttori sportivi.
+                </p>
+              </div>
 
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-4xl font-black text-white">{tier.price}</span>
-                    <span className="text-xs font-bold text-white/50">{tier.period}</span>
-                  </div>
+              <div className="span-2 footer__col">
+                <h3>Cabina</h3>
+                <ul>
+                  <li>
+                    <a href="#cabina">Settimana</a>
+                  </li>
+                  <li>
+                    <a href="#moduli">Importazione OCR</a>
+                  </li>
+                  <li>
+                    <a href="#moduli">Lavagna 2D</a>
+                  </li>
+                </ul>
+              </div>
 
-                  <p className="text-xs sm:text-sm text-white/65 leading-relaxed">
-                    {tier.subtitle}
-                  </p>
+              <div className="span-2 footer__col">
+                <h3>Campo</h3>
+                <ul>
+                  <li>
+                    <a href="#moduli">Cronometro live</a>
+                  </li>
+                  <li>
+                    <a href="#moduli">13 ruoli</a>
+                  </li>
+                  <li>
+                    <a href="#metodo">Architettura</a>
+                  </li>
+                </ul>
+              </div>
 
-                  <ul className="space-y-3 pt-4 border-t border-white/10 text-sm text-white/85">
-                    {tier.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2.5">
-                        <CheckCircle2 className="h-4 w-4 text-[#b1e605] shrink-0 mt-0.5" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="span-2 footer__col">
+                <h3>Staff</h3>
+                <ul>
+                  <li>
+                    <a href="#ruoli">Mister</a>
+                  </li>
+                  <li>
+                    <a href="#ruoli">Direttore</a>
+                  </li>
+                  <li>
+                    <a href="#ruoli">Preparatore</a>
+                  </li>
+                </ul>
+              </div>
 
-                <Link
-                  href={primaryHref}
-                  className={`mt-8 w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${
-                    tier.highlighted
-                      ? 'bg-[#b1e605] text-black shadow-theme hover:brightness-110'
-                      : 'bg-black/70 text-white border border-white/20 hover:border-[#b1e605]/60'
-                  }`}
-                >
-                  <span>{isAuthenticated ? 'Apri App' : tier.ctaLabel}</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
+              <div className="span-2 footer__col">
+                <h3>Accesso</h3>
+                <ul>
+                  <li>
+                    <a href="#piani">Piani MVP</a>
+                  </li>
+                  <li>
+                    <a href="#domande">Domande</a>
+                  </li>
+                  <li>
+                    <Link href={primaryHref}>
+                      {isAuthenticated ? 'Dashboard' : 'Accedi'}
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="footer__legal">
+              <span>
+                © {new Date().getFullYear()} PitchMan ·{' '}
+                <Link href="/privacy" className="underline underline-offset-4">
+                  Privacy
+                </Link>{' '}
+                ·{' '}
+                <Link href="/termini" className="underline underline-offset-4">
+                  Termini
                 </Link>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── 7. FAQ INTERATTIVA ────────────────────────────────────────────── */}
-        <section
-          id="faq"
-          className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-white/10"
-        >
-          <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#00d9ff]">
-              Domande Frequenti
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Tutto quello che devi sapere
-            </h2>
-          </div>
-
-          <Accordion type="single" collapsible className="space-y-3">
-            {FAQ_ITEMS.map((item) => (
-              <AccordionItem
-                key={item.id}
-                value={item.id}
-                className="rounded-2xl bg-[#101010] border border-white/10 px-5 data-[state=open]:border-[#b1e605]/40 transition-colors"
-              >
-                <AccordionTrigger className="text-left text-sm sm:text-base font-bold text-white hover:no-underline hover:text-[#b1e605] py-5">
-                  {item.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-xs sm:text-sm text-white/70 leading-relaxed pb-5">
-                  {item.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </section>
-
-        {/* ── 8. CTA FINALE & FOOTER ────────────────────────────────────────── */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 pt-6">
-          <div className="rounded-3xl border-neon-gradient bg-[#101010] p-8 sm:p-14 text-center space-y-6 shadow-theme-bright">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#b1e605]/15 text-[#b1e605] text-xs font-black uppercase tracking-wider">
-              <Flame className="h-4 w-4" />
-              <span>Pronto per la prossima partita?</span>
-            </div>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white max-w-3xl mx-auto leading-tight">
-              Porta la gestione della tua squadra al livello successivo.
-            </h2>
-            <p className="text-sm sm:text-base text-white/70 max-w-xl mx-auto">
-              Crea il tuo account in 30 secondi, importa la rosa con l’AI e gestisci
-              allenamenti, formazioni e statistiche da qualsiasi dispositivo.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-              <Link
-                href={primaryHref}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-[#b1e605] text-black font-black text-sm uppercase tracking-wider shadow-theme-strong hover:brightness-110 transition-all"
-              >
-                <span>
-                  {isAuthenticated
-                    ? 'Torna alla Dashboard'
-                    : 'Crea il tuo Account Gratuito'}
-                </span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/privacy"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-black/70 border border-white/15 hover:border-white/40 text-white/80 font-bold text-xs uppercase tracking-wider transition-all"
-              >
-                <Shield className="h-4 w-4 text-[#00d9ff]" />
-                <span>Sicurezza & GDPR</span>
-              </Link>
+              </span>
+              <span>
+                Supporto:{' '}
+                <a
+                  href="mailto:losviluppatore@hotmail.com"
+                  className="underline underline-offset-4"
+                >
+                  losviluppatore@hotmail.com
+                </a>
+              </span>
             </div>
           </div>
-        </section>
+        </div>
+      </footer>
 
-        <footer className="border-t border-white/10 bg-[#050505]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/50">
-            <div className="flex items-center gap-2.5">
-              <img
-                src="/favicon-16x16.png"
-                alt="PitchMan"
-                className="h-5 w-5 object-contain"
-              />
-              <span className="font-bold text-white/80">PitchMan Tactical Manager</span>
-              <span>&bull; © {new Date().getFullYear()}</span>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-5 font-bold">
-              <Link href={primaryHref} className="hover:text-[#b1e605] transition-colors">
-                {isAuthenticated ? 'Dashboard' : 'Accedi / Registrati'}
-              </Link>
-              <Link href="/privacy" className="hover:text-[#b1e605] transition-colors">
-                Privacy Policy
-              </Link>
-              <Link href="/termini" className="hover:text-[#b1e605] transition-colors">
-                Termini di Servizio
-              </Link>
-              <a
-                href="mailto:losviluppatore@hotmail.com"
-                className="hover:text-[#b1e605] transition-colors"
-              >
-                Contatti
-              </a>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </div>
+      {/* ── BARRA AZIONE MOBILE FUORI DAL PRIMO SCHERMO ───────────────────────── */}
+      <nav
+        className={`actionbar${showActionBar ? '' : ' is-hidden'}`}
+        aria-label="Azione rapida mobile"
+      >
+        <Link href={primaryHref} className="btn btn--primary">
+          <span>{primaryLabel}</span>
+          <AnimatedArrow />
+        </Link>
+      </nav>
+    </>
   );
 }
